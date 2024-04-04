@@ -1,0 +1,202 @@
+# the spectral analysis object
+
+# torch things
+import torch
+from torch import nn
+import torch.utils.data.dataset
+import torchvision.transforms as transforms
+import torch.optim as optim
+import torchvision.datasets as datasets
+
+# basics
+import numpy as np
+from matplotlib import pyplot as plt
+
+# other packages/files
+import neural_network as nn_mod
+import train_network
+import effective_dimensions as eff_dim
+import plotting_networks as plotter
+import alignment as align
+
+class spectrum_analysis:
+
+    def __init__(self, n_neurons, vary=None, n_class=10, input_size=32*32*3):
+        # create the associated model
+        self.model = nn_mod.Neural_Network(n_neurons, num_classes=n_class, input_size=input_size)
+        self.n_neurons = n_neurons
+        self.n_layers = len(n_neurons)
+        self.n_class = n_class
+        self.input_size = input_size
+        self.layer_dims = list(zip([input_size] + n_neurons, n_neurons + [n_class]))
+
+        # if the variance is set, we initialize a neural network with that variance
+        if vary:
+            weight_init_vary = nn_mod.create_weights_function(vary)
+            self.model.apply(weight_init_vary)
+            self.var = [vary] * len(n_neurons)
+        else:
+            self.var = np.divide(np.ones(len(n_neurons)), [i**2 for i in n_neurons])
+
+        # all the rest of the features
+        # set during training
+        self.n_epochs = None
+        self.epoch_history = None
+        self.val_history = None
+        self.train_history = None
+        self.spectrum_history = None
+        self.weights = None
+
+        self.train_loader = None
+
+        # set with effective dimensions
+        self.normed_spectra = None
+        self.adj_init_spectra = None
+        self.rank_cutoffs = None
+        self.effective_dimensions = None
+
+        # activations
+        self.activation_covs = None
+        self.activation_spectrum = None
+
+        # weights
+        self.weight_covs = None
+        self.weight_spectrum = None
+
+    def get_spectrum(self):
+        shh = []
+        vvh = []
+        cvh = []
+        spectrum_history, _, _ = train_network.update_spectrum(self.model, shh, vvh, cvh)
+        return spectrum_history
+
+    def get_weights(self):
+        weight_list = []
+        for layer in self.model.layers:
+            weight_list.append(layer.weight.numpy(force=True))
+
+        self.weights = weight_list
+        return weight_list
+
+    def get_weight_covs(self):
+        _ = self.get_weights()
+
+        cov_layers = []
+        for i in range(len(self.weights)-1):
+            # print(i)
+            lay_weights = self.weights[i]
+            lay_neur = self.n_neurons[i]
+            cov = lay_weights @ lay_weights.transpose() * (1/lay_neur)
+            cov_layers.append(cov)
+
+        self.weight_covs = cov_layers
+        return cov_layers
+
+    def get_weight_spectrum(self):
+        self.get_weight_covs()
+        weight_spec = []
+        for cov in self.weight_covs:
+            vals, vecs = np.linalg.eigh(cov)
+            vals, vecs = np.flip(vals), np.flip(vecs)
+            weight_spec.append(vals)
+        self.weight_spectrum = weight_spec
+        return
+
+
+    def get_activation_covs(self, dataloader, layers):
+        act_cov_layers = align.compute_activation_covariances(dataloader, layers, self.model)
+        self.activation_covs = act_cov_layers
+        return act_cov_layers
+
+    def get_activation_spectrum(self):
+        if self.activation_covs is None:
+            self.get_activation_covs(self.train_loader, range(1, self.n_layers))
+
+        act_spectra = []
+        for cov in self.activation_covs:
+            cov = cov.detach().numpy()
+            vals, vecs = np.linalg.eigh(cov)
+            # reverse and transpose
+            vals, vecs = torch.from_numpy(vals).flip(-1), torch.from_numpy(vecs).flip(-1)
+            # vecs = vecs.T
+            act_spectra.append(vals.detach().numpy())
+
+        self.activation_spectrum = act_spectra
+        return act_spectra
+
+    def train(self, train_loader, val_loader, n_epochs, grain=5, ep_grain=2):
+        self.train_loader = train_loader
+        e_list, val_hist, train_hist, spec_hist = train_network.train_model(self.model, train_loader, val_loader,
+                                                                            n_epochs, grain=grain, ep_grain=ep_grain)
+
+        # setting the appropriate features
+        self.n_epochs = n_epochs
+        # setting the appropriate features
+        self.epoch_history = e_list
+        self.val_history = val_hist
+        self.train_history = train_hist
+
+        # reshaping the spectrum history
+        # this makes it so that each entry is a layer, and each entry in the layer is the spectrum corresponding to an
+        # epoch checkpoint that happened
+        spectra_lay = []
+        for i in range(len(self.n_neurons)):
+            layer = [hist[i] for hist in spec_hist]
+            spectra_lay.append(layer)
+        self.spectrum_history = spectra_lay
+
+        self.get_weights() # setting the weights
+        print(f'Model training complete!')
+
+    def get_effective_dimensions(self, tail_match='mp', rankslist=None, scale='log'):
+        """
+        :param tail_match: string either 'mp' or 'rankspace'
+        :return:
+        """
+        if not (tail_match == 'mp' or tail_match == 'rankspace'):
+            raise Exception('invalid tail match regime. please enter either "mp" for marchenko-pastur or "rankspace" '
+                            'to use the corresponding rank selection regime')
+        # force-matching the tails
+        diffed_specs, new_init_specs, rank_bound_list = eff_dim.match_spectrum_tails_regime(self, tail_match=tail_match,
+                                                                                            rankslist=rankslist,
+                                                                                            spacescale=scale)
+
+        # setting the features
+        self.normed_spectra = diffed_specs
+        self.adj_init_spectra = new_init_specs
+        self.rank_cutoffs = rank_bound_list
+
+        # getting the effective dimensionality
+        effective_dimensions = eff_dim.effective_dimensionality(self)
+
+        self.effective_dimensions = effective_dimensions
+
+        print(f'Effective dimensions calculated')
+
+    def plot(self, plotlist=['rel'], scale='log', layer=None, quantity=None, save_fig=False, xmax=None):
+        """
+
+        :param plotlist: list of plots to create. Options are 'rel_eds', 'spec', 'rel', and 'acc'
+        :param scale:
+        :param layer:
+        :param quantity:
+        :param save_fig:
+        :param xmax:
+        :return:
+        """
+        if 'rel_eds' in plotlist:
+            plotter.plot_relative_spectrum_history_eds(self, scale=scale, save_fig=save_fig, xmax=xmax)
+
+        if 'spec' in plotlist:
+            plotter.plot_spectrum(self, scale=scale, save_fig=save_fig)
+
+        if 'rel' in plotlist:
+            plotter.plot_spectrum_normed(self, scale=scale, save_fig=save_fig, xmax=xmax)
+
+        if 'acc' in plotlist:
+            plotter.plot_accuracy(self, save_fig=save_fig)
+
+        if 'spec_sing' in plotlist:
+            plotter.plot_spectrum_single(self, quantity, layer, scale=scale, save_fig=save_fig)
+
+        return
