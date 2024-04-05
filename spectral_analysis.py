@@ -87,7 +87,7 @@ class spectrum_analysis:
             lay_weights = self.weights[i]
             lay_neur = self.n_neurons[i]
             cov = lay_weights @ lay_weights.transpose() * (1/lay_neur)
-            cov_layers.append(cov)
+            cov_layers.append(torch.from_numpy(cov))
 
         self.weight_covs = cov_layers
         return cov_layers
@@ -96,30 +96,30 @@ class spectrum_analysis:
         self.get_weight_covs()
         weight_spec = []
         for cov in self.weight_covs:
-            vals, vecs = np.linalg.eigh(cov)
-            vals, vecs = np.flip(vals), np.flip(vecs)
+            vals, vecs = torch.linalg.eigh(cov)
+            vals, vecs = vals.flip(-1), vecs.flip(-1)
             weight_spec.append(vals)
         self.weight_spectrum = weight_spec
         return
 
-
     def get_activation_covs(self, dataloader, layers):
         act_cov_layers = align.compute_activation_covariances(dataloader, layers, self.model)
-        self.activation_covs = act_cov_layers
+        #act_cov_layers = [cov.detach().numpy() for cov in act_cov_layers]
+        self.activation_covs = act_cov_layers#.copy()
         return act_cov_layers
 
     def get_activation_spectrum(self):
         if self.activation_covs is None:
-            self.get_activation_covs(self.train_loader, range(1, self.n_layers))
+            self.get_activation_covs(self.train_loader, range(1, self.n_layers+1))
 
         act_spectra = []
         for cov in self.activation_covs:
-            cov = cov.detach().numpy()
-            vals, vecs = np.linalg.eigh(cov)
+            vals, vecs = torch.linalg.eigh(cov)
             # reverse and transpose
-            vals, vecs = torch.from_numpy(vals).flip(-1), torch.from_numpy(vecs).flip(-1)
+            #vals, vecs = np.flip(vals), np.flip(vecs)
+            vals, vecs = vals.flip(-1), vecs.flip(-1)
             # vecs = vecs.T
-            act_spectra.append(vals.detach().numpy())
+            act_spectra.append(vals)
 
         self.activation_spectrum = act_spectra
         return act_spectra

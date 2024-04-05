@@ -374,24 +374,25 @@ def plot_cossim_mat(mat1, mat2, names=None, clip=50):
 def truncate_mat(clip, vals, vecs1, vecs2h=None):
     '''
 
-    :param clip: the rank to clip to
-    :param vals: either the eigenvalues or the singular values of the matrix
-    :param vecs1: the left singular vectors or the eigenvectors of the matrix
-    :param vecs2h: the right singular vectors of the matrix. If none, these will be set to the eigenvectors transposed
-    :return: the truncated matrix (rank clip approximation)
+    :param clip: int            the rank to clip to
+    :param vals: torch.tensor   either the eigenvalues or the singular values of the matrix
+    :param vecs1: torch.tensor  the left singular vectors or the eigenvectors of the matrix
+    :param vecs2h: torch.tensor the right singular vectors of the matrix. If none, these will be set to the eigenvectors
+                                transposed
+    :return: new_mat: torch.tensor       the truncated matrix (rank clip approximation)
     '''
     # clipping the vals
     # new_vals = [vals[i] if i <= clip else 0 for i in range(len(vals))]
     highest = vals[clip - 1]
-    new_vals = np.where(vals < highest, 0, vals)
+    new_vals = torch.where(vals < highest, 0, vals)
 
     # doing the vectors
     if vecs2h is None:
-        vecs2h = vecs1.copy().transpose()
+        vecs2h = torch.clone(vecs1).T
 
     # making the diag matrix
-    new_diag = np.zeros((np.shape(vecs1)[1], np.shape(vecs2h)[0]))
-    new_diag[:len(vals), :len(vals)] = np.diag(new_vals)
+    new_diag = torch.zeros((vecs1.size()[1], vecs2h.size()[0]))
+    new_diag[:len(new_vals), :len(new_vals)] = torch.diag(new_vals)
 
     # print(f'truncate shapes\n'
     #      f'vecs 1: {np.shape(vecs1)}\n'
@@ -423,6 +424,8 @@ def mat_cossim_covs(mat1, mat2):
 
 def bw_dist(mat1, mat2):
     print('mat2 shape = ', np.shape(mat2))
+    # a standard practice to find the square root of a matrix is to use the eigen decomposition and then take the square
+    # root of the eigenvalues
     mat1_12 = np.array(scipy.linalg.sqrtm(mat1))
     mult = mat1_12 @ mat2 @ mat1_12
     mult_12 = np.array(scipy.linalg.sqrtm(mult))
