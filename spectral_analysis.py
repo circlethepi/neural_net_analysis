@@ -19,6 +19,7 @@ import effective_dimensions as eff_dim
 import plotting_networks as plotter
 import alignment as align
 
+
 class spectrum_analysis:
 
     def __init__(self, n_neurons, vary=None, n_class=10, input_size=32*32*3):

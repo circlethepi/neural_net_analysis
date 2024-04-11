@@ -256,8 +256,8 @@ class network_comparison:
                 a_cov2 = a_vecs2_aligned.T @ torch.diag(a_spec2) @ a_vecs2_aligned
 
             # compute the distance
-            act_bw = bw_dist(a_cov1, a_cov2)
-            way_bw = bw_dist(w_cov1, w_cov2)
+            act_bw = bw_dist(a_cov1.detach().numpy(), a_cov2.detach().numpy())
+            way_bw = bw_dist(w_cov1.detach().numpy(), w_cov2.detach().numpy())
 
             activations.append(act_bw)
             weights.append(way_bw)
@@ -270,27 +270,29 @@ def bw_dist(mat1, mat2):
     #print('mat2 shape = ', np.shape(mat2))
 
     # get sqrt of mat1
-    vals1, vecs1 = torch.linalg.eigh(mat1)
-    sqrtvals = torch.sqrt(vals1)
-    mat1_12 = vecs1 @ torch.diag(sqrtvals) @ vecs1.T
-    #mat1_12 = np.array(scipy.linalg.sqrtm(mat1))
+    #vals1, vecs1 = torch.linalg.eig(mat1)
+    #sqrtvals = torch.sqrt(vals1)
+    #mat1_12 = vecs1 @ torch.diag(sqrtvals) @ vecs1.T
+    mat1_12 = np.array(scipy.linalg.sqrtm(mat1))
+    #print(type(mat1_12), np.shape(mat1_12), np.shape(mat2))
+    #print(mat1_12)
 
     # find the mult matrix
     mult = mat1_12 @ mat2 @ mat1_12
-    print(mult.size())
-    #mult_12 = np.array(scipy.linalg.sqrtm(mult))
+    #print(mult)
+    mult_12 = np.array(scipy.linalg.sqrtm(mult))
 
     # get the square root of the mult matrix
-    vals_m, vecs_m = torch.linalg.eigh(mult)
-    sqrtvals_m = torch.sqrt(vals_m)
-    mult_12 = vecs_m @ torch.diag(sqrtvals_m) @ vecs_m.T
+    #vals_m, vecs_m = torch.linalg.eigh(mult)
+    #sqrtvals_m = torch.sqrt(vals_m)
+    #mult_12 = vecs_m @ torch.diag(sqrtvals_m) @ vecs_m.T
 
     # traces
-    trace1 = torch.trace(mat1)
-    trace2 = torch.trace(mat2)
-    tracemult = 2*(torch.trace(mult_12))
+    trace1 = np.trace(mat1)
+    trace2 = np.trace(mat2)
+    tracemult = 2*(np.trace(mult_12))
 
     bw_dist = trace1 + trace2 - tracemult
-    bw_dist = torch.sqrt(bw_dist)
+    bw_dist = np.sqrt(bw_dist)
 
     return bw_dist
