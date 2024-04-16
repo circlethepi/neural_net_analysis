@@ -122,10 +122,10 @@ def plot_spectrum(model, scale='log', save_fig=True):
 
 def plot_spectrum_single(model, quantity, layer_ind, scale='log', save_fig=False):
     if quantity == 'activations':
-        y_vals = model.activation_spectrum[layer_ind]
+        y_vals = model.activation_spectrum[layer_ind].detach().numpy()
     elif quantity == 'weights':
-        y_vals = model.weight_spectrum[layer_ind]
-        y_init = model.spectrum_history[layer_ind][0]
+        y_vals = model.weight_spectrum[layer_ind].detach().numpy()
+        y_init = model.spectrum_history[layer_ind][0].detach().numpy()
 
     if y_vals is None:
         raise Exception('Invalid quantity. Please select either "activations" or "weights"')

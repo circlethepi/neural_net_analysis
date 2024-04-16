@@ -8,6 +8,9 @@ import torchvision.transforms as transforms
 import torch.optim as optim
 import torchvision.datasets as datasets
 
+from tqdm import tqdm
+from tqdm.notebook import tqdm
+
 # basics
 import numpy as np
 from matplotlib import pyplot as plt
@@ -18,6 +21,7 @@ import train_network
 import effective_dimensions as eff_dim
 import plotting_networks as plotter
 import alignment as align
+
 
 
 class spectrum_analysis:
@@ -103,6 +107,19 @@ class spectrum_analysis:
         self.weight_spectrum = weight_spec
         return
 
+    def get_activations(self, dataloader, layers):
+        # Version of get_activations which treats spatial dimensions as additional batch dimensions.
+        get_acts = lambda *args: [align.space_to_batch(act) for act in align.get_activations(*args)]
+
+        acts = []
+        for x, _ in tqdm(dataloader, desc="Computing activations"):
+            # x = x.to(device)
+            activations1 = get_acts(x, layers, self.model)
+            acts.append(activations1)
+
+        #self.activations = acts
+        return acts
+
     def get_activation_covs(self, dataloader, layers):
         act_cov_layers = align.compute_activation_covariances(dataloader, layers, self.model)
         #act_cov_layers = [cov.detach().numpy() for cov in act_cov_layers]
@@ -114,6 +131,7 @@ class spectrum_analysis:
             self.get_activation_covs(self.train_loader, range(1, self.n_layers+1))
 
         act_spectra = []
+        act_bases = []
         for cov in self.activation_covs:
             vals, vecs = torch.linalg.eigh(cov)
             # reverse and transpose
@@ -121,8 +139,11 @@ class spectrum_analysis:
             vals, vecs = vals.flip(-1), vecs.flip(-1)
             # vecs = vecs.T
             act_spectra.append(vals)
+            act_bases.append(vecs)
 
         self.activation_spectrum = act_spectra
+        self.activation_basis = [basis.T for basis in act_bases]
+
         return act_spectra
 
     def train(self, train_loader, val_loader, n_epochs, grain=5, ep_grain=2):

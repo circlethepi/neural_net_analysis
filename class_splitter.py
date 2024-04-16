@@ -41,3 +41,17 @@ def make_all_single_loaders(batch_size=64, dataset_class=datasets.CIFAR10):
         dataloaders[c] = (train_load, val_load)
 
     return dataloaders
+
+def subset_class_loader(class_indices, batch_size=64, dataset_class=datasets.CIFAR10):
+    trainset, _ = nn_mod.get_datasets(dataset_class=dataset_class)
+    indices = [i for i, (e, c) in enumerate(trainset) if c in class_indices]
+
+    # get the subset
+    trainset_sub = torch.utils.data.Subset(trainset, indices)
+
+    # get the dataloader
+    train_loader_sub = nn_mod.get_dataloader(batch_size, trainset_sub, shuffle=True)
+    #val_loader = nn_mod.get_dataloader(batch_size, valset, shuffle=False)
+
+    return train_loader_sub
+

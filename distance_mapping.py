@@ -83,8 +83,8 @@ class class_distance_collection:
         return
 
     def create_distance_map(self):
-        frames_dict = {'activations' : self.activation_distance_mat,
-                       'weights' : self.weight_distance_mat}
+        frames_dict = {'activations': self.activation_distance_mat,
+                       'weights': self.weight_distance_mat}
 
         for i in range(len(self.layer_list)):
             for quantity in ('activations', 'weights'):
@@ -93,6 +93,10 @@ class class_distance_collection:
                 title = f'{quantity} class map\nLayer {i+1}'
 
                 plot_map(coords, self.classes, title)
+
+        return
+
+    def plot_distmats(self):
 
         return
 
@@ -126,6 +130,9 @@ def df_to_distmat(df, lab_col_1, lab_col_2, meas_col):
 
 def distmat_to_map(df):
     adist = df.to_numpy()
+    names = df.columns.tolist()
+    ticks = list(range(len(names)))
+
     amax = np.amax(adist)
     adist /= amax
 
@@ -133,6 +140,18 @@ def distmat_to_map(df):
     mds.fit(adist)
 
     coords = mds.embedding_
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+    #ax.imshow(adist, cmap='hot', vmin=0, vmax=1, interpolation='nearest')
+    mappy = ax.imshow(adist, cmap='plasma', vmin=0, vmax=1,
+                       interpolation='nearest')
+    plt.colorbar(mappy, fraction=0.045)
+
+    plt.xticks(ticks)
+    plt.yticks(ticks)
+    plt.xticklabels(names)
+    plt.yticklabels(names)
+
 
     return coords
 
@@ -162,6 +181,4 @@ def plot_map(coords, classes, title):
 
     plt.show()
     return
-
-
 
