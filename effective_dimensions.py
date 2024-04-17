@@ -25,7 +25,7 @@ def find_cutoff_rank(spectrum, dims):#, var):
     """
     gamma = dims[0]/dims[1]
     cut_val = (1 + np.sqrt(gamma))**2
-    print(cut_val)
+    print(f'cut value: {cut_val}')
 
     rank = np.searchsorted(spectrum, cut_val)
 

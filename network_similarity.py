@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import scipy
 import torch
 
+from geomloss import SamplesLoss
+
 """
 Network similarity object
 """
@@ -85,6 +87,8 @@ class network_comparison:
             _ = net.get_activation_spectrum()
 
         # get the eigenvectors for the weights
+        # 0 is the 0th model, 1 is the 1st model. The weights are then stored in a dictionary with
+        # a key corresponding to each layer of the model
         weight_vec_dict = {0: None, 1: None}
         act_vec_dict = {0: None, 1: None}
         weight_spec_dict = {0: None, 1: None}
@@ -181,11 +185,18 @@ class network_comparison:
         self.cossim = sim_mats.copy()
         return
 
-    def plot_sims(self, clip=50, layers=None, quantities=('activations', 'weights'), alignments=(False, True)):
+    def plot_sims(self, clips=None, layers=None, quantities=('activations', 'weights'), alignments=(False, True)):
         if not layers:
             layers = self.layers
+        if not clips:
+            clips = [50]*len(self.layers)
 
+        if len(clips) != len(layers):
+            raise Exception('number of clips needs to be the same as number of layers to plot')
+
+        i=0
         for layer in layers:
+            clip = clips[i]
             for quantity in quantities:
                 for aligned in alignments:
                     # making the title of the figure
@@ -209,7 +220,7 @@ class network_comparison:
                     plt.show()
         return
 
-    def network_distance(self, clip=None):
+    def network_distance(self, clip=False):
         weights = []
         activations = []
         # for each layer
@@ -239,21 +250,32 @@ class network_comparison:
             a_vecs2_aligned = a_vecs2 @ a_align.T
 
 
-            # first, if clip, clip the covariance matrices
+            # first, if clip, clip the weight covariance matrices
             if clip:
+                # get the clip value
+                # get the effective dimensions of the layer
+                dim1 = self.models[0].effective_dimensions[layer-1][-1]
+                dim2 = self.models[1].effective_dimensions[layer-1][-1]
+
+                clip_val = int(np.ceil(min(dim1, dim2)))
+
                 # weights
-                w_cov1 = align.truncate_mat(clip, w_spec1, w_vecs1.T)
-                w_cov2 = align.truncate_mat(clip, w_spec2, w_vecs2_aligned.T)
+                w_cov1 = align.truncate_mat(clip_val, w_spec1, w_vecs1.T)
+                w_cov2 = align.truncate_mat(clip_val, w_spec2, w_vecs2_aligned.T)
 
                 # activations
-                a_cov1 = align.truncate_mat(clip, a_spec1, a_vecs1.T)
-                a_cov2 = align.truncate_mat(clip, a_spec2, a_vecs2_aligned.T)
+                #a_cov1 = align.truncate_mat(clip, a_spec1, a_vecs1.T)
+                #a_cov2 = align.truncate_mat(clip, a_spec2, a_vecs2_aligned.T)
             else:
                 w_cov1 = w_vecs1.T @ w_spec1 @ w_vecs1
                 w_cov2 = w_vecs2_aligned.T @ torch.diag(w_spec2) @ w_vecs2_aligned
 
-                a_cov1 = a_vecs1.T @ a_spec1 @ a_vecs1
-                a_cov2 = a_vecs2_aligned.T @ torch.diag(a_spec2) @ a_vecs2_aligned
+            a_cov1 = a_vecs1.T @ torch.diag(a_spec1) @ a_vecs1
+            #print(a_vecs1.shape, a_spec1.shape )
+
+            a_cov2 = a_vecs2_aligned.T @ torch.diag(a_spec2) @ a_vecs2_aligned
+
+            #print(np.shape(a_cov1.detach().numpy()))
 
             # compute the distance
             act_bw = bw_dist(a_cov1.detach().numpy(), a_cov2.detach().numpy())
@@ -267,32 +289,11 @@ class network_comparison:
 
 
 def bw_dist(mat1, mat2):
-    #print('mat2 shape = ', np.shape(mat2))
 
-    # get sqrt of mat1
-    #vals1, vecs1 = torch.linalg.eig(mat1)
-    #sqrtvals = torch.sqrt(vals1)
-    #mat1_12 = vecs1 @ torch.diag(sqrtvals) @ vecs1.T
     mat1_12 = np.array(scipy.linalg.sqrtm(mat1))
-    #print(type(mat1_12), np.shape(mat1_12), np.shape(mat2))
-    #print(mat1_12)
+    # from the POT implementation (python optimal transport)
+    output = np.trace(mat1 + mat2 - 2 * np.array(scipy.linalg.sqrtm(np.dot(mat1_12, mat2, mat1_12))))
 
-    # find the mult matrix
-    mult = mat1_12 @ mat2 @ mat1_12
-    #print(mult)
-    mult_12 = np.array(scipy.linalg.sqrtm(mult))
-
-    # get the square root of the mult matrix
-    #vals_m, vecs_m = torch.linalg.eigh(mult)
-    #sqrtvals_m = torch.sqrt(vals_m)
-    #mult_12 = vecs_m @ torch.diag(sqrtvals_m) @ vecs_m.T
-
-    # traces
-    trace1 = np.trace(mat1)
-    trace2 = np.trace(mat2)
-    tracemult = 2*(np.trace(mult_12))
-
-    bw_dist = trace1 + trace2 - tracemult
-    bw_dist = np.sqrt(bw_dist)
-
-    return bw_dist
+    #loss = SamplesLoss(loss='sinkhorn', p=2, blur=0.05)
+    #output = loss(mat1, mat2)
+    return np.abs(output)
