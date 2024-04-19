@@ -118,7 +118,7 @@ def plot_spectrum(model, scale='log', save_fig=True):
       #files.download(f'spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}.png')
 
     plt.show()
-    return
+  return
 
 def plot_spectrum_single(model, quantity, layer_ind, scale='log', save_fig=False):
     if quantity == 'activations':

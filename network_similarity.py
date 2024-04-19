@@ -189,7 +189,7 @@ class network_comparison:
         if not layers:
             layers = self.layers
         if not clips:
-            clips = [50]*len(self.layers)
+            clips = [50]*len(layers)
 
         if len(clips) != len(layers):
             raise Exception('number of clips needs to be the same as number of layers to plot')
@@ -210,14 +210,36 @@ class network_comparison:
 
                     # making the plot
                     fig = plt.figure(figsize=(8,8))
-                    mappy = plt.imshow(sim_to_plot.detach().numpy()[:clip, :clip], cmap='plasma', vmin=0, vmax=1,
+                    mappy = plt.imshow(sim_to_plot.detach().numpy()[:clip, :clip], cmap='binary', vmin=0, vmax=1,
                                        interpolation='nearest')
                     plt.colorbar(mappy, fraction=0.045)
                     plt.ylabel(f'Rank - {self.names[0]}')
                     plt.xlabel(f'Rank - {self.names[1]}')
 
+                    # if weights, show where we clipped for the distances
+                    if quantity == 'weights':
+                        dim1 = self.models[0].effective_dimensions[layer - 1][-1]
+                        dim2 = self.models[1].effective_dimensions[layer - 1][-1]
+                        clip_val = int(np.ceil(min(dim1, dim2)))
+
+                        xs1 = [0, clip-1]
+                        ys1 = [clip_val, clip_val]
+                        xs2 = [clip_val, clip_val]
+                        ys2 = [0, clip-1]
+
+                        plt.plot(xs1, ys1, color='r')
+                        plt.plot(xs2, ys2, color='r')
+
                     plt.title(title)
+
+                    # saving the figure
+                    path = '/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/image_hold/'
+                    filename = f'{self.names}_{quantity}_{aligned}_{layer}'
+
+                    plt.savefig(path + filename)
                     plt.show()
+
+
         return
 
     def network_distance(self, clip=False):

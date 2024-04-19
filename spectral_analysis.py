@@ -123,7 +123,7 @@ class spectrum_analysis:
     def get_activation_covs(self, dataloader, layers):
         act_cov_layers = align.compute_activation_covariances(dataloader, layers, self.model)
         #act_cov_layers = [cov.detach().numpy() for cov in act_cov_layers]
-        self.activation_covs = act_cov_layers#.copy()
+        self.activation_covs = act_cov_layers.copy()
         return act_cov_layers
 
     def get_activation_spectrum(self):

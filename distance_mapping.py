@@ -36,7 +36,7 @@ class class_distance_collection:
             self.dfa = pd.DataFrame(datarows[0], columns=name_list)
             self.dfw = pd.DataFrame(datarows[1], columns=name_list)
 
-        print(self.dfa['class1'])
+        print(self.dfa.columns)
 
         self.classes = sorted(set(list(self.dfa['class1']) + list(self.dfa['class2'])))
 
@@ -130,7 +130,7 @@ def dist_real(x):
 
 def df_to_distmat(df, lab_col_1, lab_col_2, meas_col):
     idx = sorted(set(df[lab_col_1]).union(df[lab_col_2]))
-    print(set(df[lab_col_1]).union(df[lab_col_2]))
+    #print(set(df[lab_col_1]).union(df[lab_col_2]))
 
     df.reset_index(inplace=True, drop=True)
 
@@ -157,10 +157,12 @@ def distmat_to_map(df, title):
 
     coords = mds.embedding_
 
+    sims = np.ones(np.shape(adist)) - adist
+
     # plot the normalized distances as a heatmap
     fig = plt.figure(figsize=(4,4))
     #ax.imshow(adist, cmap='hot', vmin=0, vmax=1, interpolation='nearest')
-    mappy = plt.imshow(adist, cmap='plasma', vmin=0, vmax=1,
+    mappy = plt.imshow(sims, cmap='binary', vmin=0, vmax=1,
                        interpolation='nearest')
     plt.colorbar(mappy, fraction=0.045)
 
@@ -169,6 +171,8 @@ def distmat_to_map(df, title):
 
     plt.title(title)
     plt.show()
+    #path = "/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/image_hold/"
+    #plt.savefig()
 
     return coords
 
@@ -194,6 +198,8 @@ def plot_map(coords, classes, title):
                      arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'))
 
     plt.title(title)
+    plt.xlim(-1,1)
+    plt.ylim(-1,1)
     #plt.xticks([])
     #plt.yticks([])
 

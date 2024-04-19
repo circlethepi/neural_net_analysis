@@ -201,5 +201,5 @@ def effective_dimensionality(spectrum_analysis_obj):
             layer_dims.append(train_dims)
 
         eff_dims.append(layer_dims)
-
+    # effective dimensions at each checkpoint
     return eff_dims
