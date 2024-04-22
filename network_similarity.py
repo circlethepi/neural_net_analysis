@@ -185,7 +185,7 @@ class network_comparison:
         self.cossim = sim_mats.copy()
         return
 
-    def plot_sims(self, clips=None, layers=None, quantities=('activations', 'weights'), alignments=(False, True)):
+    def plot_sims(self, clips=None, layers=None, quantities=('activations', 'weights'), alignments=[True]):
         if not layers:
             layers = self.layers
         if not clips:
@@ -203,7 +203,7 @@ class network_comparison:
                     align_title = 'aligned ' if aligned else ''
                     r2 = f'\n{100*self.r2s[layer]:.3f}% of Variation explained by alignment' \
                         if quantity == 'activations' and aligned else ''
-                    title = f'Cosine similarity of {align_title}{quantity} eigenvectors\nLayer {layer}{r2}'
+                    title = f'absolute cosine similarity of {align_title}{quantity} eigenvectors\nLayer {layer}{r2}'
 
                     # getting the similarity matrix
                     sim_to_plot = self.cossim[(layer, quantity, aligned)]

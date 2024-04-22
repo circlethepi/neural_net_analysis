@@ -47,7 +47,8 @@ def make_all_single_loaders(batch_size=64, dataset_class=datasets.CIFAR10):
     return dataloaders
 
 
-def subset_class_loader(class_indices, batch_size=64, dataset_class=datasets.CIFAR10, mod_ind=None, pad_level=1):
+def subset_class_loader(class_indices, batch_size=64, dataset_class=datasets.CIFAR10, mod_ind=None, columns=None,
+                        rows=None, val=255):
     #if pad_level > 4 or pad_level < 0 or type(pad_level) != int:
     #    raise Exception('Please enter valid integer pad level between 0 and 3')
 
@@ -78,13 +79,15 @@ def subset_class_loader(class_indices, batch_size=64, dataset_class=datasets.CIF
         m_val_sub = torch.utils.data.Subset(valset, mind_val)
 
         #pad = (2, 4, 8, 16, 32)[pad_level]
-        pad = pad_level
+        #pad = pad_level
         mean = [0.485, 0.456, 0.406]
         std = [0.229, 0.224, 0.225]
-        mod_transform = transforms.Compose([transforms.Pad(padding=pad),
+        mod_transform = transforms.Compose([#transforms.Pad(padding=pad),
                                             #transforms.ToTensor(),
                                             transforms.Resize(size=32),
-                                            transforms.Normalize(mean=mean, std=std)])
+                                            transforms.Normalize(mean=mean, std=std),
+                                            colrow_colors(column_indices=columns, row_indices=rows, val=val)
+        ])
 
         modded_train = MyDataset(m_train_sub, transform=mod_transform)
         modded_val = MyDataset(m_val_sub, transform=mod_transform)
@@ -99,6 +102,11 @@ def subset_class_loader(class_indices, batch_size=64, dataset_class=datasets.CIF
 
     return train_loader_sub, val_loader_sub
 
+###################################
+## Dataset and Transform Classes ##
+###################################
+
+# custom dataset to apply transforms to
 class MyDataset:
     def __init__(self, subset, transform=None):
         self.subset = subset
@@ -112,3 +120,33 @@ class MyDataset:
 
     def __len__(self):
         return len(self.subset)
+
+
+# custom transform for columns
+class colrow_colors(object):
+    def __init__(self, val=255, column_indices=None, row_indices=None):
+        self.val = val
+        self.columns = column_indices
+        self.rows = row_indices
+    def __call__(self, img_tensor):  # this should always come after the toTensor transform!
+        """
+
+        :param img_tensor: image in the form of a tensor
+        :param val:
+        :param column_indices:
+        :param row_indices:
+        :return:
+        """
+        # Do some transformations. Here, we're just passing though the input
+        if self.columns:
+            for index in self.columns:
+                img_tensor[:, :, index] = torch.tensor(self.val)
+
+        if self.rows:
+            for index in self.rows:
+                img_tensor[:, index, :] = torch.tensor(self.val)
+
+        return img_tensor
+
+    def __repr__(self):
+        return "Turning Columns and or Rows a Color"
