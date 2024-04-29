@@ -185,7 +185,12 @@ class network_comparison:
         self.cossim = sim_mats.copy()
         return
 
-    def plot_sims(self, clips=None, layers=None, quantities=('activations', 'weights'), alignments=[True]):
+    def plot_sims(self, clips=None,
+                  layers=None,
+                  quantities=('activations', 'weights'),
+                  alignments=[True],
+                  plot_clip=None,
+                  filename_append=None):
         if not layers:
             layers = self.layers
         if not clips:
@@ -227,22 +232,34 @@ class network_comparison:
                         xs2 = [clip_val, clip_val]
                         ys2 = [0, clip-1]
 
-                        plt.plot(xs1, ys1, color='r')
-                        plt.plot(xs2, ys2, color='r')
+                        plt.plot(xs1, ys1, color='r', linestyle=':', label='EDs')
+                        plt.plot(xs2, ys2, color='r', linestyle=':')
+
+                    if plot_clip:
+                        xs1 = [0, clip-1]
+                        ys1 = [plot_clip, plot_clip]
+                        xs2 = ys1
+                        ys2 = xs1
+
+                        plt.plot(xs1, ys1, color='b', label='dist clip')
+                        plt.plot(xs2, ys2, color='b')
+
+                    if plot_clip or quantity == 'weights':
+                        plt.legend()
 
                     plt.title(title)
 
                     # saving the figure
                     path = '/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/image_hold/'
-                    filename = f'{self.names}_{quantity}_{aligned}_{layer}'
+                    filename = (f'{self.names}_{quantity}_{aligned}_{layer}'
+                                f'{"_"+filename_append if filename_append else ""}')
 
                     plt.savefig(path + filename)
                     plt.show()
 
-
         return
 
-    def network_distance(self, clip=False):
+    def network_distance(self, w_clip=None, a_clip=None, sim=False):
         weights = []
         activations = []
         # for each layer
@@ -272,36 +289,53 @@ class network_comparison:
             a_vecs2_aligned = a_vecs2 @ a_align.T
 
 
-            # first, if clip, clip the weight covariance matrices
-            if clip:
-                # get the clip value
-                # get the effective dimensions of the layer
-                dim1 = self.models[0].effective_dimensions[layer-1][-1]
-                dim2 = self.models[1].effective_dimensions[layer-1][-1]
-
-                clip_val = int(np.ceil(min(dim1, dim2)))
-
-                # weights
-                w_cov1 = align.truncate_mat(clip_val, w_spec1, w_vecs1.T)
-                w_cov2 = align.truncate_mat(clip_val, w_spec2, w_vecs2_aligned.T)
-
-                # activations
-                #a_cov1 = align.truncate_mat(clip, a_spec1, a_vecs1.T)
-                #a_cov2 = align.truncate_mat(clip, a_spec2, a_vecs2_aligned.T)
-            else:
-                w_cov1 = w_vecs1.T @ w_spec1 @ w_vecs1
-                w_cov2 = w_vecs2_aligned.T @ torch.diag(w_spec2) @ w_vecs2_aligned
-
-            a_cov1 = a_vecs1.T @ torch.diag(a_spec1) @ a_vecs1
-            #print(a_vecs1.shape, a_spec1.shape )
-
-            a_cov2 = a_vecs2_aligned.T @ torch.diag(a_spec2) @ a_vecs2_aligned
+            # # first, if clip, clip the weight covariance matrices
+            # if w_clip:
+            #     # get the clip value
+            #
+            #     # default clipping
+            #     # get the effective dimensions of the layer
+            #     #dim1 = self.models[0].effective_dimensions[layer-1][-1]
+            #     #dim2 = self.models[1].effective_dimensions[layer-1][-1]
+            #
+            #     #clip_val = int(np.ceil(min(dim1, dim2)))
+            #     clip_val = w_clip
+            #
+            #     # weights
+            #     w_cov1 = align.truncate_mat(clip_val, w_spec1, w_vecs1.T)
+            #     w_cov2 = align.truncate_mat(clip_val, w_spec2, w_vecs2_aligned.T)
+            #
+            #     # activations
+            #     #a_cov1 = align.truncate_mat(clip, a_spec1, a_vecs1.T)
+            #     #a_cov2 = align.truncate_mat(clip, a_spec2, a_vecs2_aligned.T)
+            # #else:
+            #     w_cov1 = w_vecs1.T @ w_spec1 @ w_vecs1
+            #     w_cov2 = w_vecs2_aligned.T @ torch.diag(w_spec2) @ w_vecs2_aligned
+            #
+            # # if the activations are to be clipped
+            # if a_clip:
+            #     clip_val = a_clip
+            #     # activations
+            #     a_cov1 = align.truncate_mat(clip_val, a_spec1, a_vecs1.T)
+            #     a_cov2 = align.truncate_mat(clip_val, a_spec2, a_vecs2_aligned.T)
+            #
+            # else:
+            #     a_cov1 = a_vecs1.T @ torch.diag(a_spec1) @ a_vecs1
+            #     a_cov2 = a_vecs2_aligned.T @ torch.diag(a_spec2) @ a_vecs2_aligned
 
             #print(np.shape(a_cov1.detach().numpy()))
 
             # compute the distance
-            act_bw = bw_dist(a_cov1.detach().numpy(), a_cov2.detach().numpy())
-            way_bw = bw_dist(w_cov1.detach().numpy(), w_cov2.detach().numpy())
+            #act_bw = bw_dist(a_cov1.detach().numpy(), a_cov2.detach().numpy())
+            #way_bw = bw_dist(w_cov1.detach().numpy(), w_cov2.detach().numpy())
+            if sim:
+                q = 'sim'
+            else:
+                q = 'dist'
+
+            act_bw = bw_dist_covs(a_vecs1, a_spec1, a_vecs2_aligned, a_spec2, truncate=a_clip, quant=q)
+            way_bw = bw_dist_covs(w_vecs1, w_spec1, w_vecs2_aligned, w_spec2, truncate=w_clip, quant=q)
+
 
             activations.append(act_bw)
             weights.append(way_bw)
@@ -311,11 +345,96 @@ class network_comparison:
 
 
 def bw_dist(mat1, mat2):
+    """
 
+    :param mat1:
+    :param mat2:
+    :return:
+    """
+
+    # this runs into error.
     mat1_12 = np.array(scipy.linalg.sqrtm(mat1))
+    mat2_12 = np.array(scipy.linalg.sqrtm(mat2))
+
+    # since i am using this for symmetric matrices, I can do:
+    #vals1, vecs1 = np.linalg.eigh(mat1)
+    #vals1, vecs1 = np.flip(vals1), np.flip(vecs1)
+    #mat1_12 = vecs1 @ np.sqrt(vals1) @ vecs1.T
+
+
     # from the POT implementation (python optimal transport)
-    output = np.trace(mat1 + mat2 - 2 * np.array(scipy.linalg.sqrtm(np.dot(mat1_12, mat2, mat1_12))))
+    #output = np.trace(mat1 + mat2 - 2 * np.array(scipy.linalg.sqrtm(np.dot(mat1_12, mat2, mat1_12))))
+
+    output = np.trace(mat1) + np.trace(mat2) - 2*np.linalg.norm(mat1_12 @ mat2_12, ord='nuc')
 
     #loss = SamplesLoss(loss='sinkhorn', p=2, blur=0.05)
     #output = loss(mat1, mat2)
-    return np.abs(output)
+    return output
+
+def bw_dist_covs(vecs1, vals1, vecs2, vals2, truncate=None, quant='dist'):
+    """
+    Calculates the Bures-Wasserstein distance between two covariance matrices C1, C2, given as:
+    Tr(C1) + Tr(C2) - 2 ||C1^(1/2) C2^(1/2)||
+    Where ||.|| is the nuclear norm (the sum of the singular values)
+
+    :param vecs1: torch.tensor  the eigenvectors of the first covariance matrix
+    :param vals1: torch.tensor  the eigenvalues of the first covariance matrix
+    :param vecs2: torch.tensor  the eigenvectors of the second covariance matrix
+    :param vals2: torch.tensor  the eigenvalues of the second covariance matrix
+    :param truncate: int        the rank at which to truncate each of the matrices. If None, then the matrix is not
+                                truncated and the distance is calculated for the entire matrix
+    :return: distance: float    the BW distance between the two matrices
+    """
+    if truncate:
+        # get the new values for the truncated matrix
+        ## matrix 1
+        high1 = vals1[truncate - 1]
+        new_vals1 = torch.where(vals1 < high1, 0, vals1)
+
+        ## matrix 2
+        high2 = vals2[truncate - 1]
+        new_vals2 = torch.where(vals2 < high2, 0, vals2)
+
+    else:
+        new_vals1 = vals1
+        new_vals2 = vals2
+
+    # calculate the full matrices
+    ## get the diagonal matrices
+    new_diag1 = torch.zeros((vecs1.size()[0], vecs1.size()[0]))
+    new_diag1[:len(new_vals1), :len(new_vals1)] = torch.diag(new_vals1)
+    #print(new_diag1)
+
+    new_diag2 = torch.zeros((vecs2.size()[0], vecs2.size()[0]))
+    new_diag2[:len(new_vals2), :len(new_vals2)] = torch.diag(new_vals2)
+
+    ## multiply out the matrices
+    new_mat1 = vecs1.T @ new_diag1 @ vecs1
+    new_mat2 = vecs2.T @ new_diag2 @ vecs2
+    #print(new_mat1)
+    #print(new_mat1.shape, new_mat2.shape)
+
+    ## Get the square roots
+    sq_diag1 = torch.sqrt(new_diag1)
+    #print(sq_diag1)
+    sq_mat1 = vecs1.T @ sq_diag1 @ vecs1
+
+    sq_diag2 = torch.sqrt(new_diag2)
+    sq_mat2 = vecs2.T @ sq_diag2 @ vecs2
+
+    #print(sq_mat1.T @ sq_mat2)
+    tr1 = torch.trace(new_mat1).item()
+    tr2 = torch.trace(new_mat2).item()
+    nnorm = torch.trace(sq_mat1.T @ sq_mat2).item()
+
+    ## calculate the distance with all the pieces
+    if quant == 'dist':
+        distance = tr1 + tr2 - 2*nnorm
+    elif quant == 'sim':
+        distance = nnorm / np.sqrt(tr1 * tr2)
+    else:
+        raise Exception('Please select either "dist" or "sim" for parameter quant')
+
+    #print(tr1, tr2, nnorm)
+    #print(distance)
+    return distance

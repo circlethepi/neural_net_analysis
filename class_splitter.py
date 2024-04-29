@@ -5,9 +5,20 @@ import torch.utils.data.dataset
 from torch.utils.data import random_split
 import torchvision.transforms as transforms
 import torch.optim as optim
+import numpy as np
 
 import neural_network as nn_mod
 
+def set_seed(SEED):
+    ###### set the seed
+    #random.seed(SEED)
+    np.random.seed(SEED)
+    torch.manual_seed(SEED)
+    torch.backends.cudnn.deterministic = True
+    ######
+    return
+
+#set_seed()
 
 def single_class(dataset, single_class):
     for i in range(len(dataset.targets)):
@@ -52,7 +63,7 @@ def subset_class_loader(class_indices, batch_size=64, dataset_class=datasets.CIF
     #if pad_level > 4 or pad_level < 0 or type(pad_level) != int:
     #    raise Exception('Please enter valid integer pad level between 0 and 3')
 
-    print(class_indices, type(class_indices))
+    print(class_indices)#, type(class_indices))
     # get unmodified classes first
     # load the entire dataset
     trainset, valset = nn_mod.get_datasets(dataset_class=dataset_class)
@@ -71,8 +82,8 @@ def subset_class_loader(class_indices, batch_size=64, dataset_class=datasets.CIF
     # if mod class, then mod class
     if mod_ind:
         # get the indices
-        mind_train = [i for i, (e, c) in enumerate(trainset) if c == mod_ind]
-        mind_val = [i for i, (e, c) in enumerate(valset) if c == mod_ind]
+        mind_train = [i for i, (e, c) in enumerate(trainset) if c in mod_ind]
+        mind_val = [i for i, (e, c) in enumerate(valset) if c in mod_ind]
 
         # get the subsets
         m_train_sub = torch.utils.data.Subset(trainset, mind_train)
@@ -84,7 +95,7 @@ def subset_class_loader(class_indices, batch_size=64, dataset_class=datasets.CIF
         std = [0.229, 0.224, 0.225]
         mod_transform = transforms.Compose([#transforms.Pad(padding=pad),
                                             #transforms.ToTensor(),
-                                            transforms.Resize(size=32),
+                                            #transforms.Resize(size=32),
                                             transforms.Normalize(mean=mean, std=std),
                                             colrow_colors(column_indices=columns, row_indices=rows, val=val)
         ])

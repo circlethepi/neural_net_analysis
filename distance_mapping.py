@@ -109,6 +109,13 @@ class class_distance_collection:
 
         return
 
+    def get_sim_scores(self):
+        a_max = self.dfa.max()
+
+
+        scores = []
+        return scores
+
     def plot_distmats(self):
 
         return
