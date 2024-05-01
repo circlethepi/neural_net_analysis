@@ -190,7 +190,8 @@ class network_comparison:
                   quantities=('activations', 'weights'),
                   alignments=[True],
                   plot_clip=None,
-                  filename_append=None):
+                  filename_append=None,
+                  ed_plot=False):
         if not layers:
             layers = self.layers
         if not clips:
@@ -222,7 +223,7 @@ class network_comparison:
                     plt.xlabel(f'Rank - {self.names[1]}')
 
                     # if weights, show where we clipped for the distances
-                    if quantity == 'weights':
+                    if quantity == 'weights' and ed_plot:
                         dim1 = self.models[0].effective_dimensions[layer - 1][-1]
                         dim2 = self.models[1].effective_dimensions[layer - 1][-1]
                         clip_val = int(np.ceil(min(dim1, dim2)))

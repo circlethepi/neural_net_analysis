@@ -27,7 +27,7 @@ import random
 # Setting up the Neural Networks #
 ##################################
 
-
+# Linear Neural Network
 class Neural_Network(nn.Module):
     def __init__(self, n_neurons: list, num_classes=10, input_size=32*32*3):
         print(f"Initializing {len(n_neurons)} layer model")
@@ -58,6 +58,14 @@ class Neural_Network(nn.Module):
         i += 1
         return x
 
+
+# Convolutional Neural Network (based on VGG)
+
+
+
+#######################
+## Dataset Functions ##
+#######################
 
 def get_datasets(dataset_class=datasets.CIFAR10):
     """

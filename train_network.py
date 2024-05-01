@@ -113,7 +113,9 @@ def train_accuracy(model_name, optimizer, criterion, train_loader, train_loss_hi
     return train_loss_history, train_acc_history
 
 
-def train_model(model_name, train_loader, val_loader, n_epochs, grain=10, ep_grain=2, criterion=nn.CrossEntropyLoss()):
+def train_model(model_name, train_loader, val_loader, n_epochs,
+                grain=10, ep_grain=2,
+                criterion=nn.CrossEntropyLoss()):
 
     """
     trains a single-layer model for a single epoch and records the val and train accuracy
