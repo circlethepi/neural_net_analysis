@@ -202,6 +202,7 @@ def aligning_models(loader, layers, model1, model2, clip=50, eff_dims=False, nam
     # sim container
     unaligned_sims_acts = []
     aligned_sim_acts = []
+
     # now compute and plot cossim for activations
     for aligned in [False, True]:
         for j in range(len(layers)):

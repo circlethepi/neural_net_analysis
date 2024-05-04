@@ -135,10 +135,11 @@ class MyDataset:
 
 # custom transform for columns
 class colrow_colors(object):
-    def __init__(self, val=255, column_indices=None, row_indices=None):
+    def __init__(self, val=255, column_indices=None, row_indices=None, intensity=False):
         self.val = val
         self.columns = column_indices
         self.rows = row_indices
+        self.intensity = intensity
     def __call__(self, img_tensor):  # this should always come after the toTensor transform!
         """
 
@@ -156,6 +157,9 @@ class colrow_colors(object):
         if self.rows:
             for index in self.rows:
                 img_tensor[:, index, :] = torch.tensor(self.val)
+
+        if self.intensity:
+            img_tensor = torch.clamp(img_tensor, min=0, max=self.val)
 
         return img_tensor
 
