@@ -164,7 +164,7 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
 
     # UPDATING the things
     # updating the epoch list
-    print(f'getting spectrum at init...')
+    #print(f'getting spectrum at init...')
     ep_history.append(0)
     # updating the spectrum
     spectrum_history, total_var_history, cov_history = update_spectrum(model_name, spectrum_history, total_var_history,
@@ -185,7 +185,7 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
 
     i = 1
     # iterate over the training data
-    for inputs, labels in train_loader:
+    for inputs, labels in tqdm(train_loader, desc='epoch 1'):
         optimizer.zero_grad()
         outputs = model_name(inputs)
         # compute the loss
@@ -194,7 +194,7 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
         optimizer.step()
 
         if i in intervals:
-            print(f'testing accuracy, calculating spectrum after {i}th batch')
+            #print(f'testing accuracy, calculating spectrum after {i}th batch')
             ep_history.append('{:.2e}'.format(float(frac(i, total_batches))))
             # updating the spectrum
             spectrum_history, total_var_history, cov_history = update_spectrum(model_name, spectrum_history,
@@ -209,7 +209,7 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
         # increasing the step
         i += 1
 
-    print(f'Training of first epoch complete.\nTraining for the next {n_epochs-1}')
+    #print(f'Training of first epoch complete.\nTraining for the next {n_epochs-1}')
 
     ###############################################
     ### training the model for the other epochs ###
@@ -223,7 +223,7 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
         model_name.train()
 
         # iterate over the training data
-        for inputs, labels in train_loader:
+        for inputs, labels in tqdm(train_loader, desc=f'Training epoch {epoch}'):
             optimizer.zero_grad()
             outputs = model_name(inputs)
             # compute the loss
@@ -235,7 +235,7 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
             train_acc += (outputs.argmax(1) == labels).sum().item()
 
         if epoch in ep_intervals:
-            print(f'epoch {epoch} getting spectrum')
+            #print(f'epoch {epoch} getting spectrum')
             ep_history.append(epoch)
             # UPDATING the things
             spectrum_history, total_var_history, cov_history = update_spectrum(model_name, spectrum_history,
@@ -249,7 +249,7 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
 
     # getting the last epoch
     if epoch not in ep_intervals:
-        print(f'epoch {epoch} getting spectrum (last)')
+        #print(f'epoch {epoch} getting spectrum (last)')
         ep_history.append(epoch)
         # UPDATING the things
         spectrum_history, total_var_history, cov_history = update_spectrum(model_name, spectrum_history,

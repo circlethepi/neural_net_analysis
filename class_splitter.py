@@ -59,7 +59,7 @@ def make_all_single_loaders(batch_size=64, dataset_class=datasets.CIFAR10):
 
 
 def subset_class_loader(class_indices, batch_size=64, dataset_class=datasets.CIFAR10, mod_ind=None, columns=None,
-                        rows=None, val=255):
+                        rows=None, val=255, intensity=False):
     #if pad_level > 4 or pad_level < 0 or type(pad_level) != int:
     #    raise Exception('Please enter valid integer pad level between 0 and 3')
 
@@ -97,7 +97,8 @@ def subset_class_loader(class_indices, batch_size=64, dataset_class=datasets.CIF
                                             #transforms.ToTensor(),
                                             #transforms.Resize(size=32),
                                             transforms.Normalize(mean=mean, std=std),
-                                            colrow_colors(column_indices=columns, row_indices=rows, val=val)
+                                            colrow_colors(column_indices=columns, row_indices=rows,
+                                                          val=val, intensity=intensity)
         ])
 
         modded_train = MyDataset(m_train_sub, transform=mod_transform)
