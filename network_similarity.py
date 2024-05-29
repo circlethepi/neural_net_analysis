@@ -260,9 +260,22 @@ class network_comparison:
 
         return
 
-    def network_distance(self, w_clip=None, a_clip=None, sim=False):
+    def network_distance(self, w_clip=None, a_clip=None, sim=False, return_quantities=False):
+        """
+
+        :param w_clip: the rank at which to clip the weight covariances. Default: None (full rank for each)
+        :param a_clip: the rank at which to clip the activation convariances. Default: None (full rank for each)
+        :param sim: defail
+        :param return_quantities: whether or not to return the trace and norm values from the calculation of the
+                                  distances and similarities
+        :return: list of distances (or similarities) between the two networks. The ith entry of the list corresponds to
+                 the (i+1)th layer of the networks.
+        """
         weights = []
         activations = []
+
+        quantities = {'activations': [], 'weights': []}
+
         # for each layer
         for layer in self.layers:
             # getting the vectors and values for each cov matrix
@@ -289,60 +302,30 @@ class network_comparison:
             w_vecs2_aligned = w_vecs2 @ w_align.T if w_align is not None else torch.clone(w_vecs2)
             a_vecs2_aligned = a_vecs2 @ a_align.T
 
-
-            # # first, if clip, clip the weight covariance matrices
-            # if w_clip:
-            #     # get the clip value
-            #
-            #     # default clipping
-            #     # get the effective dimensions of the layer
-            #     #dim1 = self.models[0].effective_dimensions[layer-1][-1]
-            #     #dim2 = self.models[1].effective_dimensions[layer-1][-1]
-            #
-            #     #clip_val = int(np.ceil(min(dim1, dim2)))
-            #     clip_val = w_clip
-            #
-            #     # weights
-            #     w_cov1 = align.truncate_mat(clip_val, w_spec1, w_vecs1.T)
-            #     w_cov2 = align.truncate_mat(clip_val, w_spec2, w_vecs2_aligned.T)
-            #
-            #     # activations
-            #     #a_cov1 = align.truncate_mat(clip, a_spec1, a_vecs1.T)
-            #     #a_cov2 = align.truncate_mat(clip, a_spec2, a_vecs2_aligned.T)
-            # #else:
-            #     w_cov1 = w_vecs1.T @ w_spec1 @ w_vecs1
-            #     w_cov2 = w_vecs2_aligned.T @ torch.diag(w_spec2) @ w_vecs2_aligned
-            #
-            # # if the activations are to be clipped
-            # if a_clip:
-            #     clip_val = a_clip
-            #     # activations
-            #     a_cov1 = align.truncate_mat(clip_val, a_spec1, a_vecs1.T)
-            #     a_cov2 = align.truncate_mat(clip_val, a_spec2, a_vecs2_aligned.T)
-            #
-            # else:
-            #     a_cov1 = a_vecs1.T @ torch.diag(a_spec1) @ a_vecs1
-            #     a_cov2 = a_vecs2_aligned.T @ torch.diag(a_spec2) @ a_vecs2_aligned
-
-            #print(np.shape(a_cov1.detach().numpy()))
-
-            # compute the distance
-            #act_bw = bw_dist(a_cov1.detach().numpy(), a_cov2.detach().numpy())
-            #way_bw = bw_dist(w_cov1.detach().numpy(), w_cov2.detach().numpy())
             if sim:
                 q = 'sim'
             else:
                 q = 'dist'
 
-            act_bw = bw_dist_covs(a_vecs1, a_spec1, a_vecs2_aligned, a_spec2, truncate=a_clip, quant=q)
-            way_bw = bw_dist_covs(w_vecs1, w_spec1, w_vecs2_aligned, w_spec2, truncate=w_clip, quant=q)
+            act_bw = bw_dist_covs(a_vecs1, a_spec1, a_vecs2_aligned, a_spec2,
+                                  truncate=a_clip, quant=q, return_quantities=return_quantities)
+            way_bw = bw_dist_covs(w_vecs1, w_spec1, w_vecs2_aligned, w_spec2,
+                                  truncate=w_clip, quant=q, return_quantities=return_quantities)
 
-
-            activations.append(act_bw)
-            weights.append(way_bw)
+            if return_quantities:
+                activations.append(act_bw[0])
+                weights.append(way_bw[0])
+                quantities['activations'].append(act_bw[1])
+                quantities['weights'].append(way_bw[1])
+            else:
+                activations.append(act_bw)
+                weights.append(way_bw)
 
         print('BW weights calculated. Returning activations and weights in layer order')
-        return activations, weights
+        if return_quantities:
+            return activations, weights, quantities
+        else:
+            return activations, weights
 
 
 def bw_dist(mat1, mat2):
@@ -372,7 +355,8 @@ def bw_dist(mat1, mat2):
     #output = loss(mat1, mat2)
     return output
 
-def bw_dist_covs(vecs1, vals1, vecs2, vals2, truncate=None, quant='dist'):
+
+def bw_dist_covs(vecs1, vals1, vecs2, vals2, truncate=None, quant='dist', return_quantities=False):
     """
     Calculates the Bures-Wasserstein distance between two covariance matrices C1, C2, given as:
     Tr(C1) + Tr(C2) - 2 ||C1^(1/2) C2^(1/2)||
@@ -384,7 +368,10 @@ def bw_dist_covs(vecs1, vals1, vecs2, vals2, truncate=None, quant='dist'):
     :param vals2: torch.tensor  the eigenvalues of the second covariance matrix
     :param truncate: int        the rank at which to truncate each of the matrices. If None, then the matrix is not
                                 truncated and the distance is calculated for the entire matrix
+    :param return_quantities: bool  whether to return the trace and norm quantities from caluclating the distance
+
     :return: distance: float    the BW distance between the two matrices
+    :return: (tr1, tr2, nnorm): (float, float, float)   the quantities used to calculate the distance
     """
     if truncate:
         # get the new values for the truncated matrix
@@ -438,4 +425,7 @@ def bw_dist_covs(vecs1, vals1, vecs2, vals2, truncate=None, quant='dist'):
 
     #print(tr1, tr2, nnorm)
     #print(distance)
-    return distance
+    if return_quantities:
+        return distance, (tr1, tr2, nnorm)
+    else:
+        return distance
