@@ -8,6 +8,7 @@ import pickle
 from tqdm import tqdm
 from tqdm.notebook import tqdm
 import time
+import os
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -73,6 +74,7 @@ class PerturbationConfig:
         self.n_trials = max(lengths)
         # test to see if this is correct
         if not all((x == max(lengths) or x == 0) for x in lengths):
+            os.system('say "Hey dingus, theres an error in your experiment setup"')
             raise Exception('Number of perturbations does not match between modes.'
                             'Please ensure each list of values is of the same length')
 
@@ -85,21 +87,50 @@ class PerturbationConfig:
 
 class PerturbationResults:
     """
-    holds and plots perturbation experiment results
+    holds and plots perturbation experiment results. These should be reshaped to be indexed by layer!
     """
-    def __init__(self,
-                 similarities,
-                 similarities_clipped,
-                 distances,
-                 distances_clipped):
-        self.similarities = similarities
-        self.similarities_clipped = similarities_clipped
+    # def __init__(self, *initial_data, **kwargs):
+    #     for dictionary in initial_data:
+    #         for key in dictionary:
+    #             setattr(self, key, dictionary[key])
+    #     for key in kwargs:
+    #         setattr(self, key, kwargs[key])
 
-        self.distances = distances
-        self.distances_clipped = distances_clipped
+    def __init__(self, results_dict):
+        """
+
+        :param results_dict:
+        """
+        self.similarities = results_dict['sims_u']
+        self.similarities_clipped = results_dict['sims_c']
+
+        self.distances = results_dict['dist_u']
+        self.distances_clipped = results_dict['dist_c']
+
+        self.accuracy = results_dict['acc']
+        self.dimensions_trials = results_dict['effdims']
+
+        self.dimensions_baseline = results_dict['base_dims']
+
+        self.baseline_trace = results_dict['base_tr_u']
+        self.baseline_trace_clipped = results_dict['base_tr_c']
+
+        self.experiment_trace = results_dict['exp_tr_u']
+        self.experiment_trace_clipped = results_dict['exp_tr_c']
+
+        self.nuclear_norm = results_dict['nnorm_u']
+        self.nuclear_norm_clipped = results_dict['nnorm_c']
+
+        self.description = results_dict['README']
+
+        self.ticks = None
+
+    def set_ticks(self, ticklist):
+        setattr(self, 'ticks', ticklist)
+        print('Successfully set the ticks for the model')
         return
 
-    def plot_trajectories(self,
+    def plot_trajectories(self, layer=1,
                           wsim_order=(2, 4, 3, 1, 0),
                           asim_order=(2, 3, 0, 1),
                           wdist_order=(3, 0, 1, 4, 2),
@@ -107,133 +138,62 @@ class PerturbationResults:
                           ws_loc='upper left',
                           as_loc='upper left',
                           wd_loc='lower right',
-                          ad_loc='upper left'):
-        plot_result_trajectories(self.similarities, self.similarities_clipped, self.distances, self.distances_clipped,
+                          ad_loc='upper left', ticks=None, ylog=True, xlog=False,
+                          titleadd=''):
+        ticks = self.ticks if self.ticks else ticks
+        if not ticks:
+            os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
+            raise Exception('Need to set ticks before plotting')
+        plot_result_trajectories(self.similarities[layer], self.similarities_clipped[layer],
+                                 self.distances[layer], self.distances_clipped[layer],
                                  wsim_order=wsim_order, asim_order=asim_order,
                                  wdist_order=wdist_order, adist_order=adist_order,
-                                 ws_loc=ws_loc, as_loc=as_loc, wd_loc=wd_loc, ad_loc=ad_loc)
+                                 ws_loc=ws_loc, as_loc=as_loc, wd_loc=wd_loc, ad_loc=ad_loc,
+                                 xticks=ticks, ylog=ylog, xlog=xlog,
+                                 titleadd=titleadd)
+        return
+
+    def plot_trace_nnorms(self, ticks=None, quantity='weights', layer=1, clipped=True,
+                          titleadd='', xlabel='Perturbation Level', upper_legend_loc='best', lower_legend_loc='best',
+                          yrange1=None, yrange2=None, xlog=False):
+        ticks = self.ticks if self.ticks else ticks
+        if ticks is None:
+            os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
+            raise Exception('Need to set ticks before plotting')
+
+        plot_trace_nnorms(self, ticks, quantity=quantity, layer=layer, clipped=clipped,
+                          titleadd=titleadd, xlabel=xlabel, upper_legend_loc=upper_legend_loc,
+                          lower_legend_loc=lower_legend_loc, yrange1=yrange1, yrange2=yrange2, xlog=xlog)
+        return
+
+    def plot_accuracy(self, type='test', ticks=None, titleadd='', legend_loc='lower left',
+                      ymin=0.05, ymax=0.4, xscale='log', yscale='linear'):
+        ticks = self.ticks if self.ticks else ticks
+        if not ticks:
+            os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
+            raise Exception('Need to set ticks before plotting')
+        plot_accuracy_trajectory(self.accuracy[type], self.accuracy[type][0], xticks=ticks,
+                                 legend_loc=legend_loc, titleadd=f'{type} {titleadd}', ymin=ymin, ymax=ymax,
+                                 xscale=xscale, yscale=yscale)
         return
 
 
-def run_perturbation_iteration(baseline_model : spec.spectrum_analysis,
-                               layers,
-                               n_classes=10,
-                               batch_size=64,
-                               dataset_class=datasets.CIFAR10,
-                               columns=None, rows=None,
-                               val=225,
-                               intensity=False,
-                               noise=False, var=0,
-                               random_pixels=None,
-                               name=None,
+    def plot_effective_dimensions(self, layer=1, ticks=None, xlabel='', titleadd='', legend_loc='lower right',
+                                  xlog=False):
+        ticks = self.ticks if self.ticks else ticks
+        if not ticks:
+            os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
+            raise Exception('Need to set ticks before plotting')
 
-                               j=None,
-                               w_clip_val=30, a_clip_val=64, plot=True
-                               ):
-    start = time.time()
-    model_names = ('unperturbed', name) if name else ('unperturbed', 'perturbed')
-    n_layers = len(baseline_model.n_neurons)
+        plot_effective_dimensions(self, ticks, xlabel, layer=layer, titleadd=titleadd, legend_loc=legend_loc, xlog=xlog)
 
-    lens = [0 if k is None else k for k in (columns, rows, random_pixels)]
-    j = j if j else max(lens)
-
-    # create the dataloaders
-    trial_loaders = subset_class_loader([], mod_ind=list(range(n_classes)),
-                                        batch_size=batch_size, dataset_class=dataset_class,
-                                        columns=columns, rows=rows,
-                                        val=val, intensity=intensity,
-                                        noise=noise, var=var, random_pixels=random_pixels)
-    # show the dataset
-    dataiter = iter(trial_loaders[0])
-    images, labels = next(dataiter)
-    imshow(torchvision.utils.make_grid(images[0:5]))
-
-    # train the model
-    trial_model = spec.spectrum_analysis(baseline_model.n_neurons)  # create the model
-    trial_model.train(trial_loaders[0], trial_loaders[1],
-                      baseline_model.n_epochs, grain=50000, ep_grain=baseline_model.n_epochs)
-    trial_model.get_effective_dimensions()
-
-    # saving accuracy and EDs
-    accuracy_trials = trial_model.val_history[-1]
-    dimensions_trials = [trial_model.effective_dimensions[j][-1] for j in range(n_layers)]
-
-    # create the similarity object
-    simobj = sim.network_comparison(baseline_model, trial_model, names=model_names)
-
-    # do the similarity analysis
-    # get the alignments
-    simobj.compute_alignments(baseline_model.train_loader, layers)
-    simobj.compute_cossim()
-
-    # get the metrics
-    ###### DISTANCES
-    ## clipped values
-    act, way = simobj.network_distance(w_clip=w_clip_val, a_clip=a_clip_val)
-    act_dist = act[0]
-    way_dist = way[0]
-    ## unlcipped values
-    act, way = simobj.network_distance(w_clip=None)
-    act_dist_clip = act[0]
-    way_dist_clip = way[0]
-
-    ###### SIMILARITIES
-    ## clipped values
-    act, way = simobj.network_distance(w_clip=w_clip_val,
-                                       a_clip=a_clip_val,
-                                       sim=True)
-    act_sim = act[0]
-    way_sim = way[0]
-    ## unclipped values
-    act, way = simobj.network_distance(w_clip=None, sim=True)
-    act_sim_clip = act[0]
-    way_sim_clip = way[0]
-
-    if plot:
-        simobj.plot_sims(quantities=['activations'], clips=[int(a_clip_val * 1.5)] * n_layers,
-                         filename_append=f'p--{j}',
-                         plot_clip=a_clip_val)
-        simobj.plot_sims(quantities=['weights'], clips=[w_clip_val + 20] * n_layers,
-                         filename_append=f'p--{j}',
-                         plot_clip=w_clip_val)
-
-    print(f'TOTAL TIME: {time.time() - start} seconds')
-
-    return (act_dist, way_dist, act_dist_clip, way_dist_clip,
-            act_sim, way_sim, act_sim_clip, way_sim_clip,
-            accuracy_trials, dimensions_trials)
-
-
-def add_perturbation_results_to_dict(perturbation_iteration_results,
-                                     sim_uncl_dict,
-                                     sim_clip_dict,
-                                     dist_uncl_dict,
-                                     dist_clip_dict,
-                                     accuracy_list,
-                                     dimensions_list):
-
-    dist_uncl_dict['activations'].append(perturbation_iteration_results[0])
-    dist_uncl_dict['weights'].append(perturbation_iteration_results[1])
-
-    dist_clip_dict['activations'].append(perturbation_iteration_results[2])
-    dist_clip_dict['weights'].append(perturbation_iteration_results[3])
-
-    sim_uncl_dict['activations'].append(perturbation_iteration_results[4])
-    sim_uncl_dict['weights'].append(perturbation_iteration_results[5])
-
-    sim_clip_dict['activations'].append(perturbation_iteration_results[6])
-    sim_clip_dict['weights'].append(perturbation_iteration_results[7])
-
-    accuracy_list.append(perturbation_iteration_results[8])
-    dimensions_list.append(perturbation_iteration_results[9])
-
-    return sim_uncl_dict, sim_clip_dict, dist_uncl_dict, dist_clip_dict, accuracy_list, dimensions_list
+        return
 
 
 class Perturbation:
 
     def __init__(self,
-                 n_classes=10,
+                 base_classes=tuple(range(10)),
                  batch_size=64,
                  dataset_class=datasets.CIFAR10,
                  columns=None, rows=None,
@@ -245,26 +205,26 @@ class Perturbation:
         """
         Does not currently handle intensity modifications!
 
-        :param n_classes:
+        :param base_classes: are the classes to be used in the base, unperturbed model. By default, this is all classes
         :param batch_size:
         :param dataset_class:
         :param columns: list of numbers of columns to perturb
         :param rows: list of numbers of rows to perturb
         :param val: the (mean) value to replace the pixel(s) with
-        :param intensity: whether or not to clip based on intensity
-        :param noise: whether or not to vary the value according to a gaussian distribution
+        :param intensity: whether to clip based on intensity
+        :param noise: whether to vary the value according to a gaussian distribution
         :param var: if noise, the variance of the distribution
         :param random_pixels: list of the number of random pixels to perturb
         """
         self.model_names = ('unperturbed', name) if name else ('unperturbed', 'perturbed')
         # get the datasets
         # unperturbed dataset
-        self.loaders_normal = subset_class_loader(list(range(n_classes)),
+        self.loaders_baseline = subset_class_loader(base_classes,
                                                   batch_size=batch_size)
         self.dataset_class = dataset_class
         self.batch_size = batch_size
 
-        self.n_classes = n_classes
+        self.n_classes = len(base_classes)
 
         # set the perturbation parameters
         self.columns = columns
@@ -276,6 +236,7 @@ class Perturbation:
         self.n_trials = max(lengths)
         # test to see if this is correct
         if not all((x == max(lengths) or x == 0) for x in lengths):
+            os.system('say "Hey dingus, theres an error in your experiment setup"')
             raise Exception('Number of perturbations does not match between modes.'
                             'Please ensure each list of values is of the same length')
 
@@ -287,7 +248,8 @@ class Perturbation:
 
         # results tracking
         self.accuracy_baseline = None
-        self.accuracy_trials = []
+        self.accuracy_trials = {'train': [None]*self.n_trials,
+                                'test': [None]*self.n_trials}
 
         self.dimensions_baseline = None
         self.dimensions_trials = []
@@ -324,7 +286,14 @@ class Perturbation:
 
         return
 
-    def set_baseline(self, n_epochs, n_neurons):
+    def set_baseline(self, n_epochs, n_neurons, w_clip_val=30):
+        """
+        Trains the reference model and experiment parameters to ensure accurate comparison
+        :param n_epochs: number of epochs to train
+        :param n_neurons: the list of the number of neurons in each hidden layer of the network
+        :param w_clip_val: the rank at which to clip the weights
+        :return:
+        """
         # create the model
         baseline_model = spec.spectrum_analysis(n_neurons)
         self.n_neurons = n_neurons
@@ -332,8 +301,8 @@ class Perturbation:
         # train the model for n_epochs
         self.n_epochs = n_epochs # save so we can use the same number for later
 
-        baseline_train = self.loaders_normal[0]
-        baseline_val = self.loaders_normal[1]
+        baseline_train = self.loaders_baseline[0]
+        baseline_val = self.loaders_baseline[1]
 
         # training
         baseline_model.train(baseline_train, baseline_val, n_epochs, grain=50000, ep_grain=n_epochs)
@@ -343,13 +312,36 @@ class Perturbation:
         # get the weight covariances
         baseline_model.get_weight_covs()
         # and effective dimensions
-        baseline_model.get_effective_dimensions()
+        baseline_model.get_effective_dimensions(clip=w_clip_val)
         self.dimensions_baseline = [baseline_model.effective_dimensions[j][-1] for j in range(len(n_neurons))]
 
+        self.w_clip_val = w_clip_val
         self.baseline_model = baseline_model
         return
 
-    def run_perturbation_training(self, layers, perturbation_level, w_clip_val=30, a_clip_val=64, plot=True):
+    def run_perturbation_training(self, layers, perturbation_level, w_clip_val=None, a_clip_val=64, plot=True,
+                                  classes=tuple(range(10))):
+        """
+        Runs one iteration of the pertrbation experiement per the settings initialized upon object creation. Updates the
+        result attributes.
+
+        :param layers:              list(int)   :  which layers to perform analysis on
+        :param perturbation_level:  int         : which level of perturbation to run
+        :param w_clip_val:          int         : the rank at which to clip the weights for comparison. By default, this
+                                                 is the rank set during the training of the baseline
+        :param a_clip_val:          int         : the rank at which to clip the activations for comparison
+        :param plot:                bool        : whether to plot and save the eigenvector similarity plots
+        :param classes:             list(int)   : the classes to include (and perturb) in the training of the network
+        :return:
+        """
+
+        # check perturbation level
+        if perturbation_level > self.n_trials:
+            os.system('say "set a valid perturbation level you absolute chode"')
+            raise Exception('Perturbation level must be less than the number of trials')
+
+        w_clip_val = w_clip_val if w_clip_val else self.w_clip_val
+
         start = time.time()
         # for each trial
         j = perturbation_level
@@ -361,7 +353,7 @@ class Perturbation:
         j_var = self.var[j] if self.var else None
 
         # create the dataloader
-        trial_loaders = subset_class_loader([], mod_ind=list(range(self.n_classes)),
+        trial_loaders = subset_class_loader([], mod_ind=classes,
                                             columns=j_col, rows=j_row,
                                             val=self.val, intensity=self.intensity,
                                             noise=self.noise, var=j_var, random_pixels=j_pix)
@@ -371,12 +363,18 @@ class Perturbation:
 
         # train the model
         trial_model = spec.spectrum_analysis(self.n_neurons) # create the model
-        trial_model.train(trial_loaders[0], trial_loaders[1],
-                            self.n_epochs, grain=50000, ep_grain=self.n_epochs) # train the model
-        trial_model.get_effective_dimensions() # get the effective dimensions
-        self.accuracy_trials.append(trial_model.val_history[-1]) # add the accuracy results
+        trial_model.train(trial_loaders[0], trial_loaders[1], #self.n_epochs, grain=8, ep_grain=2)#
+                          self.n_epochs, grain=50000, ep_grain=self.n_epochs) # train the model
+        trial_model.get_effective_dimensions(clip=w_clip_val)  # get the effective dimensions
+        # seeing what is up with the spectrum on the noise
+        trial_model.plot(plotlist=['rel_eds', 'rel'])
+
+
+        self.accuracy_trials['test'][j] = trial_model.val_history[-1]   # add the accuracy results
+        self.accuracy_trials['train'][j] = trial_model.train_history[-1]    # add the accuracy results
+
         self.dimensions_trials.append([trial_model.effective_dimensions[j][-1] for j in range(len(self.n_neurons))])
-                    # add the effective dimensions
+        # add the effective dimensions
 
         # create the similarity object
         simobj = sim.network_comparison(self.baseline_model, trial_model, names=self.model_names)
@@ -389,7 +387,7 @@ class Perturbation:
         # get the metrics and add them to the correct list
         ###### DISTANCES
         ## clipped values
-        act, way, quants = simobj.network_distance(w_clip=w_clip_val, a_clip=a_clip_val, return_quantities=True) # these come back with all layers
+        act, way, quants = simobj.network_distance(w_clip=w_clip_val, a_clip=a_clip_val, return_quantities=True)    # these come back with all layers
         self.distances_clipped['activations'][j] = [act[ind-1] for ind in layers]
         self.distances_clipped['weights'][j] = [way[ind-1] for ind in layers]
         # convert the component quantities to get the layer lists for this perturbation
@@ -444,8 +442,6 @@ class Perturbation:
         return
 
     def reshape_results(self):
-        #if len(self.layers) == 1:
-        #    raise Exception(f'This perturbation is a single layer analysis. Cannot perform multilayer results reshape')
         self.similarities = reshape_multilayer_results_dict(self.similarities, self.layers)
         self.similarities_clipped = reshape_multilayer_results_dict(self.similarities_clipped, self.layers)
 
@@ -460,8 +456,9 @@ class Perturbation:
 
         self.baseline_trace = reshape_multilayer_results_dict(self.baseline_trace, self.layers)
         self.baseline_trace_clipped = reshape_multilayer_results_dict(self.baseline_trace_clipped, self.layers)
-        print('Reshaped results for multilayer format')
 
+        self.dimensions_trials = reshape_multilayer_dimensions(self.dimensions_trials, self.layers)
+        print('Reshaped results for multilayer format')
         return
 
     def plot_trajectories(self, layers=None,
@@ -478,6 +475,24 @@ class Perturbation:
                           ylabadd =None,
                           titleadd ='',
                           ylog=True):
+        """
+
+        :param layers: list(int)    : the layers to plot the trajectories for
+        :param wsim_order:
+        :param asim_order:
+        :param wdist_order:
+        :param adist_order:
+        :param ws_loc:
+        :param as_loc:
+        :param wd_loc:
+        :param ad_loc:
+        :param xticks:
+        :param xlabadd:
+        :param ylabadd:
+        :param titleadd:
+        :param ylog:
+        :return:
+        """
         layers = layers if layers else self.layers
 
         for layer in layers:
@@ -500,7 +515,15 @@ class Perturbation:
 
         return
 
-    def save_trajectories(self, pickle_name, description=''):
+    def save_trajectories(self, pickle_name, description='', save=True):
+        """
+        Creates a results dictionary which can be used to create a results object or saved to a pickle object for later
+        access.
+        :param pickle_name: str : the name of the dictionary to be saved
+        :param description: str : a description of the experiment for later access
+        :param save: bool       : whether to save as a pickled variable
+        :return: results : dict : the results dictionary
+        """
         names = ['sims_u', 'sims_c', 'dist_u', 'dist_c', 'acc', 'effdims', 'base_dims',
                  'base_tr_u', 'base_tr_c', 'exp_tr_u', 'exp_tr_c', 'nnorm_u', 'nnorm_c']
         dicts = [self.similarities, self.similarities_clipped,
@@ -517,12 +540,13 @@ class Perturbation:
 
         results['README'] = description
 
-        PATH = f'../pickle_vars/{pickle_name}.pkl'
+        if save:
+            # save the results
+            PATH = f'../pickle_vars/{pickle_name}.pkl'
+            with open(PATH, 'wb') as f:
+                pickle.dump(results, f)
 
-        # save the results
-        with open(PATH, 'wb') as f:
-            pickle.dump(results, f)
-
+        return results
 
 ##############################
 ###### Helper Functions ######
@@ -664,6 +688,7 @@ class dataset_perturbations(object):
 
         if noise:
             if var == 0:
+                os.system('say "Hey dingus, change the first variance to None for no perturbation"')
                 raise Exception('If using random masking, please include nonzero variance')
             if self.columns or self.rows:
                 self.random = scipy.stats.norm(0, np.sqrt(var))
@@ -753,7 +778,7 @@ def plot_result_trajectories(similarities,
                              xticks=None,
                              xlabadd=None, ylabadd=None,
                              titleadd=None,
-                             ylog = True):
+                             ylog = True, xlog=False):
 
     ylabadd = ylabadd if ylabadd else ''
     xlabadd = xlabadd if xlabadd else ''
@@ -770,25 +795,28 @@ def plot_result_trajectories(similarities,
     # Get and plot the X sets
     # unclipped similarities
     xu = np.array(similarities['weights'])
+    #################################### Setting the Ticks
+    tick_places = np.array(range(len(xu))) if not xticks else np.array(xticks)
+
     mask = np.isfinite(xu)
-    plt.scatter(np.array(range(len(xu)))[mask], xu[mask],
+    plt.scatter(tick_places[mask], xu[mask],
                 marker='o',
                 color='r',
                 label=f'unclipped sim')  #### LEGEND: 0
     # clipped similarities
     xc = np.array(similarities_clipped['weights'])
     mask = np.isfinite(xc)
-    plt.scatter(np.array(range(len(xu)))[mask], xc[mask],
+    plt.scatter(tick_places[mask], xc[mask],
                 marker='o',
                 color='b',
                 label=f'clipped sim')  #### LEGEND: 1
     # plot the baselines
     # identical weights distance
-    plt.hlines(way_id_sim, 0, len(xu) - 1, colors='orange', linestyles=':', label='identical weights')  #### L2
+    plt.hlines(way_id_sim, 0, max(tick_places), colors='orange', linestyles=':', label='identical weights')  #### L2
     # random init, same arch
-    plt.hlines(np.mean(quantities['wsu'][2]), 0, len(xu) - 1, colors='r', linestyles=':',
+    plt.hlines(np.mean(quantities['wsu'][2]), 0, max(tick_places), colors='r', linestyles=':',
                label='unclipped random init')  #### L3
-    plt.hlines(np.mean(quantities['wsc'][2]), 0, len(xu) - 1, colors='b', linestyles=':',
+    plt.hlines(np.mean(quantities['wsc'][2]), 0, max(tick_places), colors='b', linestyles=':',
                label='clipped random init')  #### L4
 
     plt.title(f'Weight cosine similarity trajectories {titleadd}')
@@ -801,10 +829,10 @@ def plot_result_trajectories(similarities,
     order = wsim_order
     if ylog:
         plt.yscale('log')
-    #################################### Setting the Ticks
-    tick_places = list(range(len(xu)))
-    ticknames = xticks if xticks else list(range(len(xu)))
-    plt.xticks(tick_places, ticknames)
+    if xlog:
+        plt.xscale('log')
+
+    #plt.xticks(tick_places, ticknames)
     plt.legend([handles[i] for i in order],
                [labels[i] for i in order],
                loc=ws_loc)
@@ -818,7 +846,7 @@ def plot_result_trajectories(similarities,
     # Get and plot the X sets
     xu = np.array(similarities['activations'])
     mask = np.isfinite(xc)
-    plt.scatter(np.array(range(len(xu)))[mask], xu[mask],
+    plt.scatter(tick_places[mask], xu[mask],
                 marker='o',
                 color='r',
                 label=f'unclipped sim')  ### Legend 0
@@ -826,15 +854,15 @@ def plot_result_trajectories(similarities,
     # clipped similarities
     xc = np.array(similarities_clipped['activations'])
     mask = np.isfinite(xc)
-    plt.scatter(np.array(range(len(xu)))[mask], xc[mask],
+    plt.scatter(tick_places[mask], xc[mask],
                 marker='o',
                 color='b',
                 label=f'clipped sim')  #### LEGEND: 1
     # plot the baselines
     # indentical weights
-    plt.hlines(act_id_sim, 0, len(xu) - 1, colors='orange', linestyles=':', label='identical weights')  #### L2
+    plt.hlines(act_id_sim, 0, max(tick_places), colors='orange', linestyles=':', label='identical weights')  #### L2
     # random init, same arch
-    plt.hlines(np.mean(quantities['as'][2]), 0, len(xu) - 1, colors='r', linestyles=':', label='random init')  #### L3
+    plt.hlines(np.mean(quantities['as'][2]), 0, max(tick_places), colors='r', linestyles=':', label='random init')  #### L3
     plt.title(f'Activation cosine similarity trajectories {titleadd}')
     plt.xlabel(x_title)
     plt.ylabel(f'Cosine Similarity {ylabadd}')
@@ -844,7 +872,9 @@ def plot_result_trajectories(similarities,
     order = asim_order
     if ylog:
         plt.yscale('log')
-    plt.xticks(tick_places, ticknames)
+    if xlog:
+        plt.xscale('log')
+    #plt.xticks(tick_places, ticknames)
     plt.legend([handles[i] for i in order],
                [labels[i] for i in order],
                loc=as_loc)
@@ -858,7 +888,7 @@ def plot_result_trajectories(similarities,
     # Get and plot the X sets
     xu = np.array(distances['weights'])
     mask = np.isfinite(xc)
-    plt.scatter(np.array(range(len(xu)))[mask], xu[mask],
+    plt.scatter(tick_places[mask], xu[mask],
                 marker='o',
                 color='r',
                 label=f'unclipped dist')  #### Legend 0
@@ -866,22 +896,22 @@ def plot_result_trajectories(similarities,
     # clipped distances
     xc = np.array(distances_clipped['weights'])
     mask = np.isfinite(xc)
-    plt.scatter(np.array(range(len(xu)))[mask], xc[mask],
+    plt.scatter(tick_places[mask], xc[mask],
                 marker='o',
                 color='b',
                 label=f'clipped dist')  #### LEGEND: 1
 
     # plot the baselines
     # identical weights distance
-    plt.hlines(way_id_dist, 0, len(xu) - 1, colors='orange', linestyles=':', label='identical weights')  #### L2
+    plt.hlines(way_id_dist, 0, max(tick_places), colors='orange', linestyles=':', label='identical weights')  #### L2
 
     # random init, same arch
     # plt.hlines(way_rand_dist, 0, lvl, colors='r', linestyles=':', label='unclipped random init') #### L3
-    plt.hlines(np.mean(quantities['wdu'][2]), 0, len(xu) - 1, colors='r', linestyles=':',
+    plt.hlines(np.mean(quantities['wdu'][2]), 0, max(tick_places), colors='r', linestyles=':',
                label='unclipped random init')  #### L3
 
     # random init, clipped
-    plt.hlines(np.mean(quantities['wdc'][2]), 0, len(xu) - 1, colors='b', linestyles=':',
+    plt.hlines(np.mean(quantities['wdc'][2]), 0, max(tick_places), colors='b', linestyles=':',
                label='clipped random init')  #### L4
 
     plt.title(f'Weights Distance trajectories {titleadd}')
@@ -892,7 +922,9 @@ def plot_result_trajectories(similarities,
     handles, labels = plt.gca().get_legend_handles_labels()
     ############## CHANGE ORDER HERE
     order = wdist_order
-    plt.xticks(tick_places, ticknames)
+    if xlog:
+        plt.xscale('log')
+    #plt.xticks(tick_places, ticknames)
     plt.legend([handles[i] for i in order],
                [labels[i] for i in order],
                loc=wd_loc)
@@ -906,21 +938,21 @@ def plot_result_trajectories(similarities,
     # Get and plot the X sets
     xc = np.array(distances['activations'])
     mask = np.isfinite(xc)
-    plt.scatter(np.array(range(len(xu)))[mask], xc[mask], marker='o', color='r', label=f'unclipped dist')  #### L0
+    plt.scatter(tick_places[mask], xc[mask], marker='o', color='r', label=f'unclipped dist')  #### L0
 
     # clipped similarities
     xc = np.array(distances_clipped['activations'])
     mask = np.isfinite(xc)
-    plt.scatter(np.array(range(len(xu)))[mask], xc[mask],
+    plt.scatter(tick_places[mask], xc[mask],
                 marker='o',
                 color='b',
                 label=f'clipped dist')  #### LEGEND: 1
 
     # plot the baselines
     # indentical weights
-    plt.hlines(act_id_dist, 0, len(xu) - 1, colors='orange', linestyles=':', label='identical weights')  #### L1
+    plt.hlines(act_id_dist, 0, max(tick_places), colors='orange', linestyles=':', label='identical weights')  #### L1
     # random init, same arch
-    plt.hlines(np.mean(quantities['ad'][2]), 0, len(xu) - 1, colors='r', linestyles=':', label='random init')  #### L2
+    plt.hlines(np.mean(quantities['ad'][2]), 0, max(tick_places), colors='r', linestyles=':', label='random init')  #### L2
 
     plt.title(f'Activation Distance trajectories {titleadd}')
     plt.xlabel(x_title)
@@ -932,7 +964,10 @@ def plot_result_trajectories(similarities,
     order = adist_order
     if ylog:
         plt.yscale('log')
-    plt.xticks(tick_places, ticknames)
+    if xlog:
+        plt.xscale('log')
+
+    #plt.xticks(tick_places, ticknames)
     plt.legend([handles[i] for i in order],
                [labels[i] for i in order],
                loc=ad_loc)
@@ -943,33 +978,134 @@ def plot_result_trajectories(similarities,
     plt.show()
 
 
-def plot_accuracy_trajectory(accuracies, acc_baseline, xticks=None, legend_loc='lower left', titleadd=''):
+def plot_accuracy_trajectory(accuracies, acc_baseline, xticks=None, legend_loc='lower left', titleadd='',
+                             ymin=0.05, ymax=0.4, xscale='log', yscale='linear'):
     fig = plt.figure(figsize=(10,5))
+    xticks = xticks if xticks else list(range(len(accuracies)))
 
-    plt.hlines(acc_baseline, 0, len(accuracies) - 1, label='unperturbed', color='g')
-    plt.scatter(range(len(accuracies)), accuracies, label='perturbed models', color='m')
-    plt.hlines(0.1, 0, len(accuracies)-1, label='chance', color='orange', linestyle=':')
+    plt.hlines(acc_baseline, min(xticks), max(xticks), label='unperturbed', color='g')
+    plt.scatter(xticks, accuracies, label='perturbed models', color='m')
+    plt.hlines(0.1, min(xticks), max(xticks), label='chance', color='orange', linestyle=':')
 
     plt.legend(loc=legend_loc)
-    xticklabs = xticks if xticks else list(range(len(accuracies)))
-    plt.xticks(range(len(accuracies)), xticklabs)
 
-    plt.ylim(0.05, 0.45)
+    plt.ylim(ymin, ymax)
+
+    plt.xscale(xscale)
+    plt.yscale(yscale)
 
     plt.xlabel('Perturbation')
-    plt.ylabel('Test Accuracy')
-    plt.title(f'Test Accuracy Trajectory {titleadd}')
+    plt.ylabel('Accuracy')
+    plt.title(f'Accuracy Trajectory {titleadd}')
 
     return
 
 
-def plot_trace_nnorms(trace1s, trace2s, nnorms, xticks=None, legend_loc='lower_left'):
+default_ranges = {'weights': ((1e-3, 50), (0.005, 1)),
+                  'activations': ((1e2, 1e6), (0.005, 1))}
+
+
+def plot_trace_nnorms(results_holder, ticks, quantity='weights', layer=1, clipped=True,
+                      titleadd='', xlabel='Perturbation Level', upper_legend_loc='best', lower_legend_loc='best',
+                      yrange1=None, yrange2=None, xlog=False):
+    """
+    plots the quantities over the course of an experiment that are used for the calculation of the similarity and
+    distance metrics
+
+    :param results_holder: Perturbation or PerturbationResults : object with the proper attributes for plotting
+    :param ticks: list(number)                                 : the list of tick markers/perturbation levels to plot
+    :param quantity: str = 'weights' or 'activations'          : which quanitity to plot for
+    :param layer: int                                          : which layer to plot for
+    :param clipped: bool                                       : whether to use clipped values
+    :param titleadd: str                                       : string to add to the title of the plots
+    :param xlabel: str                                         : label for the x axis
+    :param upper_legend_loc: str                               : location for the legend in the upper panel
+    :param lower_legend_loc: str                               : location for the legend in the lower panel
+    :return:
+    """
+    yrange1 = yrange1 if yrange1 else default_ranges[quantity][0]
+    yrange2 = yrange2 if yrange2 else default_ranges[quantity][1]
+
+    # check to see it is proper length
+    if (len(yrange1) != 2) or (len(yrange2) != 2):
+        os.system('say "Hey dingus, I cant set an axis limit with only one value! Idiot"')
+        raise Exception('Please ensure there are exactly two values for each of the axis limit settings. This can be'
+                        'as either a list or as a tuple.')
+
+    trial = results_holder
+
+    distance = trial.distances_clipped[layer][quantity] if clipped else trial.distances[layer][quantity]
+    exp_trace = trial.experiment_trace_clipped[layer][quantity] if clipped else trial.experiment_trace[layer][quantity]
+    base_trace = trial.baseline_trace_clipped[layer][quantity][0] if clipped else trial.baseline_trace[layer][quantity][
+        0]
+    nuc_norm = trial.nuclear_norm_clipped[layer][quantity] if clipped else trial.nuclear_norm[layer][quantity]
+    similarity = trial.similarities_clipped[layer][quantity] if clipped else trial.similarities[layer][quantity]
+
+    meas_c = 'b' if clipped else 'r'
+
+    fig, axs = plt.subplots(2, 1, sharex=True, figsize=(10, 6))
+    fig.subplots_adjust(hspace=0)
+
+    axs[0].plot(ticks, distance, color=meas_c,
+                label=r'distance = $Tr(C_{ref}) + Tr(C_{exp}) - 2\cdot ||C_{ref}^{1/2} C_{exp}^{1/2}||_{nuc}$',
+                marker='o')
+    axs[0].plot(ticks, exp_trace, label=r'$Tr(C_{exp})$', color='m', marker='^',
+                linestyle=':')
+    axs[0].hlines(base_trace, min(ticks), max(ticks), label=r'$Tr(C_{ref})$', colors='k',
+                  linestyles=':')
+    axs[0].plot(ticks, nuc_norm, color='orange',
+                label=r'$||C_{ref}^{1/2} C_{exp}^{1/2}||_{nuc}$', marker='^', linestyle=':')
+    axs[0].legend(fontsize=8, loc=upper_legend_loc)
+    axs[0].set_ylabel('Component\nQuantities')
+    # setting the ranges
+    axs[0].set_ylim(yrange1[0], yrange1[1])
+
+    # axs[1].plot(range(len(perturbation_settings_list)), nuc_norm, color='orange', label=r'$||C_{ref}^{1/2} C_{exp}^{1/2}||_{nuc}$', marker='o')
+    # axs[0].plot(range(len(perturbation_settings_list)), np.sqrt(base_trace *np.array(exp_trace)), label=r'$\sqrt{Tr(C_{Baseline}) Tr(C_{Perturbed})}$', color='green', marker='o')
+
+    axs[1].plot(ticks, similarity, color=meas_c,
+                label=r'similarity = $\frac{||C_{ref}^{1/2} C_{exp}^{1/2}||_{nuc}}{\sqrt{Tr(C_{ref}) Tr(C_{exp})}}$',
+                marker='o')
+    axs[1].legend(fontsize=8, loc=lower_legend_loc)
+    axs[1].set_ylabel('Absolute Cosine\nSimilarity')
+    axs[1].set_ylim(yrange2[0], yrange2[1])
+
+    #plt.xlim(-0.5, max(ticks)+0.5)
+    for i in range(2):
+        axs[i].set_yscale('log')
+
+    #plt.xticks(ticks, ticks)
+    plt.xlabel(xlabel)
+
+    if xlog:
+        plt.xscale('log')
+
+    cliptit = 'clipped' if clipped else 'unclipped'
+    plt.suptitle(f'{quantity[:-1]} Metric Component Trajectories ({cliptit}) {titleadd}', fontsize=20)
+
+    plt.show()
+    return
+
+
+def plot_effective_dimensions(results_holder, ticks, xlabel, layer=1, titleadd='', legend_loc='lower right',
+                              xlog=False):
     fig = plt.figure(figsize=(10, 5))
 
+    plt.plot(ticks, results_holder.dimensions_trials[layer],
+             label='Perturbed Effective Dimensions', marker='o', color='m')
+    plt.hlines(results_holder.dimensions_baseline[layer-1], min(ticks), max(ticks), label='Baseline', color='green')
 
-    plt.scatter(range(len(trace1s)), trace1s)
+    #plt.xticks(range(len(ticks)), ticks)
+    #plt.xlim(-0.5, max)
+    plt.xlabel(xlabel)
+    if xlog:
+        plt.xscale('log')
+    plt.ylabel('n dimensions')
+    plt.yscale('log')
+    plt.title(f'Effective Dimensions {titleadd}')
+    plt.legend(loc=legend_loc)
 
-
+    plt.show()
     return
 
 
@@ -999,9 +1135,21 @@ def reshape_multilayer_results_dict(original_dict, layer_numbers=None):
 
     # set the reshaped dictionary
     reshaped = dict(zip(layer_keys, layer_dicts))
-
     return reshaped
 
+def reshape_multilayer_dimensions(original_dimensions_list, layer_numbers=None):
+    n_layers = len(original_dimensions_list[0]) # the number of layers is the number of entries for one level
+    layer_keys = layer_numbers if layer_numbers else list(range(1, n_layers+1))
+
+    layer_lists = []
+    for i in range(n_layers):
+        layer_dims = [original_dimensions_list[k][i] for k in range(len(original_dimensions_list))]
+        layer_lists.append(layer_dims)
+
+    # set the reshaped dictionary
+    reshaped = dict(zip(layer_keys, layer_lists))
+
+    return reshaped
 
 ################################################################### Convert quantity output from netsim
 # starts as dict('weights' : quantities for each layer, 'activation': quantities for each layer)

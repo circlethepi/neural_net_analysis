@@ -378,11 +378,9 @@ def bw_dist_covs(vecs1, vals1, vecs2, vals2, truncate=None, quant='dist', return
         ## matrix 1
         high1 = vals1[truncate - 1]
         new_vals1 = torch.where(vals1 < high1, 0, vals1)
-
         ## matrix 2
         high2 = vals2[truncate - 1]
         new_vals2 = torch.where(vals2 < high2, 0, vals2)
-
     else:
         new_vals1 = vals1
         new_vals2 = vals2
@@ -391,7 +389,6 @@ def bw_dist_covs(vecs1, vals1, vecs2, vals2, truncate=None, quant='dist', return
     ## get the diagonal matrices
     new_diag1 = torch.zeros((vecs1.size()[0], vecs1.size()[0]))
     new_diag1[:len(new_vals1), :len(new_vals1)] = torch.diag(new_vals1)
-    #print(new_diag1)
 
     new_diag2 = torch.zeros((vecs2.size()[0], vecs2.size()[0]))
     new_diag2[:len(new_vals2), :len(new_vals2)] = torch.diag(new_vals2)
@@ -399,18 +396,15 @@ def bw_dist_covs(vecs1, vals1, vecs2, vals2, truncate=None, quant='dist', return
     ## multiply out the matrices
     new_mat1 = vecs1.T @ new_diag1 @ vecs1
     new_mat2 = vecs2.T @ new_diag2 @ vecs2
-    #print(new_mat1)
-    #print(new_mat1.shape, new_mat2.shape)
 
     ## Get the square roots
     sq_diag1 = torch.sqrt(new_diag1)
-    #print(sq_diag1)
     sq_mat1 = vecs1.T @ sq_diag1 @ vecs1
 
     sq_diag2 = torch.sqrt(new_diag2)
     sq_mat2 = vecs2.T @ sq_diag2 @ vecs2
 
-    #print(sq_mat1.T @ sq_mat2)
+    ## get the quantities
     tr1 = torch.trace(new_mat1).item()
     tr2 = torch.trace(new_mat2).item()
     nnorm = torch.trace(sq_mat1.T @ sq_mat2).item()
@@ -423,8 +417,6 @@ def bw_dist_covs(vecs1, vals1, vecs2, vals2, truncate=None, quant='dist', return
     else:
         raise Exception('Please select either "dist" or "sim" for parameter quant')
 
-    #print(tr1, tr2, nnorm)
-    #print(distance)
     if return_quantities:
         return distance, (tr1, tr2, nnorm)
     else:

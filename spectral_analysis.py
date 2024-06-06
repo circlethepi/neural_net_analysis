@@ -170,7 +170,7 @@ class spectrum_analysis:
         self.get_weights() # setting the weights
         print(f'Model training complete!')
 
-    def get_effective_dimensions(self, tail_match='mp', rankslist=None, scale='log'):
+    def get_effective_dimensions(self, tail_match='mp', rankslist=None, scale='log', clip=None):
         """
         :param tail_match: string either 'mp' or 'rankspace'
         :return:
@@ -181,7 +181,8 @@ class spectrum_analysis:
         # force-matching the tails
         diffed_specs, new_init_specs, rank_bound_list = eff_dim.match_spectrum_tails_regime(self, tail_match=tail_match,
                                                                                             rankslist=rankslist,
-                                                                                            spacescale=scale)
+                                                                                            spacescale=scale,
+                                                                                            clip=clip)
 
         # setting the features
         self.normed_spectra = diffed_specs
@@ -222,3 +223,27 @@ class spectrum_analysis:
             plotter.plot_spectrum_single(self, quantity, layer, scale=scale, save_fig=save_fig)
 
         return
+
+
+########################
+### HELPER FUNCTIONS ###
+########################
+
+def truncate_matrix_svd(matrix, rank):
+    """
+
+    :param matrix: array-like
+    :param rank:    the rank to truncate at
+    :return:
+    """
+    # first, get SVD factorization
+    U, S, Vh = torch.linalg.svd(matrix, full_matrices=False)
+    U, S, Vh = U.flip(-1), S.flip(-1), Vh.flip(-1)
+
+    # now, get the new diagonal
+    high_val = S[rank - 1]
+    new_S = torch.where(S < high_val, 0, S)
+
+    # calculate the truncated matrix
+    truncated = U @ torch.diag(new_S) @ Vh
+    return truncated

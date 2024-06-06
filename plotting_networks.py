@@ -55,6 +55,7 @@ def plot_relative_spectrum_history_eds(model, scale='log', save_fig=True, xmax=1
         plt.ylabel('eigenvalue')
 
         #plt.xlim(1, xmax)
+        #plt.xlim(min([min(rel_spec), min(eff_dim), 1]), xmax)
         plt.ylim(np.max([np.min(rel_spec), 10**(-5)]), np.max(rel_spec))
         # plt.ylim(np.min(rel_spec), np.max([np.max(rel_spec), model.var]))
 
@@ -105,7 +106,7 @@ def plot_spectrum(model, scale='log', save_fig=True):
     plt.xlabel('Rank')
     plt.ylabel('eigenvalue')
 
-    plt.xlim(1, len(spec_hist[0]))
+    #plt.xlim(min([min(spec_hist), min() 1]), len(spec_hist[0]))
     plt.ylim(np.max([np.min(spec_hist), 10**(-5)]), np.max(spec_hist))
     #plt.ylim(np.min(spec_hist), np.max([np.max(spec_hist), model.var]))
 

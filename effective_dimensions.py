@@ -89,7 +89,8 @@ def get_model_ranks(rankslist, n_ints, scale='log'):
     return cutoff_ranks
 
 
-def match_spectrum_tails_regime(spectrum_analysis_obj, tail_match = 'mp', rankslist=None, spacescale='log'):
+def match_spectrum_tails_regime(spectrum_analysis_obj, tail_match = 'mp', rankslist=None, spacescale='log',
+                                clip=None):
     """
     force-matches the tails of the trained spectrum to the init after the marchenko-pastur bound, which is found using
     the above functions.
@@ -102,12 +103,33 @@ def match_spectrum_tails_regime(spectrum_analysis_obj, tail_match = 'mp', ranksl
     spectrum_history = spectrum_analysis_obj.spectrum_history
     n_ints = len(spectrum_analysis_obj.epoch_history)
 
+    # setting lambda_i = 0 for i > clip BEFORE tail matching
+    # if clip:
+    #     new_hist = []
+    #     # for each measurement taken
+    #     for measure in spectrum_history:
+    #                     # get new one for each layer
+    #         new_measure = [np.array(list(spec[:clip]) + list(np.zeros(len(spec)-clip))) for spec in measure]
+    #         new_hist.append(new_measure)
+    #     spectrum_history = new_hist
+
+
     if tail_match == 'mp':
         rank_bound_list = find_cutoff_list(spectrum_history, dim_list)
     elif tail_match == 'rankspace':
         if rankslist is None:
             raise Exception('to use rankspace rankfinding, need a rankslist')
         rank_bound_list = get_model_ranks(rankslist, n_ints, scale=spacescale)
+
+    # setting lambda_i = 0 for i > clip AFTER tail matching
+    if clip:
+        new_hist = []
+        # for each measurement taken
+        for measure in spectrum_history:
+                        # get new one for each layer
+            new_measure = [np.array(list(spec[:clip]) + list(np.zeros(len(spec)-clip))) for spec in measure]
+            new_hist.append(new_measure)
+        spectrum_history = new_hist
 
     # calculating the init tail
     # and also the real tails
