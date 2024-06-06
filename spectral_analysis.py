@@ -196,7 +196,8 @@ class spectrum_analysis:
 
         print(f'Effective dimensions calculated')
 
-    def plot(self, plotlist=['rel'], scale='log', layer=None, quantity=None, save_fig=False, xmax=None):
+    def plot(self, plotlist=('rel'), scale='log', layer=None, quantity=None, save_fig=False, xmax=None,
+             saveadd=''):
         """
 
         :param plotlist: list of plots to create. Options are 'rel_eds', 'spec', 'rel', and 'acc'
@@ -208,13 +209,13 @@ class spectrum_analysis:
         :return:
         """
         if 'rel_eds' in plotlist:
-            plotter.plot_relative_spectrum_history_eds(self, scale=scale, save_fig=save_fig, xmax=xmax)
+            plotter.plot_relative_spectrum_history_eds(self, scale=scale, save_fig=save_fig, xmax=xmax, saveadd=saveadd)
 
         if 'spec' in plotlist:
-            plotter.plot_spectrum(self, scale=scale, save_fig=save_fig)
+            plotter.plot_spectrum(self, scale=scale, save_fig=save_fig, saveadd=saveadd)
 
         if 'rel' in plotlist:
-            plotter.plot_spectrum_normed(self, scale=scale, save_fig=save_fig, xmax=xmax)
+            plotter.plot_spectrum_normed(self, scale=scale, save_fig=save_fig, xmax=xmax, saveadd=saveadd)
 
         if 'acc' in plotlist:
             plotter.plot_accuracy(self, save_fig=save_fig)

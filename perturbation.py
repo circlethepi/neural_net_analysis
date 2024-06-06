@@ -38,53 +38,6 @@ with open('/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/pickle_
 ###########################
 ### Perturbation Object ###
 ###########################
-class PerturbationConfig:
-    """
-    Holds the configuration for a perturbation experiment
-    """
-
-    def __init__(self,
-                 n_classes=10,
-                 batch_size=64,
-                 dataset_class=datasets.CIFAR10,
-                 columns=None, rows=None,
-                 val=225,
-                 intensity=False,
-                 noise=False, var=0,
-                 random_pixels=None,
-                 name=None
-                 ):
-        self.model_names = ('unperturbed', name) if name else ('unperturbed', 'perturbed')
-        # get the datasets
-        # unperturbed dataset
-        self.loaders_normal = subset_class_loader(list(range(n_classes)),
-                                                  batch_size=batch_size)
-        self.dataset_class = dataset_class
-        self.batch_size = batch_size
-
-        self.n_classes = n_classes
-
-        # set the perturbation parameters
-        self.columns = columns
-        self.rows = rows
-        self.random_pixels = random_pixels
-
-        # get the number of trials from these
-        lengths = [len(i) if i is not None else 0 for i in (columns, rows, random_pixels)]
-        self.n_trials = max(lengths)
-        # test to see if this is correct
-        if not all((x == max(lengths) or x == 0) for x in lengths):
-            os.system('say "Hey dingus, theres an error in your experiment setup"')
-            raise Exception('Number of perturbations does not match between modes.'
-                            'Please ensure each list of values is of the same length')
-
-        # other settings
-        self.val = val
-        self.intensity = intensity
-        self.noise = noise
-        self.var = var
-        return
-
 class PerturbationResults:
     """
     holds and plots perturbation experiment results. These should be reshaped to be indexed by layer!
@@ -367,13 +320,14 @@ class Perturbation:
                           self.n_epochs, grain=50000, ep_grain=self.n_epochs) # train the model
         trial_model.get_effective_dimensions(clip=w_clip_val)  # get the effective dimensions
         # seeing what is up with the spectrum on the noise
-        trial_model.plot(plotlist=['rel_eds', 'rel'])
+        if plot:
+            trial_model.plot(plotlist=['rel_eds', 'rel'], saveadd=f'_lvl{perturbation_level}')
 
 
         self.accuracy_trials['test'][j] = trial_model.val_history[-1]   # add the accuracy results
         self.accuracy_trials['train'][j] = trial_model.train_history[-1]    # add the accuracy results
 
-        self.dimensions_trials.append([trial_model.effective_dimensions[j][-1] for j in range(len(self.n_neurons))])
+        self.dimensions_trials.append([trial_model.effective_dimensions[i][-1] for i in range(len(self.n_neurons))])
         # add the effective dimensions
 
         # create the similarity object
@@ -381,7 +335,7 @@ class Perturbation:
 
         # do the similarity analysis
         # get the alignments
-        simobj.compute_alignments(self.loaders_normal[0], layers) # compute alignments for each layer
+        simobj.compute_alignments(self.loaders_baseline[0], layers) # compute alignments for each layer
         simobj.compute_cossim()
 
         # get the metrics and add them to the correct list

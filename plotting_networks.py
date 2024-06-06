@@ -3,7 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
-def plot_relative_spectrum_history_eds(model, scale='log', save_fig=True, xmax=1000):
+def plot_relative_spectrum_history_eds(model, scale='log', save_fig=True, xmax=1000, saveadd=""):
     begin = 1
     epochs = model.epoch_history
 
@@ -62,13 +62,13 @@ def plot_relative_spectrum_history_eds(model, scale='log', save_fig=True, xmax=1
         plt.legend(reverse=True, loc='upper right')
 
         if save_fig:
-            plt.savefig(f'fig_hold/ED_rel_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}.png')
+            plt.savefig(f'fig_hold/ED_rel_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}{saveadd}.png')
                 # files.download(f'ED_rel_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}.png')
 
         plt.show()
 
 
-def plot_spectrum(model, scale='log', save_fig=True):
+def plot_spectrum(model, scale='log', save_fig=True, saveadd=""):
   epochs = model.epoch_history
 
   for j in range(len(model.spectrum_history)):
@@ -115,7 +115,7 @@ def plot_spectrum(model, scale='log', save_fig=True):
     plt.legend(reverse=True)
 
     if save_fig:
-      plt.savefig(f'fig_hold/spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}.png')
+      plt.savefig(f'fig_hold/spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}{saveadd}.png')
       #files.download(f'spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}.png')
 
     plt.show()
@@ -149,7 +149,7 @@ def plot_spectrum_single(model, quantity, layer_ind, scale='log', save_fig=False
 
     return
 
-def plot_spectrum_normed(model, scale='log', save_fig = True, xmax = 1000):
+def plot_spectrum_normed(model, scale='log', save_fig = True, xmax = 1000, saveadd=''):
   '''
   also plots effective dimensionality
   '''
@@ -225,13 +225,13 @@ def plot_spectrum_normed(model, scale='log', save_fig = True, xmax = 1000):
     #plt.legend(reverse=True)
 
     if save_fig:
-      plt.savefig(f'fig_hold/ED_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}.png')
+      plt.savefig(f'fig_hold/ED_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}{saveadd}.png')
       # files.download(f'ED_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}.png')
 
     plt.show()
 
 
-def plot_accuracy(model, save_fig=False):
+def plot_accuracy(model, save_fig=False, saveadd=''):
     # setting up the figure
     fig = plt.figure(figsize=(10, 5))
 
@@ -248,7 +248,7 @@ def plot_accuracy(model, save_fig=False):
     plt.title(f"{model.n_neurons} neurons, {model.n_layers} layers performance ")
 
     if save_fig:
-      plt.savefig(f'fig_hold/accuracy_{model.n_neurons}_{model.n_epochs}.png')
+      plt.savefig(f'fig_hold/accuracy_{model.n_neurons}_{model.n_epochs}{saveadd}.png')
 
     plt.legend()
     plt.show()
@@ -257,7 +257,7 @@ def plot_accuracy(model, save_fig=False):
 
 
 
-def plot_accuracy_compare(model_list, save_fig=False):
+def plot_accuracy_compare(model_list, save_fig=False, saveadd=''):
     # setting up the figure
     fig = plt.figure(figsize=(10, 5))
     colors = plt.cm.viridis(np.linspace(0, 1, len(model_list) + 1))
@@ -280,7 +280,7 @@ def plot_accuracy_compare(model_list, save_fig=False):
     plt.title(f"comparing model performance ")
 
     if save_fig:
-        plt.savefig(f'fig_hold/accuracy_{len(model_list)}_compare.png')
+        plt.savefig(f'fig_hold/accuracy_{len(model_list)}_compare{saveadd}.png')
 
     plt.legend()
     plt.show()
