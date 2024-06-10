@@ -62,7 +62,7 @@ def plot_relative_spectrum_history_eds(model, scale='log', save_fig=True, xmax=1
         plt.legend(reverse=True, loc='upper right')
 
         if save_fig:
-            plt.savefig(f'fig_hold/ED_rel_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}{saveadd}.png')
+            plt.savefig(f'/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/image_hold/ED_rel_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}{saveadd}.png')
                 # files.download(f'ED_rel_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}.png')
 
         plt.show()
@@ -115,7 +115,7 @@ def plot_spectrum(model, scale='log', save_fig=True, saveadd=""):
     plt.legend(reverse=True)
 
     if save_fig:
-      plt.savefig(f'fig_hold/spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}{saveadd}.png')
+      plt.savefig(f'/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/image_hold/spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}{saveadd}.png')
       #files.download(f'spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}.png')
 
     plt.show()
@@ -225,7 +225,7 @@ def plot_spectrum_normed(model, scale='log', save_fig = True, xmax = 1000, savea
     #plt.legend(reverse=True)
 
     if save_fig:
-      plt.savefig(f'fig_hold/ED_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}{saveadd}.png')
+      plt.savefig(f'/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/image_hold/ED_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}{saveadd}.png')
       # files.download(f'ED_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}.png')
 
     plt.show()
@@ -280,7 +280,7 @@ def plot_accuracy_compare(model_list, save_fig=False, saveadd=''):
     plt.title(f"comparing model performance ")
 
     if save_fig:
-        plt.savefig(f'fig_hold/accuracy_{len(model_list)}_compare{saveadd}.png')
+        plt.savefig(f'/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/image_hold/accuracy_{len(model_list)}_compare{saveadd}.png')
 
     plt.legend()
     plt.show()
