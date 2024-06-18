@@ -20,9 +20,10 @@ import torch.utils.data.dataset
 from torchvision import datasets
 from torchvision import transforms
 
-####################################
-### Baseline Pickle Measurements ###
-####################################
+########################
+### GLOBAL VARIABLES ###
+########################
+# baseline measurements from pickles
 # load in the baseline identical measurements
 #
 with open('/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/pickle_vars/baseline_identical.pkl', 'rb') as f:
@@ -36,9 +37,89 @@ act_id_dist = id_baseline['act_dist']
 with open('/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/pickle_vars/baseline_quantiles.pkl', 'rb') as f:
     quantities = pickle.load(f)
 
-###########################
-### Perturbation Object ###
-###########################
+# default baseline perturbation settings
+perturbation_settings_list = ('unmod', 'mod', 'batch_size', 'columns', 'rows', 'val',
+                              'intensity', 'noise', 'var', 'random_pixels')
+default_settings_list = (tuple(range(10)), None, 64, None, None, (1, 1, 1), False, False, None, None)
+default_perturb_dict = dict(zip(perturbation_settings_list, default_settings_list))
+
+# class names
+class_names = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+
+# Figure font sizes
+axis_fontsize=18
+title_fontsize=18
+
+##### Setting the random seed
+COMMON_SEED = 1234
+
+########################################
+### Perturbation Object and Settings ###
+########################################
+class SwapSettings:
+    def __init__(self, old_label, new_label, n_images, bidirectional=False, old_outside=False):
+        """
+
+        :param old_label: int   : the old class label that will be changed on the images (the images getting "mixed in"
+                                  to the new label)
+        :param new_label: int   : the new class label for the images getting "mixed in"
+        :param n_images: int    : the number of images to change the label for (the number of images to "mix in")
+        :param bidirectional: bool  : whether to make changes to both classes (trading images between them)
+        :param old_outside:   bool  : whether the old label images are outside of the dataset otherwise (whether the
+                                      old label is one of the classes used in training)
+        """
+        self.old_label = old_label
+        self.new_label = new_label
+        self.n_images = n_images
+        self.bidirectional = bidirectional
+        self.old_outside = old_outside
+        return
+
+
+class PerturbationSettings:
+    """
+    Holds the information for a call of subset_class_loader or for an initialization of a Perturbation experiment.
+    """
+    def __init__(self, columns=None, rows=None, val=(1,1,1), intensity=False, noise=False, var=None, random_pixels=None,
+                 unmod_classes=tuple(range(10)), mod_classes=None, name=None,
+                 batch_size=64, dataset_class=datasets.CIFAR10):
+        """
+
+        :param columns: list() or list(list))   : the columns or list of settings for columns to be masked
+        :param rows:                              same as for columns
+        :param val: tuple(float, float, float)  : RGB value for masking
+        :param intensity: bool                  : whether the experiment should cut off values of intensity
+        :param noise: bool                      : whether to add noise to the perturbation
+        :param var: float or list(float)        : the value(s) of the variance for when noise is true
+        :param random_pixels: DO NOT USE THIS< IT DOES NOT WORK
+        :param unmod_classes: list(int) or list(list(int))  : list of class indices to load un-modified
+        :param mod_classes:                                   same as above, but for modified classes
+        :param name: str                        : the name of the experiment
+        :param batch_size: int                  : the size of batch to use in the dataloader
+        """
+        self.columns = columns
+        self.rows = rows
+        self.val = val
+
+        self.intensity = intensity
+
+        self.noise = noise
+        self.var = var
+
+        self.random_pixels = random_pixels
+
+        self.unmod_classes = unmod_classes
+        self.mod_classes = mod_classes
+        self.name = name
+
+        self.batch_size = batch_size
+        self.dataset_class = dataset_class
+        return
+
+
+default_perturbation_settings = PerturbationSettings()
+
+
 class PerturbationResults:
     """
     holds and plots perturbation experiment results. These should be reshaped to be indexed by layer!
@@ -62,6 +143,7 @@ class PerturbationResults:
         self.distances_clipped = results_dict['dist_c']
 
         self.accuracy = results_dict['acc']
+        self.accuracy_baseline = results_dict['acc_base']
         self.dimensions_trials = results_dict['effdims']
 
         self.dimensions_baseline = results_dict['base_dims']
@@ -93,7 +175,7 @@ class PerturbationResults:
                           as_loc='upper left',
                           wd_loc='lower right',
                           ad_loc='upper left', ticks=None, ylog=True, xlog=False,
-                          titleadd=''):
+                          titleadd='',xlabadd=''):
         ticks = self.ticks if self.ticks else ticks
         if not ticks:
             os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
@@ -104,7 +186,7 @@ class PerturbationResults:
                                  wdist_order=wdist_order, adist_order=adist_order,
                                  ws_loc=ws_loc, as_loc=as_loc, wd_loc=wd_loc, ad_loc=ad_loc,
                                  xticks=ticks, ylog=ylog, xlog=xlog,
-                                 titleadd=titleadd)
+                                 titleadd=titleadd, xlabadd=xlabadd)
         return
 
     def plot_trace_nnorms(self, ticks=None, quantity='weights', layer=1, clipped=True,
@@ -121,14 +203,14 @@ class PerturbationResults:
         return
 
     def plot_accuracy(self, type='test', ticks=None, titleadd='', legend_loc='lower left',
-                      ymin=0.05, ymax=0.4, xscale='log', yscale='linear'):
+                      ymin=0.05, ymax=0.4, xscale='log', yscale='linear', chance_classes=10):
         ticks = self.ticks if self.ticks else ticks
         if not ticks:
             os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
             raise Exception('Need to set ticks before plotting')
-        plot_accuracy_trajectory(self.accuracy[type], self.accuracy[type][0], xticks=ticks,
+        plot_accuracy_trajectory(self.accuracy[type], self.accuracy_baseline[type], xticks=ticks,
                                  legend_loc=legend_loc, titleadd=f'{type} {titleadd}', ymin=ymin, ymax=ymax,
-                                 xscale=xscale, yscale=yscale)
+                                 xscale=xscale, yscale=yscale, n_classes=chance_classes)
         return
 
 
@@ -144,78 +226,79 @@ class PerturbationResults:
         return
 
 
-perturbation_settings_list = ('unmod', 'mod', 'batch_size', 'columns', 'rows', 'val',
-                              'intensity', 'noise', 'var', 'random_pixels')
-default_settings_list = (tuple(range(10)), None, 64, None, None, (1, 1, 1), False, False, None, None)
-default_perturb_dict = dict(zip(perturbation_settings_list, default_settings_list))
-
-# class_indices, batch_size=64, dataset_class=datasets.CIFAR10, mod_ind=None, columns=None, rows=None,
-# val=255, intensity=False, noise=False, var=0, random_pixels=None
-
 class Perturbation:
 
     def __init__(self,
-                 base_perturbations=default_perturb_dict,
-                 batch_size=64,
+                 base_perturbations=default_perturbation_settings,
+                 #batch_size=64,
                  dataset_class=datasets.CIFAR10,
-                 columns=None, rows=None,
-                 val=(1, 1, 1),
-                 intensity=False,
-                 noise=False, var=None,
-                 random_pixels=None,
-                 name=None):
+                 experiment_settings=default_perturbation_settings, swap_list=None):#,
+                 # columns=None, rows=None,
+                 # val=(1, 1, 1),
+                 # intensity=False,
+                 # noise=False, var=None,
+                 # random_pixels=None,
+                 # classes=None,
+                 # name=None):
         """
         Does not currently handle intensity modifications!
 
         :param base_perturbations: this is the dictionary of perturbation settings for the baseline model
         :param batch_size:
         :param dataset_class:
-        :param columns: list of numbers of columns to perturb
-        :param rows: list of numbers of rows to perturb
-        :param val: the (mean) value to replace the pixel(s) with
-        :param intensity: whether to clip based on intensity
-        :param noise: whether to vary the value according to a gaussian distribution
-        :param var: if noise, the variance of the distribution
+        :param columns: list of numbers of columns to perturb - can be adjusted over trials
+        :param rows: list of numbers of rows to perturb - can be adjusted over trials
+        :param val: the (mean) value to replace the pixel(s) with (R, G, B) float values in [-1, 1] - fixed over trials
+        :param intensity: whether to clip based on intensity - fixed over trials
+        :param noise: whether to vary the value according to a gaussian distribution - fixed over trials
+        :param var: if noise, the variance of the distribution - can be adjusted over trials
         :param random_pixels: list of the number of random pixels to perturb
         """
-        self.model_names = ('unperturbed', name) if name else ('unperturbed', 'perturbed')
+
+        self.model_names = ('unperturbed', getattr(experiment_settings, 'name')) if getattr(experiment_settings, 'name') \
+            else ('unperturbed', 'perturbed')
+
         # get the datasets
         # load in the baseline dataset
-        self.loaders_baseline = subset_class_loader(base_perturbations.get('unmod'),
-                                                    batch_size=batch_size, dataset_class=dataset_class,
-                                                    mod_ind=base_perturbations.get('mod'),
-                                                    columns=base_perturbations.get('columns'),
-                                                    rows=base_perturbations.get('rows'),
-                                                    val=base_perturbations.get('val'),
-                                                    intensity=base_perturbations.get('intensity'),
-                                                    noise=base_perturbations.get('noise'),
-                                                    var=base_perturbations.get('var'),
-                                                    random_pixels=base_perturbations.get('random_pixels'))
-        self.dataset_class = dataset_class
-        self.batch_size = batch_size
+        self.baseline_settings = base_perturbations
+        # set the seed
+        cs.set_seed(COMMON_SEED)
+        self.loaders_baseline = subset_class_loader(base_perturbations)
 
-        self.n_classes = ((len(base_perturbations.get('unmod')) if base_perturbations.get('unmod') else 0) +
-                          (len(base_perturbations.get('mod')) if base_perturbations.get('mod') else 0))
+        self.dataset_class = dataset_class
+
+        self.batch_size = getattr(experiment_settings, 'batch_size')#batch_size
+
+        self.n_classes = ((len(getattr(base_perturbations, 'unmod_classes')) if
+                           getattr(base_perturbations, 'unmod_classes') else 0) +
+                          (len(getattr(base_perturbations, 'mod_classes')) if getattr(base_perturbations, 'mod_classes')
+                           else 0))
 
         # set the perturbation parameters
-        self.columns = columns
-        self.rows = rows
-        self.random_pixels = random_pixels
+        self.columns = getattr(experiment_settings, 'columns')#columns
+        self.rows = getattr(experiment_settings, 'rows')#rows
+        self.random_pixels = getattr(experiment_settings, 'random_pixels') #random_pixels
+        self.classes = getattr(experiment_settings, 'mod_classes') #classes
+
+        self.val = getattr(experiment_settings, 'val') #val
+        self.intensity = getattr(experiment_settings, 'intensity') #intensity
+        self.noise = getattr(experiment_settings, 'noise')#noise
+        self.var = getattr(experiment_settings, 'var')#var
+
+        self.swaps = swap_list
+
+
 
         # get the number of trials from these
-        lengths = [len(i) if i is not None else 0 for i in (columns, rows, random_pixels, var)]
+        lengths = [len(i) if i is not None else 0 for i in (self.columns, self.rows, self.random_pixels, self.var,
+                                                            self.classes, self.swaps)]
         self.n_trials = max(lengths)
         # test to see if this is correct
         if not all((x == max(lengths) or x == 0) for x in lengths):
             os.system('say "Hey dingus, theres an error in your experiment setup"')
-            raise Exception('Number of perturbations does not match between modes.'
-                            'Please ensure each list of values is of the same length')
+            raise Exception(f'Number of perturbations does not match between modes.'
+                            f'Please ensure each list of values is of the same length: {lengths}')
 
-        # other settings
-        self.val = val
-        self.intensity = intensity
-        self.noise = noise
-        self.var = var
 
         # results tracking
         self.accuracy_baseline = None
@@ -276,6 +359,7 @@ class Perturbation:
         baseline_val = self.loaders_baseline[1]
 
         # training
+        cs.set_seed(COMMON_SEED)
         baseline_model.train(baseline_train, baseline_val, n_epochs, grain=50000, ep_grain=n_epochs)
 
         # adding the accuracy to the record
@@ -322,15 +406,28 @@ class Perturbation:
         j_row = self.rows[j] if self.rows else None
         j_pix = self.random_pixels[j] if self.random_pixels else None
         j_var = self.var[j] if self.var else None
+        j_cls = self.classes[j] if self.classes else self.baseline_settings.unmod_classes
+        j_swp = self.swaps[j] if self.swaps else None
+
+        #print(j_col, j_row, j_pix, j_var, j_cls, j_swp)
+
+        if j_cls:
+            if classes:
+                print('Warning: Number of classes was selected by experiment set-up, not the given parameter. To avoid '
+                      ' this warning in the future, set input classes to None.')
+            classes = j_cls
+
+        #print(classes)
+
+        class_loader_settings = PerturbationSettings(columns=j_col, rows=j_row, val=self.val, intensity=self.intensity,
+                                                     var=j_var, noise=self.noise, mod_classes=classes,
+                                                     random_pixels=j_pix, unmod_classes=[])
 
         # create the dataloader
-        trial_loaders = subset_class_loader([], mod_ind=classes,
-                                            columns=j_col, rows=j_row,
-                                            val=self.val, intensity=self.intensity,
-                                            noise=self.noise, var=j_var, random_pixels=j_pix)
+        trial_loaders = subset_class_loader(class_loader_settings, swap=j_swp)
 
         # show the dataset
-        display_dataloader_images(trial_loaders[0], 5)
+        display_dataloader_images(trial_loaders[0], 8, display=True)
 
         # train the model
         trial_model = spec.spectrum_analysis(self.n_neurons) # create the model
@@ -496,11 +593,13 @@ class Perturbation:
         :param save: bool       : whether to save as a pickled variable
         :return: results : dict : the results dictionary
         """
-        names = ['sims_u', 'sims_c', 'dist_u', 'dist_c', 'acc', 'effdims', 'base_dims',
+        names = ['sims_u', 'sims_c', 'dist_u', 'dist_c', 'acc', 'acc_base', 'effdims', 'base_dims',
                  'base_tr_u', 'base_tr_c', 'exp_tr_u', 'exp_tr_c', 'nnorm_u', 'nnorm_c']
         dicts = [self.similarities, self.similarities_clipped,
                  self.distances, self.distances_clipped,
-                 self.accuracy_trials, self.dimensions_trials, self.dimensions_baseline,
+                 self.accuracy_trials, {'test': self.baseline_model.val_history[-1],
+                                        'train': self.baseline_model.train_history[-1]},
+                 self.dimensions_trials, self.dimensions_baseline,
                  self.baseline_trace, self.baseline_trace_clipped,
                  self.experiment_trace, self.experiment_trace_clipped,
                  self.nuclear_norm, self.nuclear_norm_clipped]
@@ -524,36 +623,35 @@ class Perturbation:
 ###### Helper Functions ######
 ##############################
 
-
 ########################################################### Displaying images
 # show the images
 # for showing the image
-def imshow(img):
+def imshow(img, ticks=[[],[]]):
     img = img / 2 + 0.5     # unnormalize
     npimg = img.numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.xticks([])
+    plt.xticks(ticks[0], labels=ticks[1])
     plt.yticks([])
     plt.show()
 
 
-def display_dataloader_images(dataloader, n_images):
+def display_dataloader_images(dataloader, n_images, display=False):
     dataiter = iter(dataloader)
     images, labels = next(dataiter)
-    imshow(torchvision.utils.make_grid(images[0:n_images]))
+
+    if display:
+        ticks = ([32*k for k in range(1, n_images+1)], [class_names[labels[j]] for j in range(n_images)])
+    else:
+        ticks = [[],[]]
+
+    imshow(torchvision.utils.make_grid(images[0:n_images]), ticks=ticks)
+
     return
 
 
 ############################################################# Generating Datasets
 # for generating the datasets
-def subset_class_loader(class_indices, batch_size=64,
-                        dataset_class=datasets.CIFAR10,
-                        mod_ind=None,
-                        columns=None, rows=None,
-                        val=(1, 1, 1),
-                        intensity=False,
-                        noise=False, var=0,
-                        random_pixels=None):
+def subset_class_loader(subset_settings : PerturbationSettings = default_perturbation_settings, swap=None):
     """
     :param class_indices: the indices of unperturbed classes
     :param batch_size: batch size for the dataloader. Default value is 64
@@ -568,6 +666,19 @@ def subset_class_loader(class_indices, batch_size=64,
     :param random_pixels: alternatively, modify random pixels.
     :return: train loader and val loader according to these specifications
     """
+    class_indices = getattr(subset_settings, 'unmod_classes')
+    mod_ind = getattr(subset_settings, 'mod_classes')
+    columns = getattr(subset_settings, 'columns')
+    rows = getattr(subset_settings, 'rows')
+    val = getattr(subset_settings, 'val')
+    intensity = getattr(subset_settings, 'intensity')
+    noise = getattr(subset_settings, 'noise')
+    var = getattr(subset_settings, 'var')
+    random_pixels = getattr(subset_settings, 'random_pixels')
+
+    dataset_class = getattr(subset_settings, 'dataset_class')
+    batch_size = getattr(subset_settings, 'batch_size')
+
     # get unmodified classes first
     # load the entire dataset
     trainset, valset = nn_mod.get_datasets(dataset_class=dataset_class)
@@ -593,15 +704,17 @@ def subset_class_loader(class_indices, batch_size=64,
         m_train_sub = torch.utils.data.Subset(trainset, mind_train)
         m_val_sub = torch.utils.data.Subset(valset, mind_val)
 
-        mean = [0.485, 0.456, 0.406]
-        std = [0.229, 0.224, 0.225]
+        if swap:
+            m_train_sub, m_val_sub = swap_trainset_labels(swap, mod_ind, m_train_sub, m_val_sub)
+#
         mod_transform = transforms.Compose([#transforms.Normalize(mean=mean, std=std),
+                                            #transforms.ToTensor(),
                                             dataset_perturbations(column_indices=columns,
                                                                   row_indices=rows,
                                                                   val=val,
                                                                   intensity=intensity,
                                                                   noise=noise, var=var,
-                                                                  random_pixels=random_pixels)#,
+                                                                  random_pixels=random_pixels),
                                             #transforms.Normalize(mean=mean, std=std)
         ])
 
@@ -616,6 +729,40 @@ def subset_class_loader(class_indices, batch_size=64,
     val_loader_sub = nn_mod.get_dataloader(batch_size, valset_sub, shuffle=False)
 
     return train_loader_sub, val_loader_sub
+
+# Swapping images between classes
+def swap_trainset_labels(swap_settings : SwapSettings, train_classes, trainset_subset : torch.utils.data.Subset,
+                         valset_subset : torch.utils.data.Subset):
+    if swap_settings.bidirectional:
+        j = 0
+
+    k = 0
+    for ind, target in enumerate(trainset_subset.dataset.targets):
+        if target == swap_settings.old_label and k < swap_settings.n_images:
+            trainset_subset.dataset.targets[ind] = swap_settings.new_label
+            k += 1
+        if swap_settings.bidirectional: # if bidirectional, also be checking to swap the other images
+            if target == swap_settings.new_label and j < swap_settings.n_images:
+                trainset_subset.dataset.targets[ind] = swap_settings.old_label
+                j += 1
+
+        if (not swap_settings.bidirectional) and (k >= swap_settings.n_images):
+            break
+        elif k >= swap_settings.n_images and j >= swap_settings.n_images:
+            break
+
+    # if the original label of the images being relabelled is outside of the training set
+    if swap_settings.old_outside:
+        train_classes = [k for k in train_classes if k != swap_settings.old_label]
+        print(f'Classes used for Training with swapped labels: {train_classes}')
+        indices_train_again = [i for i, (e, c) in enumerate(trainset_subset) if c in train_classes]
+        indices_val_again = [i for i, (e, c) in enumerate(valset_subset) if c in train_classes]
+        # get the subset
+        trainset_subset = torch.utils.data.Subset(trainset_subset, indices_train_again)
+        valset_subset = torch.utils.data.Subset(valset_subset, indices_val_again)
+
+
+    return trainset_subset, valset_subset
 
 
 # custom dataset to apply transforms to
@@ -682,6 +829,15 @@ class dataset_perturbations(object):
         :param row_indices:
         :return:
         """
+        # def normalize_tensor(im_tensor):
+        #     # normalize from [-1, 1] into [0,1] without clipping
+        #     im_tensor = im_tensor/2 + torch.ones_like(im_tensor)
+        #     return im_tensor
+        #
+        # img_tensor = normalize_tensor(img_tensor)
+        #print(torch.max(img_tensor) - torch.min(img_tensor))
+
+
         #print(img_tensor.size())
         # Do some transformations. Here, we're just passing though the input
         if self.columns:
@@ -722,6 +878,8 @@ class dataset_perturbations(object):
 
         if self.intensity:
             img_tensor = torch.clamp(img_tensor, min=0, max=self.val)
+
+        # normalize to be in the range [0,1]
 
         return img_tensor
 
@@ -787,16 +945,16 @@ def plot_result_trajectories(similarities,
                 label=f'clipped sim')  #### LEGEND: 1
     # plot the baselines
     # identical weights distance
-    plt.hlines(way_id_sim, 0, max(tick_places), colors='orange', linestyles=':', label='identical weights')  #### L2
+    plt.hlines(way_id_sim, min(tick_places), max(tick_places), colors='orange', linestyles=':', label='identical weights')  #### L2
     # random init, same arch
-    plt.hlines(np.mean(quantities['wsu'][2]), 0, max(tick_places), colors='r', linestyles=':',
+    plt.hlines(np.mean(quantities['wsu'][2]), min(tick_places), max(tick_places), colors='r', linestyles=':',
                label='unclipped random init')  #### L3
-    plt.hlines(np.mean(quantities['wsc'][2]), 0, max(tick_places), colors='b', linestyles=':',
+    plt.hlines(np.mean(quantities['wsc'][2]), min(tick_places), max(tick_places), colors='b', linestyles=':',
                label='clipped random init')  #### L4
 
-    plt.title(f'Weight cosine similarity trajectories {titleadd}')
-    plt.xlabel(x_title)
-    plt.ylabel(f'Cosine Similarity {ylabadd}')
+    plt.title(f'Weight cosine similarity trajectories {titleadd}', fontsize=title_fontsize)
+    plt.xlabel(x_title, fontsize=axis_fontsize)
+    plt.ylabel(f'Cosine Similarity {ylabadd}', fontsize=axis_fontsize)
 
     # custom legend order
     handles, labels = plt.gca().get_legend_handles_labels()
@@ -835,12 +993,12 @@ def plot_result_trajectories(similarities,
                 label=f'clipped sim')  #### LEGEND: 1
     # plot the baselines
     # indentical weights
-    plt.hlines(act_id_sim, 0, max(tick_places), colors='orange', linestyles=':', label='identical weights')  #### L2
+    plt.hlines(act_id_sim, min(tick_places), max(tick_places), colors='orange', linestyles=':', label='identical weights')  #### L2
     # random init, same arch
-    plt.hlines(np.mean(quantities['as'][2]), 0, max(tick_places), colors='r', linestyles=':', label='random init')  #### L3
-    plt.title(f'Activation cosine similarity trajectories {titleadd}')
-    plt.xlabel(x_title)
-    plt.ylabel(f'Cosine Similarity {ylabadd}')
+    plt.hlines(np.mean(quantities['as'][2]), min(tick_places), max(tick_places), colors='r', linestyles=':', label='random init')  #### L3
+    plt.title(f'Activation cosine similarity trajectories {titleadd}', fontsize=title_fontsize)
+    plt.xlabel(x_title, fontsize=axis_fontsize)
+    plt.ylabel(f'Cosine Similarity {ylabadd}', fontsize=axis_fontsize)
     # custom legend order
     handles, labels = plt.gca().get_legend_handles_labels()
     ############## CHANGE ORDER HERE
@@ -878,20 +1036,20 @@ def plot_result_trajectories(similarities,
 
     # plot the baselines
     # identical weights distance
-    plt.hlines(way_id_dist, 0, max(tick_places), colors='orange', linestyles=':', label='identical weights')  #### L2
+    plt.hlines(way_id_dist, min(tick_places), max(tick_places), colors='orange', linestyles=':', label='identical weights')  #### L2
 
     # random init, same arch
     # plt.hlines(way_rand_dist, 0, lvl, colors='r', linestyles=':', label='unclipped random init') #### L3
-    plt.hlines(np.mean(quantities['wdu'][2]), 0, max(tick_places), colors='r', linestyles=':',
+    plt.hlines(np.mean(quantities['wdu'][2]), min(tick_places), max(tick_places), colors='r', linestyles=':',
                label='unclipped random init')  #### L3
 
     # random init, clipped
-    plt.hlines(np.mean(quantities['wdc'][2]), 0, max(tick_places), colors='b', linestyles=':',
+    plt.hlines(np.mean(quantities['wdc'][2]), min(tick_places), max(tick_places), colors='b', linestyles=':',
                label='clipped random init')  #### L4
 
-    plt.title(f'Weights Distance trajectories {titleadd}')
-    plt.xlabel(x_title)
-    plt.ylabel(f'Distance {ylabadd}')
+    plt.title(f'Weights Distance trajectories {titleadd}', fontsize=title_fontsize)
+    plt.xlabel(x_title, fontsize=axis_fontsize)
+    plt.ylabel(f'Distance {ylabadd}', fontsize=axis_fontsize)
 
     # custom legend order
     handles, labels = plt.gca().get_legend_handles_labels()
@@ -925,13 +1083,13 @@ def plot_result_trajectories(similarities,
 
     # plot the baselines
     # indentical weights
-    plt.hlines(act_id_dist, 0, max(tick_places), colors='orange', linestyles=':', label='identical weights')  #### L1
+    plt.hlines(act_id_dist, min(tick_places), max(tick_places), colors='orange', linestyles=':', label='identical weights')  #### L1
     # random init, same arch
-    plt.hlines(np.mean(quantities['ad'][2]), 0, max(tick_places), colors='r', linestyles=':', label='random init')  #### L2
+    plt.hlines(np.mean(quantities['ad'][2]), min(tick_places), max(tick_places), colors='r', linestyles=':', label='random init')  #### L2
 
-    plt.title(f'Activation Distance trajectories {titleadd}')
-    plt.xlabel(x_title)
-    plt.ylabel(f'Distance {ylabadd}')
+    plt.title(f'Activation Distance trajectories {titleadd}', fontsize=title_fontsize)
+    plt.xlabel(x_title, fontsize=axis_fontsize)
+    plt.ylabel(f'Distance {ylabadd}', fontsize=axis_fontsize)
 
     # custom legend order
     handles, labels = plt.gca().get_legend_handles_labels()
@@ -954,13 +1112,13 @@ def plot_result_trajectories(similarities,
 
 
 def plot_accuracy_trajectory(accuracies, acc_baseline, xticks=None, legend_loc='lower left', titleadd='',
-                             ymin=0.05, ymax=0.4, xscale='log', yscale='linear'):
+                             ymin=0.05, ymax=0.4, xscale='log', yscale='linear', n_classes=10):
     fig = plt.figure(figsize=(10,5))
     xticks = xticks if xticks else list(range(len(accuracies)))
 
     plt.hlines(acc_baseline, min(xticks), max(xticks), label='unperturbed', color='g')
     plt.scatter(xticks, accuracies, label='perturbed models', color='m')
-    plt.hlines(0.1, min(xticks), max(xticks), label='chance', color='orange', linestyle=':')
+    plt.hlines(1/n_classes, min(xticks), max(xticks), label='chance', color='orange', linestyle=':')
 
     plt.legend(loc=legend_loc)
 
@@ -969,15 +1127,16 @@ def plot_accuracy_trajectory(accuracies, acc_baseline, xticks=None, legend_loc='
     plt.xscale(xscale)
     plt.yscale(yscale)
 
-    plt.xlabel('Perturbation')
-    plt.ylabel('Accuracy')
-    plt.title(f'Accuracy Trajectory {titleadd}')
+    plt.xlabel('Perturbation', fontsize=axis_fontsize)
+    plt.ylabel('Accuracy', fontsize=axis_fontsize)
+    plt.title(f'Accuracy Trajectory {titleadd}', fontsize=title_fontsize)
 
     return
 
 
-default_ranges = {'weights': ((1e-3, 50), (0.005, 1)),
-                  'activations': ((1e2, 1e6), (0.005, 1))}
+default_ranges = {'weights': ((5e-3, 50), (0.005, 1)),
+                  'activations': ((1e2, 1e7), (0.005, 1))}
+
 
 
 def plot_trace_nnorms(results_holder, ticks, quantity='weights', layer=1, clipped=True,
@@ -1050,7 +1209,7 @@ def plot_trace_nnorms(results_holder, ticks, quantity='weights', layer=1, clippe
         axs[i].set_yscale('log')
 
     #plt.xticks(ticks, ticks)
-    plt.xlabel(xlabel)
+    plt.xlabel(xlabel, fontsize=axis_fontsize)
 
     if xlog:
         plt.xscale('log')
@@ -1072,14 +1231,49 @@ def plot_effective_dimensions(results_holder, ticks, xlabel, layer=1, titleadd='
 
     #plt.xticks(range(len(ticks)), ticks)
     #plt.xlim(-0.5, max)
-    plt.xlabel(xlabel)
+    plt.xlabel(xlabel, fontsize=axis_fontsize)
     if xlog:
         plt.xscale('log')
-    plt.ylabel('n dimensions')
+    plt.ylabel('n dimensions', fontsize=axis_fontsize)
     plt.yscale('log')
-    plt.title(f'Effective Dimensions {titleadd}')
+    plt.title(f'Effective Dimensions {titleadd}', fontsize=title_fontsize)
     plt.legend(loc=legend_loc)
 
+    plt.show()
+    return
+
+
+def plot_metric_vs_accuracy(results_obj, metric='similarity', layer=1, quantity='weights', experiment_name='', legend_loc='best', xlog=False, ylog=False):
+
+    # get the measurements to plot
+    if metric == 'similarity':
+        clipped = getattr(results_obj, 'similarities_clipped')[layer][quantity]
+        unclipped = getattr(results_obj, 'similarities')[layer][quantity]
+    elif metric == 'distance':
+        clipped = getattr(results_obj, 'distances_clipped')[layer][quantity]
+        unclipped = getattr(results_obj, 'distances')[layer][quantity]
+    else:
+        os.system('say "You absolute bufoon, you didn\'t select a valid metric"')
+        raise Exception('Invalid metric selection. Please select either similarity or distance')
+
+    accuracies = results_obj.accuracy['test']
+
+    # create the figure
+    fig = plt.figure(figsize=(10, 5))
+    plt.scatter(accuracies, clipped, color='b', label='clipped')
+    plt.scatter(accuracies, unclipped, color='r', label='unclipped')
+
+    plt.xlabel(f'Test Accuracy', fontsize=axis_fontsize)
+    plt.ylabel(f'{quantity} {metric}', fontsize=axis_fontsize)
+
+    plt.title(f'{experiment_name} {quantity} {metric} vs test accuracy\n(Layer {layer})', fontsize=title_fontsize)
+
+    if xlog:
+        plt.xscale('log')
+    if ylog:
+        plt.yscale('log')
+
+    plt.legend(loc=legend_loc)
     plt.show()
     return
 
@@ -1330,9 +1524,17 @@ class RepeatedTrialsResults:
             plot_trajectories_repeated(self, metric=metric, layer=layer, quantity=quantity, percent_interval=percent_interval, experiment_name=self.name, xlabel=self.xlabel, legend_loc=legend_loc, xlog=xlog, ylog=ylog, ylim=ylim)
         return
 
+    def plot_metric_component_quantities(self, quantity='weights', layers=tuple([1]), clipped=True, legend_loc='best', yrange=None, xlog=False, ylog=True, percent_interval=90):
+        for layer in layers:
+            plot_component_quantity_trajectory_repeated(self, percent_interval=percent_interval, ticks=self.ticks, quantity=quantity, layer=layer, clipped=clipped, legend_loc=legend_loc, yrange=yrange, xlog=xlog, ylog=ylog, xlabel=self.xlabel, experiment_name=self.name)
+        return
 
 
-def avg_and_range_single(trial_list, lo_val=0.05, hi_val=0.95):
+
+def avg_and_range_single(trial_list, lo_val=0.05, hi_val=0.95, percent_interval=None):
+    if percent_interval:
+        lo_val, hi_val = 50 - (percent_interval / 2), 50 + (percent_interval / 2)
+
     qlo = np.percentile(trial_list, lo_val)
     qhi = np.percentile(trial_list, hi_val)
     avg = np.mean(trial_list)
@@ -1340,7 +1542,7 @@ def avg_and_range_single(trial_list, lo_val=0.05, hi_val=0.95):
     return avg, (qlo, qhi)
 
 
-def avg_and_errors(plot_list, lo_val=0.05, hi_val=0.95):
+def avg_and_errors(plot_list, lo_val=0.05, hi_val=0.95, percent_interval=None):
     """
 
     :param plot_list:   list(tuple(numerical))  : the list of repeated observations at each level of an experiment
@@ -1350,6 +1552,9 @@ def avg_and_errors(plot_list, lo_val=0.05, hi_val=0.95):
     :return: (qlo, qhi):(tuple(float), tuple(float) : the lower and higher error of observations at each level, ready to
                                                       be entered into matplotlib.pyplot.errorbar
     """
+    if percent_interval:
+        lo_val, hi_val = 50 - (percent_interval / 2), 50 + (percent_interval / 2)
+
     qlo = [np.percentile(level, lo_val) for level in plot_list]
     qhi = [np.percentile(level, hi_val) for level in plot_list]
     avg = tuple([np.mean(level) for level in plot_list])
@@ -1380,20 +1585,20 @@ def plot_effective_dimensions_repeated(dimensions_exp, dimensions_baseline, tick
 
         # plot the averages with the error bars
         plt.errorbar(ticks, y_plot, yerr=errors, fmt='m-o', capsize=3, ecolor=colors.to_rgba('m', 0.5),
-                     label=f'effective dimensions ({(q_hi-q_lo)}% interval)')
+                     label=f'effective dimensions ({percent_interval}% interval)')
 
         # plot the baseline region
         plt.hlines(y_base, min(ticks), max(ticks), color='green', linestyles=':', linewidth=1)
-        plt.fill_between(x=(float(min(ticks)),float(max(ticks))), y1=base_range[0], y2=base_range[1], color='green', alpha=0.25, label=f'baseline dimensions ({(q_hi-q_lo)}% interval)')
+        plt.fill_between(x=(float(min(ticks)),float(max(ticks))), y1=base_range[0], y2=base_range[1], color='green', alpha=0.25, label=f'baseline dimensions ({percent_interval}% interval)')
 
         # plot the individual results if included
         if results_list:
             for res in results_list:
                 plt.plot(ticks, res.dimensions_trials[layer], color=colors.to_rgba('m', 0.1))
 
-        plt.title(f'{experiment_name} Effective Dimensionality\n(Layer {layer})', fontsize=20)
-        plt.ylabel('Effective Dimensions', fontsize=16)
-        plt.xlabel(f'{xlabel}', fontsize=16)
+        plt.title(f'{experiment_name} Effective Dimensionality\n(Layer {layer})', fontsize=title_fontsize)
+        plt.ylabel('Effective Dimensions', fontsize=axis_fontsize)
+        plt.xlabel(f'{xlabel}', fontsize=axis_fontsize)
 
         if xlog:
             plt.xscale('log')
@@ -1437,7 +1642,6 @@ def plot_trajectories_repeated(repeated_results_object, metric='similarity', lay
         else:
             id_baseline = act_id_dist
             unclipped_baseline_key = 'ad'
-
     else:
         os.system('say "You absolute bufoon, you didn\'t select a valid metric"')
         raise Exception('Invalid metric selection. Please select either similarity or distance')
@@ -1447,20 +1651,18 @@ def plot_trajectories_repeated(repeated_results_object, metric='similarity', lay
     clipped = clipped[layer][quantity]
 
     # get the error bar range
-    q_lo, q_hi = 50 - (percent_interval / 2), 50 + (percent_interval / 2)
-
     # get the averages and error bars
-    y_unclipped, errors_unclipped = avg_and_errors(unclipped, lo_val=q_lo, hi_val=q_hi)
+    y_unclipped, errors_unclipped = avg_and_errors(unclipped, percent_interval=percent_interval)
     #print(errors_unclipped)
-    y_clipped, errors_clipped = avg_and_errors(clipped, lo_val=q_lo, hi_val=q_hi)
+    y_clipped, errors_clipped = avg_and_errors(clipped, percent_interval=percent_interval)
     #print(errors_clipped)
 
     # Making the Figure
     fig = plt.figure(figsize=(10,5))
 
     # Plotting the aggregate trajectories
-    plt.errorbar(ticks, y_unclipped, yerr=errors_unclipped, fmt='ro', ecolor=colors.to_rgba('red', 0.5), label='unclipped', markersize=5, capsize=3)
-    plt.errorbar(ticks, y_clipped, yerr=errors_clipped, fmt='bo', ecolor=colors.to_rgba('blue', 0.5), label='clipped', markersize=5, capsize=3)
+    plt.errorbar(ticks, y_unclipped, yerr=errors_unclipped, fmt='ro', ecolor=colors.to_rgba('red', 0.5), label=f'unclipped ({percent_interval}% interval)', markersize=5, capsize=3)
+    plt.errorbar(ticks, y_clipped, yerr=errors_clipped, fmt='bo', ecolor=colors.to_rgba('blue', 0.5), label=f'clipped ({percent_interval}% interval)', markersize=5, capsize=3)
 
     # Plotting individual trajectories
     for k in range(len(repeated_results_object.results)):
@@ -1472,9 +1674,9 @@ def plot_trajectories_repeated(repeated_results_object, metric='similarity', lay
     plt.hlines(id_baseline, min(ticks), max(ticks), colors='orange', linestyles=':', label='identical weights')
     plt.hlines(np.mean(quantities[unclipped_baseline_key][2]), min(ticks), max(ticks), colors='red', linestyles=':', label='unclipped random init')
 
-    plt.title(f'{experiment_name} {quantity} {metric} trajectories\nLayer {layer}', fontsize=20)
-    plt.xlabel(xlabel, fontsize=16)
-    plt.ylabel(f'{metric}', fontsize=16)
+    plt.title(f'{experiment_name} {quantity} {metric} trajectories\nLayer {layer}', fontsize=title_fontsize)
+    plt.xlabel(xlabel, fontsize=axis_fontsize)
+    plt.ylabel(f'{metric}', fontsize=axis_fontsize)
 
     if ylim:
         plt.ylim(ylim)
@@ -1489,6 +1691,101 @@ def plot_trajectories_repeated(repeated_results_object, metric='similarity', lay
     return
 
 
-def plot_component_quantity_trajectory_repeated():
+def plot_component_quantity_trajectory_repeated(repeated_results_object : RepeatedTrialsResults, percent_interval=90, ticks=None, quantity='weights', layer=1, clipped=True, experiment_name='', xlabel='Perturbation Level', legend_loc='best', yrange=None, xlog=False, ylog=True):
+    yrange = yrange if yrange else default_ranges[quantity][0]
+    ticks = ticks if ticks else repeated_results_object.ticks
+
+    if len(yrange) != 2:
+        os.system('say "Hey dingus, I cant set an axis limit with only one value! Idiot"')
+        raise Exception('Please ensure there are exactly two values for each of the axis limit settings. This can be'
+                        'as either a list or as a tuple.')
+
+    # Get each of the quantities
+    distance = repeated_results_object.distances_clipped[layer][quantity] if clipped else repeated_results_object.distances[layer][quantity]
+    exp_trace = repeated_results_object.trace_exp_clipped[layer][quantity] if clipped else repeated_results_object.trace_exp[layer][quantity]
+    base_trace = repeated_results_object.trace_baseline_clipped[layer][quantity][0] if clipped else repeated_results_object.trace_baseline[layer][quantity][
+        0]
+    nuc_norm = repeated_results_object.nuclear_norm_clipped[layer][quantity] if clipped else repeated_results_object.nuclear_norm[layer][quantity]
+
+    # calculate the ranges for each of the bois
+    y_dist, err_dist = avg_and_errors(distance, percent_interval=percent_interval)
+    y_exp_trace, err_exp_trace = avg_and_errors(exp_trace, percent_interval=percent_interval)
+    y_norm, err_norm = avg_and_errors(nuc_norm, percent_interval=percent_interval)
+    # baseline region
+    base_trace_line, base_trace_region = avg_and_range_single(base_trace, percent_interval=percent_interval)
+
+    # set the color of the plotting
+    meas_c = 'b' if clipped else 'r'
+
+    # create the figure
+    fig = plt.figure(figsize=(10, 5)) #({percent_interval}% interval)
+
+    # plot the error bars quantities
+    ## distance
+    plt.errorbar(ticks, y_dist, yerr=err_dist, fmt=f'{meas_c}-o', ecolor=colors.to_rgba(meas_c, 0.5), capsize=3, label=f'distance ({percent_interval}% interval)')
+
+    ## trace exp
+    plt.errorbar(ticks, y_exp_trace, yerr=err_exp_trace, fmt=f'm:^', ecolor=colors.to_rgba('m', 0.5), capsize=3, label=(r'$Tr(C_{exp})$'+f'({percent_interval}% interval)'))
+
+    ## base trace h lines fill between region
+    plt.hlines(base_trace_line, min(ticks), max(ticks), colors='orange', linestyles=':', label=(r'$Tr(C_{ref})$'+f'({percent_interval}% interval)'))
+    plt.fill_between((float(min(ticks)), float(max(ticks))), base_trace_region[0], base_trace_region[1], color='orange', alpha=0.25)
+
+    ## nuc norm
+    plt.errorbar(ticks, y_norm, yerr=err_norm, fmt='g:^', ecolor=colors.to_rgba('g', 0.5), capsize=3, label=(r'$||C_{ref}^{1/2} C_{exp}^{1/2}||_{nuc}$'+f'({percent_interval}% interval)'))
+
+    # plot the individual trajectories
+    for res in repeated_results_object.results:
+        if clipped:
+            plt.plot(ticks, res.distances_clipped[layer][quantity], color='b', alpha=0.075)
+            plt.plot(ticks, res.experiment_trace_clipped[layer][quantity], color='m', alpha=0.075)
+            plt.plot(ticks, res.nuclear_norm_clipped[layer][quantity], color='green', alpha=0.075)
+        else:
+            plt.plot(ticks, res.distances[layer][quantity], color='b', alpha=0.075)
+            plt.plot(ticks, res.experiment_trace[layer][quantity], color='m', alpha=0.075)
+            plt.plot(ticks, res.nuclear_norm[layer][quantity], color='green', alpha=0.075)
+
+    # labelling etc
+    clip_title = 'clipped' if clipped else ''
+    plt.title(f'{experiment_name} {clip_title} {quantity} metric component trajectories', fontsize=title_fontsize)
+    plt.ylabel(f'Total Variation/Distance', fontsize=axis_fontsize)
+    plt.xlabel(xlabel, fontsize=axis_fontsize)
+
+    if xlog:
+        plt.xscale('log')
+    if ylog:
+        plt.yscale('log')
+
+    plt.ylim(yrange)
+
+    plt.legend()
+    plt.show()
 
     return
+
+
+def plot_metric_vs_accuracy_repeated(repeated_results_object, metric='similarity', layer=1, quantity='weights', experiment_name='', legend_loc='best', xlog=False, ylog=False):
+    # check metric
+    if metric == 'similarity':
+        clipped_key = 'similarities_clipped'
+        unclipped_key = 'similarities'
+    elif metric == 'distance':
+        clipped_key = 'distances_clipped'
+        unclipped_key = 'distances'
+    else:
+        os.system('say "You absolute bufoon, you didn\'t select a valid metric"')
+        raise Exception('Invalid metric selection. Please select either similarity or distance')
+
+    fig = plt.figure(figsize=(10, 5))
+    for res in repeated_results_object.results:
+        clipped = getattr(res, clipped_key)[layer][quantity]
+        unclipped = getattr(res, unclipped_key)[layer][quantity]
+        accuracies = getattr(res, 'accuracy')['test']
+
+        plt.scatter(accuracies, clipped, color='b')
+        plt.scatter(accuracies, unclipped, color='r')
+
+    plt.show()
+
+    return
+

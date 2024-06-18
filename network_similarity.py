@@ -191,7 +191,8 @@ class network_comparison:
                   alignments=[True],
                   plot_clip=None,
                   filename_append=None,
-                  ed_plot=False):
+                  ed_plot=False,
+                  explained_variance=False):
         if not layers:
             layers = self.layers
         if not clips:
@@ -208,8 +209,8 @@ class network_comparison:
                     # making the title of the figure
                     align_title = 'aligned ' if aligned else ''
                     r2 = f'\n{100*self.r2s[layer]:.3f}% of Variation explained by alignment' \
-                        if quantity == 'activations' and aligned else ''
-                    title = f'absolute cosine similarity of {align_title}{quantity} eigenvectors\nLayer {layer}{r2}'
+                        if (quantity == 'activations' and aligned and explained_variance) else ''
+                    title = f'{align_title}{quantity} eigenvectors\nLayer {layer}\n{r2}'
 
                     # getting the similarity matrix
                     sim_to_plot = self.cossim[(layer, quantity, aligned)]
@@ -219,8 +220,8 @@ class network_comparison:
                     mappy = plt.imshow(sim_to_plot.detach().numpy()[:clip, :clip], cmap='binary', vmin=0, vmax=1,
                                        interpolation='nearest')
                     plt.colorbar(mappy, fraction=0.045)
-                    plt.ylabel(f'Rank - {self.names[0]}')
-                    plt.xlabel(f'Rank - {self.names[1]}')
+                    plt.ylabel(f'Rank - {self.names[0]}', fontsize=16)
+                    plt.xlabel(f'Rank - {self.names[1]}', fontsize=16)
 
                     # if weights, show where we clipped for the distances
                     if quantity == 'weights' and ed_plot:
@@ -248,7 +249,7 @@ class network_comparison:
                     if plot_clip or quantity == 'weights':
                         plt.legend()
 
-                    plt.title(title)
+                    plt.title(title, fontsize=20)
 
                     # saving the figure
                     path = '/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/image_hold/'

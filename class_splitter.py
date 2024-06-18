@@ -16,6 +16,7 @@ def set_seed(SEED):
     torch.manual_seed(SEED)
     torch.backends.cudnn.deterministic = True
     ######
+    print(f'set seed to {SEED}')
     return
 
 #set_seed()
@@ -57,7 +58,7 @@ def make_all_single_loaders(batch_size=64, dataset_class=datasets.CIFAR10):
 
     return dataloaders
 
-
+### The following is better implemented in perturbation.py
 def subset_class_loader(class_indices, batch_size=64, dataset_class=datasets.CIFAR10, mod_ind=None, columns=None,
                         rows=None, val=255, intensity=False):
     #if pad_level > 4 or pad_level < 0 or type(pad_level) != int:

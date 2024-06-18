@@ -73,8 +73,10 @@ def get_datasets(dataset_class=datasets.CIFAR10):
     :param dataset_class: the class of the dataset to use
     :return: datasets to use in the
     """
-    mean = [0.485, 0.456, 0.406]
-    std = [0.229, 0.224, 0.225]
+    #mean = [0.485, 0.456, 0.406]
+    #std = [0.229, 0.224, 0.225]
+    mean = [0.5, 0.5, 0.5]
+    std = [0.5, 0.5, 0.5]
     transform = transforms.Compose(
         [transforms.ToTensor(),
          transforms.Normalize(mean=mean, std=std)])
