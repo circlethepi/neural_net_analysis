@@ -129,7 +129,7 @@ def match_spectrum_tails_regime(spectrum_analysis_obj, tail_match = 'mp', ranksl
                         # get new one for each layer
             new_measure = [np.array(list(spec[:clip]) + list(np.zeros(len(spec)-clip))) for spec in measure]
             new_hist.append(new_measure)
-        spectrum_history = new_hist
+        spectrum_history = new_hist.copy()
 
     # calculating the init tail
     # and also the real tails
@@ -191,9 +191,10 @@ def match_spectrum_tails_regime(spectrum_analysis_obj, tail_match = 'mp', ranksl
 def eigen_expectation(spectrum):
     exp = 0
     density_spec = spectrum / np.sum(spectrum)
+    print(np.sum(density_spec))
     for i in range(len(spectrum)):
         eigval = density_spec[i]
-        exp += i * eigval
+        exp += (i+1) * eigval
 
     return exp
 
