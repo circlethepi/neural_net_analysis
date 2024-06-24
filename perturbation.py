@@ -168,40 +168,30 @@ class PerturbationResults:
         print('Successfully set the ticks for the model')
         return
 
-    def plot_trajectories(self, layer=1,
-                          wsim_order=(2, 4, 3, 1, 0),
-                          asim_order=(2, 3, 0, 1),
-                          wdist_order=(3, 0, 1, 4, 2),
-                          adist_order=(0, 1, 3, 2),
-                          ws_loc='upper left',
-                          as_loc='upper left',
-                          wd_loc='lower right',
-                          ad_loc='upper left', ticks=None, ylog=True, xlog=False,
-                          titleadd='',xlabadd=''):
+    def plot_trajectories(self, layer=1, ticks=None, ylog=True, xlog=False,
+                          xlabadd='', plot_baselines=True, ylims=None):
         ticks = self.ticks if self.ticks else ticks
         if not ticks:
             os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
             raise Exception('Need to set ticks before plotting')
+
         plot_result_trajectories(self.similarities[layer], self.similarities_clipped[layer],
                                  self.distances[layer], self.distances_clipped[layer],
-                                 wsim_order=wsim_order, asim_order=asim_order,
-                                 wdist_order=wdist_order, adist_order=adist_order,
-                                 ws_loc=ws_loc, as_loc=as_loc, wd_loc=wd_loc, ad_loc=ad_loc,
-                                 xticks=ticks, ylog=ylog, xlog=xlog,
-                                 titleadd=titleadd, xlabadd=xlabadd)
+                                 xticks=ticks, ylog=ylog, xlog=xlog, xlabadd=xlabadd, plot_baselines=plot_baselines,
+                                 title=f'Layer {layer}', ylims=ylims)
         return
 
     def plot_trace_nnorms(self, ticks=None, quantity='weights', layer=1, clipped=True,
                           titleadd='', xlabel='Perturbation Level', upper_legend_loc='best', lower_legend_loc='best',
-                          yrange1=None, xlog=False, hline_lims=None, ylog=True):
+                          yrange_weights=None, yrange_activations=None,
+                          xlog=False, hline_lims=None, ylog=True):
         ticks = self.ticks if self.ticks else ticks
         if ticks is None:
             os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
             raise Exception('Need to set ticks before plotting')
 
-        plot_trace_nnorms(self, ticks, quantity=quantity, layer=layer, clipped=clipped,
-                          titleadd=titleadd, xlabel=xlabel, upper_legend_loc=upper_legend_loc,
-                          lower_legend_loc=lower_legend_loc, yrange1=yrange1, xlog=xlog, hline_lims=hline_lims, ylog=ylog)
+        plot_trace_nnorms(self, ticks, layer=layer, clipped=clipped, xlabel=xlabel, yrange_weights=yrange_weights, yrange_activations=yrange_activations,
+                          xlog=xlog, ylog=ylog, hline_lims=hline_lims)
 
         return
 
@@ -218,13 +208,13 @@ class PerturbationResults:
 
 
     def plot_effective_dimensions(self, layer=1, ticks=None, xlabel='', titleadd='', legend_loc='lower right',
-                                  xlog=False, ylog=True, hline_lims = None):
+                                  xlog=False, ylog=True, hline_lims = None, ylims=None):
         ticks = self.ticks if self.ticks else ticks
         if not ticks:
             os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
             raise Exception('Need to set ticks before plotting')
 
-        plot_effective_dimensions(self, ticks, xlabel, layer=layer, titleadd=titleadd, legend_loc=legend_loc, xlog=xlog, ylog=ylog, hline_lims=hline_lims)
+        plot_effective_dimensions(self, ticks, xlabel, layer=layer, titleadd=titleadd, legend_loc=legend_loc, xlog=xlog, ylog=ylog, hline_lims=hline_lims, ylims=ylims)
 
         return
 
@@ -708,7 +698,7 @@ def subset_class_loader(subset_settings : PerturbationSettings = default_perturb
     trainset_sub = torch.utils.data.Subset(trainset, indices_train)
     valset_sub = torch.utils.data.Subset(valset, indices_val)
 
-    print(len(trainset_sub), len(valset_sub))
+    #print(len(trainset_sub), len(valset_sub))
 
     # setting up the mod transform if it exists
     #mod_trans = transforms.Compose(transforms.Pad(padding=8))
@@ -729,6 +719,14 @@ def subset_class_loader(subset_settings : PerturbationSettings = default_perturb
             if swap[0].old_outside:
                 # fix this later to check all of them but for now OK
                 mod_ind_news = [s.new_label for s in swap]
+                mod_ind_olds = [s.old_label for s in swap]
+                mod_ind_adds = []
+                for i in mod_ind:
+                    if (i not in mod_ind_news) and (i not in mod_ind_olds):
+                        mod_ind_adds.append(i)
+
+                mod_ind_news += mod_ind_adds
+
                 mod_ind_use = []
                 for i in range(len(swap)):
                     mods_single = mod_ind_news.copy()
@@ -737,14 +735,14 @@ def subset_class_loader(subset_settings : PerturbationSettings = default_perturb
                     mod_ind_use.append(mods_single + mods_news_need)
             else:
                 mod_ind_use = list(mod_ind) * len(swap)
-            print(mod_ind_use)
+            #print(mod_ind_use)
 
             # this is where the problem happens for some reason
             # when done in sequence
             for i in range(len(swap)):
                 setting = swap[i]
-                print(f'mod_ind_use = {mod_ind_use[i]}')
-                print(setting.__dict__)
+                #print(f'mod_ind_use = {mod_ind_use[i]}')
+                #print(setting.__dict__)
 
                 m_train_sub, m_val_sub = swap_trainset_labels(setting, mod_ind_use[i], m_train_sub, m_val_sub)
                 if i < len(swap) - 1:
@@ -803,14 +801,14 @@ def swap_trainset_labels(swap_settings : SwapSettings, train_classes, trainset_s
         print(f'Classes used for Training with swapped labels: {train_classes}')
 
         indices_train_again = [i for i, (e, c) in enumerate(trainset_subset) if c in train_classes]
-        print('train len indices ', len(indices_train_again))
+        #print('train len indices ', len(indices_train_again))
         indices_val_again = [i for i, (e, c) in enumerate(valset_subset) if c in train_classes]
-        print('test len indices ', len(indices_val_again))
+        #print('test len indices ', len(indices_val_again))
         # get the subset
         trainset_subset = torch.utils.data.Subset(trainset_subset, indices_train_again)
         valset_subset = torch.utils.data.Subset(valset_subset, indices_val_again)
 
-        print('train len subset ', len(trainset_subset))
+        #print('train len subset ', len(trainset_subset))
 
 
     return trainset_subset, valset_subset
@@ -947,226 +945,101 @@ def get_random_pixel_indices(img_shape, total_pix):
 
 ################################################################# Plotting Results
 # Plotting Functions
-def plot_result_trajectories(similarities,
-                             similarities_clipped,
-                             distances,
-                             distances_clipped,
-                             wsim_order=(2, 4, 3, 1, 0),
-                          asim_order=(2, 3, 0, 1),
-                          wdist_order=(3, 0, 1, 4, 2),
-                          adist_order=(0, 1, 3, 2),
-                          ws_loc='upper left',
-                          as_loc='upper left',
-                          wd_loc='lower right',
-                          ad_loc='upper left',
-                             xticks=None,
-                             xlabadd=None, ylabadd=None,
-                             titleadd=None,
-                             ylog = True, xlog=False):
+def plot_result_trajectories(similarities, similarities_clipped, distances, distances_clipped,
+                                    xticks=None,
+                                    xlabadd=None,
+                                    ylog=True, xlog=False, plot_baselines=True,
+                                    title=None, ylims=None):
+    xlabadd = xlabadd if xlabadd else 'Perturbation'
 
-    ylabadd = ylabadd if ylabadd else ''
-    xlabadd = xlabadd if xlabadd else ''
-
-    x_title = f'Perturbation Amount {xlabadd}'
-    #y_title = f'Perturbation Amount {ylabadd}'
-
-    # create the figure for the
-    #########################
-    ## WEIGHT SIMILARITIES ##
-    #########################
-    fig = plt.figure(figsize=(10, 5))
-
-    # Get and plot the X sets
-    # unclipped similarities
-    xu = np.array(similarities['weights'])
-    #################################### Setting the Ticks
-    tick_places = np.array(range(len(xu))) if not xticks else np.array(xticks)
-
-    mask = np.isfinite(xu)
-    plt.scatter(tick_places[mask], xu[mask],
-                marker='o',
-                color='r',
-                label=f'unclipped sim')  #### LEGEND: 0
-    # clipped similarities
-    xc = np.array(similarities_clipped['weights'])
-    mask = np.isfinite(xc)
-    plt.scatter(tick_places[mask], xc[mask],
-                marker='o',
-                color='b',
-                label=f'clipped sim')  #### LEGEND: 1
-    # plot the baselines
-    # identical weights distance
-    plt.hlines(way_id_sim, min(tick_places), max(tick_places), colors='orange', linestyles=':', label='identical weights')  #### L2
-    # random init, same arch
-    plt.hlines(np.mean(quantities['wsu'][2]), min(tick_places), max(tick_places), colors='r', linestyles=':',
-               label='unclipped random init')  #### L3
-    plt.hlines(np.mean(quantities['wsc'][2]), min(tick_places), max(tick_places), colors='b', linestyles=':',
-               label='clipped random init')  #### L4
-
-    plt.title(f'Weight cosine similarity trajectories {titleadd}', fontsize=title_fontsize)
-    plt.xlabel(x_title, fontsize=axis_fontsize)
-    plt.ylabel(f'Cosine Similarity {ylabadd}', fontsize=axis_fontsize)
-
-    # custom legend order
-    handles, labels = plt.gca().get_legend_handles_labels()
-    ############## CHANGE ORDER HERE
-    order = wsim_order
-    if ylog:
-        plt.yscale('log')
-    if xlog:
-        plt.xscale('log')
-
-    plt.ylim(0, 1)
-
-    #plt.xticks(tick_places, ticknames)
-    plt.legend([handles[i] for i in order],
-               [labels[i] for i in order],
-               loc=ws_loc, fontsize=axis_fontsize)
-    plt.tick_params(axis='both', which='both', labelsize=axis_fontsize)
-    plt.show()
-
-    # create the figure for the
-    #################
-    ## ACTIVATIONS ##
-    #################
-    fig = plt.figure(figsize=(10, 5))
-    # Get and plot the X sets
-    xu = np.array(similarities['activations'])
-    mask = np.isfinite(xc)
-    plt.scatter(tick_places[mask], xu[mask],
-                marker='o',
-                color='r',
-                label=f'unclipped sim')  ### Legend 0
-    # clipped
-    # clipped similarities
-    xc = np.array(similarities_clipped['activations'])
-    mask = np.isfinite(xc)
-    plt.scatter(tick_places[mask], xc[mask],
-                marker='o',
-                color='b',
-                label=f'clipped sim')  #### LEGEND: 1
-    # plot the baselines
-    # indentical weights
-    plt.hlines(act_id_sim, min(tick_places), max(tick_places), colors='orange', linestyles=':', label='identical weights')  #### L2
-    # random init, same arch
-    plt.hlines(np.mean(quantities['as'][2]), min(tick_places), max(tick_places), colors='r', linestyles=':', label='random init')  #### L3
-    plt.title(f'Activation cosine similarity trajectories {titleadd}', fontsize=title_fontsize)
-    plt.xlabel(x_title, fontsize=axis_fontsize)
-    plt.ylabel(f'Cosine Similarity {ylabadd}', fontsize=axis_fontsize)
-    # custom legend order
-    handles, labels = plt.gca().get_legend_handles_labels()
-    ############## CHANGE ORDER HERE
-    order = asim_order
-    if ylog:
-        plt.yscale('log')
-    if xlog:
-        plt.xscale('log')
-    #plt.xticks(tick_places, ticknames)
-    plt.legend([handles[i] for i in order],
-               [labels[i] for i in order],
-               loc=as_loc, fontsize=axis_fontsize)
-    plt.tick_params(axis='both', which='both', labelsize=axis_fontsize)
-    plt.ylim(0, 1)
-    plt.show()
-
-    # plotting the distances
-    # plot each of the sets of distances for weights and activations
     # create the figure
-    fig = plt.figure(figsize=(10, 5))
+    fig, axs = plt.subplots(2, 2, sharex='col', figsize=(15, 8))
+    quant = {0: 'activations', 1: 'weights'}
+    y_labels = {0: 'absolute cosine\nsimilarity', 1: 'distance'}
+    metric = {0: (similarities, similarities_clipped), 1: (distances, distances_clipped)}
 
-    # Get and plot the X sets
-    xu = np.array(distances['weights'])
-    mask = np.isfinite(xc)
-    plt.scatter(tick_places[mask], xu[mask],
-                marker='o',
-                color='r',
-                label=f'unclipped dist')  #### Legend 0
+    baselines = {'weights' : {'absolute cosine\nsimilarity': (way_id_sim, 'wsu', 'wsc'),
+                              'distance' : (way_id_dist, 'wdu', 'wdc')},
+                    'activations' : {'absolute cosine\nsimilarity' : (act_id_sim, 'as'),
+                                     'distance' : (act_id_dist, 'ad')}}
 
-    # clipped distances
-    xc = np.array(distances_clipped['weights'])
-    mask = np.isfinite(xc)
-    plt.scatter(tick_places[mask], xc[mask],
-                marker='o',
-                color='b',
-                label=f'clipped dist')  #### LEGEND: 1
 
-    # plot the baselines
-    # identical weights distance
-    plt.hlines(way_id_dist, min(tick_places), max(tick_places), colors='orange', linestyles=':', label='identical weights')  #### L2
+    for i in (0, 1):
+        for j in (0, 1):
+            ax = axs[i, j]
 
-    # random init, same arch
-    # plt.hlines(way_rand_dist, 0, lvl, colors='r', linestyles=':', label='unclipped random init') #### L3
-    plt.hlines(np.mean(quantities['wdu'][2]), min(tick_places), max(tick_places), colors='r', linestyles=':',
-               label='unclipped random init')  #### L3
+            # quant is j, metric is i
+            # ( i is rows, j is column )
+            if ylims and i == 1:
+                if ylims[quant[j]]:
+                    limits = ylims[quant[j]]
+                    ax.set_ylim(limits[0], limits[1])
 
-    # random init, clipped
-    plt.hlines(np.mean(quantities['wdc'][2]), min(tick_places), max(tick_places), colors='b', linestyles=':',
-               label='clipped random init')  #### L4
+            #### setting labels and scales
+            if j == 0:
+                ax.set_ylabel(y_labels[i], fontsize=axis_fontsize)
+            if i == 1:
+                ax.set_xlabel(xlabadd, fontsize=axis_fontsize)
+                if j == 0 and ylog:
+                    ax.set_yscale('log')
 
-    plt.title(f'Weights Distance trajectories {titleadd}', fontsize=title_fontsize)
-    plt.xlabel(x_title, fontsize=axis_fontsize)
-    plt.ylabel(f'Distance {ylabadd}', fontsize=axis_fontsize)
+            if i == 0:
+                ax.set_ylim(0, 1.05)
 
-    # custom legend order
-    handles, labels = plt.gca().get_legend_handles_labels()
-    ############## CHANGE ORDER HERE
-    order = wdist_order
-    if xlog:
-        plt.xscale('log')
-    #plt.xticks(tick_places, ticknames)
-    plt.legend([handles[i] for i in order],
-               [labels[i] for i in order],
-               loc=wd_loc, fontsize=axis_fontsize)
-    plt.tick_params(axis='both', which='both', labelsize=axis_fontsize)
+                if j == 0:
+                    ax.set_title('Activations', fontsize=axis_fontsize)
+                else:
+                    ax.set_title('Weights', fontsize=axis_fontsize)
+
+
+            # actually plotting
+            xu = np.array(metric[i][0][quant[j]])
+            tick_places = np.array(range(len(xu))) if not xticks else np.array(xticks)
+            if plot_baselines:
+                # get all the baselines
+                bases = baselines[quant[j]][y_labels[i]]
+                # identical first (2)
+                ax.hlines(bases[0], min(tick_places), max(tick_places), colors='orange', linestyles=':',
+                           label='identical init')
+                # then unclipped (3)
+                ax.hlines(np.mean(quantities[bases[1]][2]), min(tick_places), max(tick_places), colors='r',
+                           linestyles=':', label='random init (unclipped)')
+                # then if the clipped exists (4)
+                if len(bases) == 3:
+                    ax.hlines(np.mean(quantities[bases[2]][2]), min(tick_places), max(tick_places), colors='b',
+                               linestyles=':', label='random init (clipped)')
+
+            # unclipped first (0)
+            xu = np.array(metric[i][0][quant[j]])
+            tick_places = np.array(range(len(xu))) if not xticks else np.array(xticks)
+            mask = np.isfinite(xu)
+            ax.scatter(tick_places[mask], xu[mask], marker='o', color='r', label='unclipped')
+
+            # clipped (1)
+            xc = np.array(metric[i][1][quant[j]])
+            mask = np.isfinite(xc)
+            ax.scatter(tick_places[mask], xc[mask], marker='o', color='b', label='clipped')
+            ax.scatter(tick_places[mask], xc[mask], color=colors.to_rgba('white', 0), label= '')
+
+            # do the custom legend order
+            if i == 0 and j == 1:
+                # (lines, labels) = plt.gca().get_legend_handles_labels()
+                # lines.insert(1, plt.Line2D(tick_places, xc[mask], linestyle='none', marker='none'))
+                # labels.insert(1, '')
+                # make the legend when everything is there
+                ax.legend(loc='upper center', bbox_to_anchor=(0, -1.25), fontsize=axis_fontsize, numpoints=1, ncol=2)
+
+            if xlog:
+                ax.set_xscale('log')
+
+            ax.tick_params(axis='both', which='both', labelsize=axis_fontsize)
+
+    plt.subplots_adjust(hspace=0, wspace=0.1)
+    if title:
+        plt.suptitle(title, fontsize=title_fontsize)
+    #plt.tight_layout()
     plt.show()
-
-    # plotting the distances
-    ## ACTIVATIONS
-    # create the figure
-    fig = plt.figure(figsize=(10, 5))
-
-    # Get and plot the X sets
-    xc = np.array(distances['activations'])
-    mask = np.isfinite(xc)
-    plt.scatter(tick_places[mask], xc[mask], marker='o', color='r', label=f'unclipped dist')  #### L0
-
-    # clipped similarities
-    xc = np.array(distances_clipped['activations'])
-    mask = np.isfinite(xc)
-    plt.scatter(tick_places[mask], xc[mask],
-                marker='o',
-                color='b',
-                label=f'clipped dist')  #### LEGEND: 1
-
-    # plot the baselines
-    # indentical weights
-    plt.hlines(act_id_dist, min(tick_places), max(tick_places), colors='orange', linestyles=':', label='identical weights')  #### L1
-    # random init, same arch
-    plt.hlines(np.mean(quantities['ad'][2]), min(tick_places), max(tick_places), colors='r', linestyles=':', label='random init')  #### L2
-
-    plt.title(f'Activation Distance trajectories {titleadd}', fontsize=title_fontsize)
-    plt.xlabel(x_title, fontsize=axis_fontsize)
-    plt.ylabel(f'Distance {ylabadd}', fontsize=axis_fontsize)
-
-    # custom legend order
-    handles, labels = plt.gca().get_legend_handles_labels()
-    ############## CHANGE ORDER HERE
-    order = adist_order
-    if ylog:
-        plt.yscale('log')
-    if xlog:
-        plt.xscale('log')
-
-    #plt.xticks(tick_places, ticknames)
-    plt.legend([handles[i] for i in order],
-               [labels[i] for i in order],
-               loc=ad_loc, fontsize=axis_fontsize)
-    # annotate with the formula for the distance
-    # annotation_string=r'd $= TrC_1 + TrC_2 - 2||C_1^{1/2} C_2^{1/2}||_n$'
-    # plt.annotate(annotation_string, xy=(11, 1.1*10**6))
-    plt.tick_params(axis='both', which='both', labelsize=axis_fontsize)
-
-    plt.show()
+    return
 
 
 def plot_accuracy_trajectory(accuracies, acc_baseline, xticks=None, legend_loc='lower left', titleadd='', xlabel='Perturbation',
@@ -1190,8 +1063,8 @@ def plot_accuracy_trajectory(accuracies, acc_baseline, xticks=None, legend_loc='
     plt.yscale(yscale)
 
     plt.xlabel(xlabel, fontsize=axis_fontsize)
-    plt.ylabel('Accuracy', fontsize=axis_fontsize)
-    plt.title(f'Accuracy Trajectory {titleadd}', fontsize=title_fontsize)
+    plt.ylabel(f'{titleadd} performance', fontsize=axis_fontsize)
+    #plt.title(f'Accuracy Trajectory {titleadd}', fontsize=title_fontsize)
     plt.tick_params(axis='both', which='both', labelsize=axis_fontsize)
     plt.show()
 
@@ -1201,97 +1074,95 @@ def plot_accuracy_trajectory(accuracies, acc_baseline, xticks=None, legend_loc='
 default_ranges = {'weights': ((5e-3, 50), (0.005, 1)),
                   'activations': ((1e2, 1e7), (0.005, 1))}
 
+def plot_trace_nnorms(results_holder, ticks, layer=1, clipped=True, titleadd='', xlabel='Perturbation Level',
+                             legend_loc='best', yrange_weights=None, yrange_activations=None,
+                             xlog=False, ylog=True, hline_lims=None):
 
-
-def plot_trace_nnorms(results_holder, ticks, quantity='weights', layer=1, clipped=True,
-                      titleadd='', xlabel='Perturbation Level', upper_legend_loc='best', lower_legend_loc='best',
-                      yrange1=None, xlog=False, ylog=True, hline_lims = None):
-    """
-    plots the quantities over the course of an experiment that are used for the calculation of the similarity and
-    distance metrics
-
-    :param results_holder: Perturbation or PerturbationResults : object with the proper attributes for plotting
-    :param ticks: list(number)                                 : the list of tick markers/perturbation levels to plot
-    :param quantity: str = 'weights' or 'activations'          : which quanitity to plot for
-    :param layer: int                                          : which layer to plot for
-    :param clipped: bool                                       : whether to use clipped values
-    :param titleadd: str                                       : string to add to the title of the plots
-    :param xlabel: str                                         : label for the x axis
-    :param upper_legend_loc: str                               : location for the legend in the upper panel
-    :param lower_legend_loc: str                               : location for the legend in the lower panel
-    :return:
-    """
-    yrange1 = yrange1 if yrange1 else default_ranges[quantity][0]
-    #yrange2 = yrange2 if yrange2 else default_ranges[quantity][1]
-
+    yrange_weights = yrange_weights if yrange_weights else default_ranges['weights'][0]
+    yrange_activations = yrange_activations if yrange_activations else default_ranges['activations'][0]
     hline_lims = hline_lims if hline_lims else (min(ticks), max(ticks))
 
     # check to see it is proper length
-    if (len(yrange1) != 2): #or (len(yrange2) != 2):
-        os.system('say "Hey dingus, I cant set an axis limit with only one value! Idiot"')
+    if (len(yrange_weights) != 2) or (len(yrange_activations) != 2):
+        os.system('say "Hey dingus, I cant set an axis limit that is not values! Idiot"')
         raise Exception('Please ensure there are exactly two values for each of the axis limit settings. This can be'
                         'as either a list or as a tuple.')
 
     trial = results_holder
+    # get the sequences for the activations
+    distance_activations = trial.distances_clipped[layer]['activations'] if clipped else (
+        trial.distances)[layer]['activations']
+    exp_trace_activations = trial.experiment_trace_clipped[layer]['activations'] if clipped \
+        else trial.experiment_trace[layer]['activations']
+    base_trace_activations = trial.baseline_trace_clipped[layer]['activations'][0] if clipped \
+        else trial.baseline_trace[layer]['activations'][0]
+    nuc_norm_activations = trial.nuclear_norm_clipped[layer]['activations'] if clipped else (
+        trial.nuclear_norm)[layer]['activations']
 
-    distance = trial.distances_clipped[layer][quantity] if clipped else trial.distances[layer][quantity]
-    exp_trace = trial.experiment_trace_clipped[layer][quantity] if clipped else trial.experiment_trace[layer][quantity]
-    base_trace = trial.baseline_trace_clipped[layer][quantity][0] if clipped else trial.baseline_trace[layer][quantity][
-        0]
-    nuc_norm = trial.nuclear_norm_clipped[layer][quantity] if clipped else trial.nuclear_norm[layer][quantity]
-    similarity = trial.similarities_clipped[layer][quantity] if clipped else trial.similarities[layer][quantity]
+    # get the sequences for the weights
+    distance_weights = trial.distances_clipped[layer]['weights'] if clipped else trial.distances[layer]['weights']
+    exp_trace_weights = trial.experiment_trace_clipped[layer]['weights'] if clipped else (
+        trial.experiment_trace)[layer]['weights']
+    base_trace_weights = trial.baseline_trace_clipped[layer]['weights'][0] if clipped else (
+        trial.baseline_trace)[layer]['weights'][0]
+    nuc_norm_weights = trial.nuclear_norm_clipped[layer]['weights'] if clipped else trial.nuclear_norm[layer]['weights']
 
+    # quants
+    distances = (distance_activations, distance_weights)
+    exp_traces = (exp_trace_activations, exp_trace_weights)
+    base_traces = (base_trace_activations, base_trace_weights)
+    nuc_norms = (nuc_norm_activations, nuc_norm_weights)
+
+    # setting the color for the measure
     meas_c = 'b' if clipped else 'r'
 
-    #fig, axs = plt.subplots(2, 1, sharex=True, figsize=(10, 6))
-    fig, axs = plt.subplots(1,1, figsize=(10, 5))
-    fig.subplots_adjust(hspace=0)
+    # plotting
+    fig, axs = plt.subplots(1, 2, figsize=(15, 5))
+    titles = {0: 'Activations', 1: 'Weights'}
 
-    axs.plot(ticks, distance, color=meas_c,
-                label=r'distance = $Tr(C_{ref}) + Tr(C_{exp}) - 2\cdot ||C_{ref}^{1/2} C_{exp}^{1/2}||_{nuc}$',
-                marker='o')
-    axs.plot(ticks, exp_trace, label=r'$Tr(C_{exp})$', color='m', marker='^',
-                linestyle=':')
-    axs.hlines(base_trace, hline_lims[0], hline_lims[1], label=r'$Tr(C_{ref})$', colors='k',
-                  linestyles=':')
-    axs.plot(ticks, nuc_norm, color='orange',
-                label=r'$||C_{ref}^{1/2} C_{exp}^{1/2}||_{nuc}$', marker='^', linestyle=':')
-    plt.legend(loc=upper_legend_loc, fontsize=10)
-    axs.set_ylabel('Component\nQuantities', fontsize=axis_fontsize)
-    # setting the ranges
-    axs.set_ylim(yrange1[0], yrange1[1])
+    for i in range(2):
+        # 0 is activations, 1 is weights
+        ax = axs[i]
+        ax.set_xlabel(xlabel, fontsize=axis_fontsize)
 
-    # axs[1].plot(range(len(perturbation_settings_list)), nuc_norm, color='orange', label=r'$||C_{ref}^{1/2} C_{exp}^{1/2}||_{nuc}$', marker='o')
-    # axs[0].plot(range(len(perturbation_settings_list)), np.sqrt(base_trace *np.array(exp_trace)), label=r'$\sqrt{Tr(C_{Baseline}) Tr(C_{Perturbed})}$', color='green', marker='o')
+        if i == 0:
+            ax.set_ylabel(f'Component Quantities', fontsize=axis_fontsize)
+            ax.set_ylim(yrange_activations[0], yrange_activations[1])
+        if i == 1:
+            ax.set_ylim(yrange_weights[0], yrange_weights[1])
 
-    # axs[1].plot(ticks, similarity, color=meas_c,
-    #             label=r'similarity = $\frac{||C_{ref}^{1/2} C_{exp}^{1/2}||_{nuc}}{\sqrt{Tr(C_{ref}) Tr(C_{exp})}}$',
-    #             marker='o')
-    # axs[1].legend(fontsize=8, loc=lower_legend_loc)
-    # axs[1].set_ylabel('Absolute Cosine\nSimilarity')
-    # axs[1].set_ylim(yrange2[0], yrange2[1])
+        # plot the distance
+        ax.plot(ticks, distances[i], color=meas_c, label=(r'distance = $Tr(C_{ref}) + Tr(C_{exp}) - 2\cdot '
+                                                          r'||C_{ref}^{1/2} C_{exp}^{1/2}||_{nuc}$'), marker='o')
+        # plt exp trace
+        ax.plot(ticks, exp_traces[i], label=r'$Tr(C_{exp})$', color='m', marker='^', linestyle=':')
+        # plot baseline trace
+        ax.hlines(base_traces[i], hline_lims[0], hline_lims[1], label=r'$Tr(C_{ref})$', colors='k', linestyles=':')
+        # plot nuc norm
+        ax.plot(ticks, nuc_norms[i], color='orange', label=r'$||C_{ref}^{1/2} C_{exp}^{1/2}||_{nuc}$',
+                marker='^', linestyle=':')
+        # set the title
+        ax.set_title(titles[i], fontsize=axis_fontsize)
+        ax.tick_params(axis='both', which='both', labelsize=axis_fontsize)
+        # set the scale
+        if ylog:
+            ax.set_yscale('log')
+        if xlog:
+            ax.set_xscale('log')
 
-    #plt.xlim(-0.5, max(ticks)+0.5)
-    #for i in range(2):
-    #    axs[i].set_yscale('log')
-    if ylog:
-        axs.set_yscale('log')
-
-    #plt.xticks(ticks, ticks)
-    plt.xlabel(xlabel, fontsize=axis_fontsize)
-
-    if xlog:
-        plt.xscale('log')
+        if i == 0:
+            ax.legend(loc='upper left', bbox_to_anchor=(0.2, -0.15), ncol=2, fontsize=axis_fontsize)
 
     cliptit = 'clipped' if clipped else 'unclipped'
-    plt.suptitle(f'{quantity[:-1]} Metric Component Trajectories ({cliptit}) {titleadd}', fontsize=title_fontsize)
-    plt.tick_params(axis='both', which='both', labelsize=axis_fontsize)
+    plt.subplots_adjust(wspace=0.15)
+    plt.suptitle(f'Layer {layer} ({cliptit})', fontsize=title_fontsize)
+
     plt.show()
     return
 
 
 def plot_effective_dimensions(results_holder, ticks, xlabel, layer=1, titleadd='', legend_loc='best', hline_lims = None,
-                              xlog=False, ylog=True):
+                              xlog=False, ylog=True, ylims=None):
     fig = plt.figure(figsize=(10, 5))
 
     hline_lims = hline_lims if hline_lims else (min(ticks), max(ticks))
@@ -1304,10 +1175,14 @@ def plot_effective_dimensions(results_holder, ticks, xlabel, layer=1, titleadd='
     plt.xlabel(xlabel, fontsize=axis_fontsize)
     if xlog:
         plt.xscale('log')
-    plt.ylabel('n dimensions', fontsize=axis_fontsize)
+    plt.ylabel('effective dimensions\n(expected rank)', fontsize=axis_fontsize)
     if ylog:
         plt.yscale('log')
-    plt.title(f'Effective Dimensions{titleadd}', fontsize=title_fontsize)
+
+    if ylims:
+        plt.ylim(ylims[0], ylims[1])
+    #plt.title(f'Effective Dimensions{titleadd}', fontsize=title_fontsize)
+    plt.title(f'Layer {layer}', fontsize=axis_fontsize)
     plt.legend(loc=legend_loc, fontsize=axis_fontsize)
     plt.tick_params(axis='both', which='both', labelsize=axis_fontsize)
 

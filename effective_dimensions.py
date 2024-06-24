@@ -191,7 +191,7 @@ def match_spectrum_tails_regime(spectrum_analysis_obj, tail_match = 'mp', ranksl
 def eigen_expectation(spectrum):
     exp = 0
     density_spec = spectrum / np.sum(spectrum)
-    print(np.sum(density_spec))
+    #print(np.sum(density_spec))
     for i in range(len(spectrum)):
         eigval = density_spec[i]
         exp += (i+1) * eigval

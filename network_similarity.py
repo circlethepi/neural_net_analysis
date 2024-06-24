@@ -199,6 +199,7 @@ class network_comparison:
             clips = [50]*len(layers)
 
         if len(clips) != len(layers):
+            print(len(clips), len(layers))
             raise Exception('number of clips needs to be the same as number of layers to plot')
 
         i=0
