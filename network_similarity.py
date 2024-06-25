@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import scipy
 import torch
 
-from geomloss import SamplesLoss
+#from geomloss import SamplesLoss
 
 """
 Network similarity object
