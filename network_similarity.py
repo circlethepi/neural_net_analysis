@@ -30,10 +30,10 @@ class network_comparison:
         # print the network informationes
         i = 1
         for net in (net1, net2):
-            print(f'Network {i}\n=============================')
-            print(f'Architecture\n{net.model}')
-            print(f'Trained:\t\t{net.epoch_history[-1]} epochs')
-            print(f'Trained on:\t\t{net.train_loader}\n======\n=====\n=====')
+            # print(f'Network {i}\n=============================')
+            # print(f'Architecture\n{net.model}')
+            # print(f'Trained:\t\t{net.epoch_history[-1]} epochs')
+            # print(f'Trained on:\t\t{net.train_loader}\n======\n=====\n=====')
 
             # getting the weight spectrum if not set
             if not net.weight_spectrum:
