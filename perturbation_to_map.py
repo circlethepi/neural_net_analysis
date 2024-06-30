@@ -13,6 +13,8 @@ import os
 from tqdm import tqdm
 from tqdm.notebook import tqdm
 import pickle
+from matplotlib import pyplot as plt
+from matplotlib import colors
 
 ########################
 ### GLOBAL VARIABLES ###
@@ -35,7 +37,7 @@ class SinglePerturbationResultsConverter:
 
 
 # Helper Functions
-def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64, labels=None):
+def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64, similarity=True, labels=None):
     """
     Compute the pairwise distances between a list of trained models for a single layer
     :param model_set:   list(spec.spectrum_analysis)    : models to compute distances between
@@ -70,7 +72,7 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64, labels=None)
             simobj.compute_cossim()
 
             # get the metrics
-            activations, weights = simobj.network_distance(w_clip=w_clip, a_clip=a_clip, sim=True, return_quantities=False)
+            activations, weights = simobj.network_distance(w_clip=w_clip, a_clip=a_clip, sim=similarity, return_quantities=False)
             
             model_i_act.append(activations[0])
             model_i_way.append(weights[0])
@@ -81,11 +83,27 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64, labels=None)
     
     print(pairwise_sims)
     
-    # contstruct the upper triangular matrix
+    # contstruct the similarity matrix
     act_sims = similarity_matrix_from_lists(pairwise_sims['activations'])
     way_sims = similarity_matrix_from_lists(pairwise_sims['weights'])        
 
     return act_sims, way_sims
+
+
+def compute_similarity_line(perturbation_result_similarities):
+
+    pairwise = []
+    for i in range(len(perturbation_result_similarities)):
+        sim_i = perturbation_result_similarities[i]
+        model_i = [1- (sim_i - perturbation_result_similarities[j]) for j in range(i+1, len(perturbation_result_similarities))]
+        print(model_i)
+        pairwise.append(model_i)
+    
+    # construct the similarity matrix
+    sims = similarity_matrix_from_lists(pairwise) 
+            
+    return sims
+
 
 def similarity_matrix_from_lists(lists):
     new_lists = []
@@ -98,3 +116,35 @@ def similarity_matrix_from_lists(lists):
     similarity_matrix = np.array(new_lists) + np.eye(len(new_lists)) + np.array(new_lists).transpose()
 
     return similarity_matrix
+
+def plot_similarity_matrix(sims, title, ticks=None, axis_label=None, split_inds=None, vrange=(0,1)):
+    fig = plt.figure(figsize=(10, 10))
+    
+    mappy = plt.imshow(sims, cmap='binary', vmin=vrange[0], vmax=vrange[1],
+                        interpolation='nearest')
+
+    plt.colorbar(mappy, fraction=0.045)
+    #cbar.tickparams(labelsize=pert.axis_fontsize)
+
+
+    if split_inds:
+        for ind in split_inds:
+            xs = [-0.5, len(sims)-0.5]
+            ys = [ind-0.5, ind-0.5]
+            plt.plot(xs, ys, color='r')
+            plt.plot(ys, xs, color='r')
+    
+
+    if ticks:
+        plt.xticks(list(range(len(sims))), ticks)
+        plt.yticks(list(range(len(sims))), ticks)
+    if axis_label:
+        plt.xlabel(axis_label, fontsize=pert.axis_fontsize)
+        plt.ylabel(axis_label, fontsize=pert.axis_fontsize)
+
+    plt.title(title, fontsize=pert.axis_fontsize)
+    plt.tick_params(axis='both', which='both', labelsize=pert.axis_fontsize)
+
+    plt.show()
+
+    return
