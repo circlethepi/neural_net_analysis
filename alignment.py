@@ -68,7 +68,7 @@ def compute_activation_covariances(loader, layers, model1, model2=None):
     # Version of get_activations which treats spatial dimensions as additional batch dimensions.
     get_acts = lambda *args: [space_to_batch(act) for act in get_activations(*args)]
 
-    for x, _ in tqdm(loader, desc="Computing activation covariance"):
+    for x, _ in loader:
         # x = x.to(device)
         activations1 = get_acts(x, layers, model1)
         activations2 = activations1 if model2 is None else get_acts(x, layers, model2)

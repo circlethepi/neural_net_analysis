@@ -185,7 +185,7 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
 
     i = 1
     # iterate over the training data
-    for inputs, labels in tqdm(train_loader, desc='epoch 1'):
+    for inputs, labels in tqdm(train_loader, desc='Training epoch 1'):
         optimizer.zero_grad()
         outputs = model_name(inputs)
         # compute the loss

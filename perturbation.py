@@ -82,7 +82,7 @@ class PerturbationSettings:
     """
     def __init__(self, columns=None, rows=None, val=(1,1,1), intensity=False, noise=False, var=None, random_pixels=None,
                  unmod_classes=tuple(range(10)), mod_classes=None, name=None,
-                 batch_size=64, dataset_class=datasets.CIFAR10):
+                 batch_size=64, dataset_class=datasets.CIFAR10, class_count=None):
         """
 
         :param columns: list() or list(list))   : the columns or list of settings for columns to be masked
@@ -114,6 +114,17 @@ class PerturbationSettings:
 
         self.batch_size = batch_size
         self.dataset_class = dataset_class
+
+
+        if class_count and mod_classes and\
+        len(class_count) != len(mod_classes) \
+        and len(class_count) != 1:
+            raise Exception(f'Number of images per class is different from the number of classes included.')
+        elif class_count and mod_classes and len(class_count) == 1:
+            class_count = class_count * len(mod_classes)
+        
+        self.class_count = class_count
+
         return
 
 
@@ -349,12 +360,13 @@ class Perturbation:
 
         # train the model for n_epochs
         self.n_epochs = n_epochs # save so we can use the same number for later
-
+        cs.set_seed(COMMON_SEED) # set the seed
         baseline_train = self.loaders_baseline[0]
         baseline_val = self.loaders_baseline[1]
+        display_dataloader_images(baseline_train, 8, display=True)
 
         # training
-        cs.set_seed(COMMON_SEED) # set the seed
+        #cs.set_seed(COMMON_SEED) # set the seed
         baseline_model.train(baseline_train, baseline_val, n_epochs, grain=50000, ep_grain=n_epochs)
 
         # adding the accuracy to the record
@@ -512,6 +524,10 @@ class Perturbation:
         return
 
     def reshape_results(self):
+        """
+        reshapes results from how they are stored into a more intuitive form for analysis
+        measurement -> layer -> quantity -> values in perturbation order
+        """
         self.similarities = reshape_multilayer_results_dict(self.similarities, self.layers)
         self.similarities_clipped = reshape_multilayer_results_dict(self.similarities_clipped, self.layers)
 
@@ -657,6 +673,23 @@ def display_dataloader_images(dataloader, n_images, display=False):
 
 ############################################################# Generating Datasets
 # for generating the datasets
+def get_first_n_from_class(dataset, count, class_ind):
+    tracker = 0
+    mind_list = [i for i, (e,c) in enumerate(dataset) if c == class_ind][:count]
+    
+    return mind_list
+
+def get_first_n_from_class_lists(dataset, counts, class_inds):
+    assert len(counts)==len(class_inds), 'Counts list and index list should be the same length'
+
+    index_list = []
+    for k in range(len(counts)):
+        index_list += get_first_n_from_class(dataset, counts[k], class_inds[k])
+    
+    return index_list
+        
+
+
 def subset_class_loader(subset_settings : PerturbationSettings = default_perturbation_settings, swap=None):
 
     """
@@ -686,6 +719,8 @@ def subset_class_loader(subset_settings : PerturbationSettings = default_perturb
     dataset_class = getattr(subset_settings, 'dataset_class')
     batch_size = getattr(subset_settings, 'batch_size')
 
+    mod_class_count = getattr(subset_settings, 'class_count')
+
     # get unmodified classes first
     # load the entire dataset
     trainset, valset = nn_mod.get_datasets(dataset_class=dataset_class)
@@ -706,9 +741,14 @@ def subset_class_loader(subset_settings : PerturbationSettings = default_perturb
     # if mod class, then mod class
     if mod_ind:
         # get the indices
-        mind_train = [i for i, (e, c) in enumerate(trainset) if c in mod_ind]
-        mind_val = [i for i, (e, c) in enumerate(valset) if c in mod_ind]
+        if not mod_class_count:
+            mind_train = [i for i, (e, c) in enumerate(trainset) if c in mod_ind]
+        else:
+            mind_train = get_first_n_from_class_lists(trainset, mod_class_count, mod_ind)
 
+        print(len(mind_train))
+        mind_val = [i for i, (e, c) in enumerate(valset) if c in mod_ind]
+    
         # get the subsets
         m_train_sub = torch.utils.data.Subset(trainset, mind_train)
         m_val_sub = torch.utils.data.Subset(valset, mind_val)
@@ -816,6 +856,9 @@ def swap_trainset_labels(swap_settings : SwapSettings, train_classes, trainset_s
 
 # custom dataset to apply transforms to
 class MyDataset:
+    """
+    Custom dataset for applying various perturbations
+    """
     def __init__(self, subset, transform=None):
         self.subset = subset
         self.transform = transform
@@ -847,6 +890,7 @@ class dataset_perturbations(object):
         :param var:
         :param random_pixels:
         '''
+        #cs.set_seed(COMMON_SEED)
         self.val = val
         self.columns = column_indices
         self.rows = row_indices
@@ -869,7 +913,7 @@ class dataset_perturbations(object):
             self.std = None
 
 
-    def __call__(self, img_tensor):  # this should always come after the toTensor transform!
+    def __call__(self, img_tensor):  # this should always come after the toTensor transform
         """
 
         :param img_tensor: image in the form of a tensor
@@ -889,14 +933,16 @@ class dataset_perturbations(object):
 
         #print(img_tensor.size())
         # Do some transformations. Here, we're just passing though the input
+        #cs.set_seed(COMMON_SEED)
         if self.columns:
             for index in self.columns:
                 img_tensor[0, :, index] = self.val[0]
                 img_tensor[1, :, index] = self.val[1]
                 img_tensor[2, :, index] = self.val[2]
 
-            if self.random:
+            if self.random and self.std > 0:
                 for index in self.columns:
+                    #cs.set_seed(COMMON_SEED)
                     img_tensor[:, :, index] += torch.randn(img_tensor[:, :, index].size()) * self.std
 
         if self.rows:
@@ -905,8 +951,9 @@ class dataset_perturbations(object):
                 img_tensor[1, index, :] = self.val[1]
                 img_tensor[2, index, :] = self.val[2]
 
-            if self.random:
+            if self.random and self.std > 0:
                 for index in self.columns:
+                    #cs.set_seed(COMMON_SEED)
                     img_tensor[:, index, :] += torch.randn(img_tensor[:, index, :].size()) * self.std
 
         # if self.random_pix:
@@ -922,7 +969,8 @@ class dataset_perturbations(object):
         #         for index in self.random_pix:
         #             img_tensor[:, index[0], index[1]] += self.random.rvs(size=3)
 
-        if self.random and not (self.rows or self.columns):
+        if self.random and not (self.rows or self.columns) and self.std > 0:
+            #cs.set_seed(COMMON_SEED)
             img_tensor += torch.randn(img_tensor.size()) * self.std
 
         if self.intensity:
@@ -1042,7 +1090,8 @@ def plot_result_trajectories(similarities, similarities_clipped, distances, dist
     return
 
 
-def plot_accuracy_trajectory(accuracies, acc_baseline, xticks=None, legend_loc='lower left', titleadd='', xlabel='Perturbation',
+def plot_accuracy_trajectory(accuracies, acc_baseline, xticks=None, legend_loc='lower left', titleadd='', 
+                             xlabel='Perturbation',
                              ymin=0.0, ymax=1, xscale='log', yscale='linear', n_classes=10, hline_lims=None):
     fig = plt.figure(figsize=(10,5))
     xticks = xticks if xticks else list(range(len(accuracies)))
@@ -1168,7 +1217,8 @@ def plot_effective_dimensions(results_holder, ticks, xlabel, layer=1, titleadd='
     hline_lims = hline_lims if hline_lims else (min(ticks), max(ticks))
     plt.plot(ticks, results_holder.dimensions_trials[layer],
              label='Perturbed', marker='o', color='m')
-    plt.hlines(results_holder.dimensions_baseline[layer-1], hline_lims[0], hline_lims[1], label='Baseline', color='green')
+    plt.hlines(results_holder.dimensions_baseline[layer-1], hline_lims[0], hline_lims[1], label='Baseline', 
+               color='green')
 
     #plt.xticks(range(len(ticks)), ticks)
     #plt.xlim(-0.5, max)
@@ -1190,7 +1240,8 @@ def plot_effective_dimensions(results_holder, ticks, xlabel, layer=1, titleadd='
     return
 
 
-def plot_metric_vs_accuracy(results_obj, metric='similarity', layer=1, quantity='weights', experiment_name='', legend_loc='best', xlog=False, ylog=False):
+def plot_metric_vs_accuracy(results_obj, metric='similarity', layer=1, quantity='weights', experiment_name='', 
+                            legend_loc='best', xlog=False, ylog=False):
 
     # get the measurements to plot
     if metric == 'similarity':
