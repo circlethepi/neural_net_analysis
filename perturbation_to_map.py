@@ -137,7 +137,7 @@ def plot_similarity_matrix(sims, title, ticks=None, axis_label=None,
                            split_inds=None, vrange=(0,1), rotation=0):
     fig = plt.figure(figsize=(10, 10))
 
-    mask = np.triu(np.ones_like(sims, dtype=bool))
+    mask = np.triu(np.ones_like(sims, dtype=bool), k=1)
     
     mappy = plt.imshow(np.ma.array(sims, mask=mask), cmap='binary', vmin=vrange[0], vmax=vrange[1],
                         interpolation='nearest')
@@ -236,10 +236,10 @@ def plot_compute_MDS(similarity_matrix, n_models=None, labels=None,
             mark = markers[i] if markers[i] else 'o'
         # plotting the trajectory
         plt.plot(xs, ys, marker=mark, markersize=10,
-                 color=colors[i], label=labels[i], linewidth=0.25)
+                 color=colors[i], label=labels[i], linewidth=0.25, zorder=1)
         if accuracies:
-            plt.scatter(xs, ys, c=accuracies[i], marker=mark, markersize=10,
-                        cmap=plt.cm.plasma, vmin=0, vmax=1)
+            plt.scatter(xs, ys, c=accuracies[i], marker=mark, s=100,
+                        cmap=plt.cm.plasma, vmin=0, vmax=1, zorder=2)
         
         # plotting the increments
         if increments:
