@@ -22,6 +22,8 @@ import effective_dimensions as eff_dim
 import plotting_networks as plotter
 import alignment as align
 
+# check if there is a GPU available
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class spectrum_analysis:
@@ -29,6 +31,9 @@ class spectrum_analysis:
     def __init__(self, n_neurons, vary=None, n_class=10, input_size=32*32*3):
         # create the associated model
         self.model = nn_mod.Neural_Network(n_neurons, num_classes=n_class, input_size=input_size)
+
+        self.model.to(device)
+
         self.n_neurons = n_neurons
         self.n_layers = len(n_neurons)
         self.n_class = n_class

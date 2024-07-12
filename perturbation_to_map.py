@@ -18,6 +18,9 @@ from matplotlib import colors
 
 #from sklearn import manifold
 
+# check if there is a GPU available
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 ########################
 ### GLOBAL VARIABLES ###
 ########################
@@ -50,6 +53,10 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64,
     distances between
 
     """
+    # move all models to gpu if available
+    for model in model_set:
+        model.to(device)
+
     # if there are names, set those names. Otherwise, use generic model names
     if labels:
         if len(labels) != len(model_set): # check that the number of given names is correct

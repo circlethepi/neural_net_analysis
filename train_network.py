@@ -23,6 +23,9 @@ from fractions import Fraction as frac
 # other packages/files
 import neural_network
 
+# check if there is a GPU available
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 ###############################
 # Training the Neural Network #
 ###############################
@@ -186,6 +189,8 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
     i = 1
     # iterate over the training data
     for inputs, labels in tqdm(train_loader, desc='Training epoch 1'):
+        inputs = inputs.to(device)
+        labels = labels.to(device)
         optimizer.zero_grad()
         outputs = model_name(inputs)
         # compute the loss
