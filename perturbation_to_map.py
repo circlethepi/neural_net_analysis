@@ -16,7 +16,7 @@ import pickle
 from matplotlib import pyplot as plt
 from matplotlib import colors
 
-from sklearn import manifold
+#from sklearn import manifold
 
 ########################
 ### GLOBAL VARIABLES ###
