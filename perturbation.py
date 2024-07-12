@@ -26,7 +26,8 @@ from torchvision import transforms
 # baseline measurements from pickles
 # load in the baseline identical measurements
 #
-with open('/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/pickle_vars/baseline_identical.pkl', 'rb') as f:
+# with open('/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/pickle_vars/baseline_identical.pkl', 'rb') as f:
+with open('pickle_vars/baseline_identical.pkl', 'rb') as f:
     id_baseline = pickle.load(f)
 way_id_sim = id_baseline['way_sim']
 act_id_sim = id_baseline['act_sim']
@@ -34,7 +35,8 @@ way_id_dist = id_baseline['way_dist']
 act_id_dist = id_baseline['act_dist']
 
 # load in the quantity baselines
-with open('/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/pickle_vars/baseline_quantiles.pkl', 'rb') as f:
+# with open('/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/pickle_vars/baseline_quantiles.pkl', 'rb') as f:
+with open('pickle_vars/baseline_quantiles.pkl', 'rb') as f:
     quantities = pickle.load(f)
 
 # default baseline perturbation settings
