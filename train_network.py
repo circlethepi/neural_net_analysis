@@ -76,6 +76,8 @@ def val_accuracy(model_name, criterion, val_loader, val_loss_history, val_acc_hi
     val_acc = 0.0
     with torch.no_grad():
         for inputs, labels in val_loader:
+            inputs = inputs.to(device)
+            labels = labels.to(device)
             outputs = model_name(inputs)
             loss = criterion(outputs, labels)
             val_loss += loss.item()
@@ -97,6 +99,9 @@ def train_accuracy(model_name, optimizer, criterion, train_loader, train_loss_hi
     model_name.train()
     # iterate over the training data
     for inputs, labels in train_loader:
+        inputs = inputs.to(device)
+        labels = labels.to(device)
+
         optimizer.zero_grad()
         outputs = model_name(inputs)
         # compute the loss
@@ -229,6 +234,9 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
 
         # iterate over the training data
         for inputs, labels in tqdm(train_loader, desc=f'Training epoch {epoch}'):
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            
             optimizer.zero_grad()
             outputs = model_name(inputs)
             # compute the loss
