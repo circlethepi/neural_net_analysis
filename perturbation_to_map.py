@@ -54,8 +54,8 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64,
 
     """
     # move all models to gpu if available
-    for model in model_set:
-        model.to(device)
+    # for model in model_set:
+    #     model.to(device)
 
     # if there are names, set those names. Otherwise, use generic model names
     if labels:
