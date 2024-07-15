@@ -27,7 +27,7 @@ from torchvision import transforms
 # load in the baseline identical measurements
 #
 # with open('/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/pickle_vars/baseline_identical.pkl', 'rb') as f:
-with open('pickle_vars/baseline_identical.pkl', 'rb') as f:
+with open('../pickle_vars/baseline_identical.pkl', 'rb') as f:
     id_baseline = pickle.load(f)
 way_id_sim = id_baseline['way_sim']
 act_id_sim = id_baseline['act_sim']
@@ -36,7 +36,7 @@ act_id_dist = id_baseline['act_dist']
 
 # load in the quantity baselines
 # with open('/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/pickle_vars/baseline_quantiles.pkl', 'rb') as f:
-with open('pickle_vars/baseline_quantiles.pkl', 'rb') as f:
+with open('../pickle_vars/baseline_quantiles.pkl', 'rb') as f:
     quantities = pickle.load(f)
 
 # default baseline perturbation settings
@@ -719,6 +719,7 @@ def subset_class_loader(subset_settings : PerturbationSettings = default_perturb
     random_pixels = getattr(subset_settings, 'random_pixels')
 
     dataset_class = getattr(subset_settings, 'dataset_class')
+    #print(dataset_class)
     batch_size = getattr(subset_settings, 'batch_size')
 
     mod_class_count = getattr(subset_settings, 'class_count')
@@ -792,17 +793,20 @@ def subset_class_loader(subset_settings : PerturbationSettings = default_perturb
 
 
             #m_train_sub, m_val_sub = swap_trainset_labels(swap, mod_ind, m_train_sub, m_val_sub)
-#
-        mod_transform = transforms.Compose([#transforms.Normalize(mean=mean, std=std),
-                                            #transforms.ToTensor(),
-                                            dataset_perturbations(column_indices=columns,
-                                                                  row_indices=rows,
-                                                                  val=val,
-                                                                  intensity=intensity,
-                                                                  noise=noise, var=var,
-                                                                  random_pixels=random_pixels),
-                                            #transforms.Normalize(mean=mean, std=std)
-        ])
+
+        if dataset_class == datasets.CIFAR10:
+            mod_transform = transforms.Compose([#transforms.Normalize(mean=mean, std=std),
+                                                #transforms.ToTensor(),
+                                                dataset_perturbations(column_indices=columns,
+                                                                    row_indices=rows,
+                                                                    val=val,
+                                                                    intensity=intensity,
+                                                                    noise=noise, var=var,
+                                                                    random_pixels=random_pixels),
+                                                #transforms.Normalize(mean=mean, std=std)
+            ])
+        if dataset_class == datasets.MNIST:
+            mod_transform = transforms.Compose([])
 
         modded_train = MyDataset(m_train_sub, transform=mod_transform)
         modded_val = MyDataset(m_val_sub, transform=mod_transform)
@@ -939,8 +943,9 @@ class dataset_perturbations(object):
         if self.columns:
             for index in self.columns:
                 img_tensor[0, :, index] = self.val[0]
-                img_tensor[1, :, index] = self.val[1]
-                img_tensor[2, :, index] = self.val[2]
+                if img_tensor.shape[0] > 1:
+                    img_tensor[1, :, index] = self.val[1]
+                    img_tensor[2, :, index] = self.val[2]
 
             if self.random and self.std > 0:
                 for index in self.columns:
@@ -950,8 +955,9 @@ class dataset_perturbations(object):
         if self.rows:
             for index in self.rows:
                 img_tensor[0, index, :] = self.val[0]
-                img_tensor[1, index, :] = self.val[1]
-                img_tensor[2, index, :] = self.val[2]
+                if img_tensor.shape[0] > 1:
+                    img_tensor[1, index, :] = self.val[1]
+                    img_tensor[2, index, :] = self.val[2]
 
             if self.random and self.std > 0:
                 for index in self.columns:

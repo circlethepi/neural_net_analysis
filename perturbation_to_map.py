@@ -186,6 +186,8 @@ def plot_compute_MDS(similarity_matrix, n_models=None, labels=None,
     :param n_models: list-like for the the number of models for each 
     type of perturbation represented
     """
+    color_map = plt.cm.plasma
+
     # first, convert into a dissimilarity matrix
     dissims = np.ones(similarity_matrix.shape) - similarity_matrix
 
@@ -243,28 +245,34 @@ def plot_compute_MDS(similarity_matrix, n_models=None, labels=None,
         else:
             mark = markers[i] if markers[i] else 'o'
         # plotting the trajectory
-        plt.plot(xs, ys, marker=mark, markersize=10,
-                 color=colors[i], label=labels[i], linewidth=0.25, zorder=1)
         if accuracies:
+            plt.plot(xs, ys, markersize=10, linestyle=':',
+                 color='k', label=labels[i], linewidth=0.25, zorder=1)
             plt.scatter(xs, ys, c=accuracies[i], marker=mark, s=100,
-                        cmap=plt.cm.plasma, vmin=acc_range[0], 
+                        cmap=color_map, vmin=acc_range[0], 
                         vmax=acc_range[1], zorder=2)
+            increment_color = color_map(accuracies[i])
+        else:
+            plt.plot(xs, ys, markersize=10, linestyle=':',
+                 color=colors[i], label=labels[i], linewidth=0.25, zorder=1)
+            increment_color = colors[i]
         
         # plotting the increments
-        if increments:
-            if increments[i]:
-                for inc, x, y in zip(increments[i], xs, ys):
-                    #print(inc, x, y)
-                    if inc:
-                        plt.annotate(inc, xy=(x, y), xytext=text_locs[i],
-                                    textcoords='offset points', 
-                                    ha='right', va='bottom',
-                                    bbox=dict(boxstyle='round,pad=0.05', 
-                                              fc=colors[i], 
+
+        if increments and labels:
+            # set the ith increments
+            increments_i = ['']*n_models[i] + [f'{labels[i]}']
+            for inc, x, y in zip(increments[i], xs, ys):
+                #print(inc, x, y)
+                if inc:
+                    plt.annotate(inc, xy=(x, y), xytext=text_locs[i],
+                                textcoords='offset points', 
+                                ha='right', va='bottom',
+                                bbox=dict(boxstyle='round,pad=0.05', fc=increment_color, 
                                               alpha=0.2),
-                                    arrowprops=dict(arrowstyle='-', 
+                                arrowprops=dict(arrowstyle='-', 
                                                     connectionstyle='arc3,rad=0'),
-                                    fontsize=16)
+                                fontsize=16)
     
     if make_legend:
         if legend_order:
@@ -279,6 +287,7 @@ def plot_compute_MDS(similarity_matrix, n_models=None, labels=None,
         plt.colorbar()
         
     plt.tick_params(axis='both', which='both', labelsize=16)
+    plt.gca().set_aspect('equal')
     plt.show()
 
    # plt.savefig()

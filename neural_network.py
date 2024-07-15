@@ -77,9 +77,15 @@ def get_datasets(dataset_class=datasets.CIFAR10):
     #std = [0.229, 0.224, 0.225]
     mean = [0.5, 0.5, 0.5]
     std = [0.5, 0.5, 0.5]
-    transform = transforms.Compose(
-        [transforms.ToTensor(),
-         transforms.Normalize(mean=mean, std=std)])
+    if dataset_class != datasets.MNIST:
+        transform = transforms.Compose(
+            [transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std)])
+    else:
+        transform = transforms.Compose(
+            [transforms.ToTensor(),
+             transforms.Normalize(mean=[mean[0]], std=[std[0]])]
+        )
 
     def get_dataset(train: bool):  # Returns the train or validation dataset.
         root = "./data"
