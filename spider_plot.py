@@ -104,8 +104,9 @@ all_settings = []
 for i in range(4):
     k = [args.nclass, args.cols, args.gnoise, args.mixing][i]
     if k:
-        all_settings.append(setting_list[i])
+        all_settings += setting_list[i]
 
+print(len(all_settings))
 
 """Train each of the models as specified"""
 if all_settings:
