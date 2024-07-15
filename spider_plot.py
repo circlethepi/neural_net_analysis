@@ -132,13 +132,15 @@ if all_settings:
     #with open(f'{pickle_name_models}.pkl', 'wb') as file:
         pickle.dump(model_list, file)
     announcement_string = f'saved {args.name} models to disc'
-    os.system(f'say {announcement_string}')
+    print(announcement_string)
+    #os.system(f'say {announcement_string}')
 
     # save the accuracies list
     with open(f'{acc_dir}/{pickle_name_accuracies}.pkl', 'wb') as file:
         pickle.dump(accuracies, file)
     announcement_string = f'saved {args.name} accuracies to disc'
-    os.system(f'say {announcement_string}')
+    print(announcement_string)
+    #os.system(f'say {announcement_string}')
 
 
 if args.load_model_names:
@@ -157,4 +159,6 @@ if args.do_sims:
     with open(f'{sim_dir}/{pickle_name_sims}.pkl', 'wb') as file:
     #with open(f'{pickle_name_sims}.pkl', 'wb') as file:
         pickle.dump(similarities, file)
-    os.system('say "finished calculating pairwise similarities and saved to disc"')
+    announcement_string = f'finished calculating pairwise similarities and saved'
+    print(announcement_string)
+    #os.system('say "finished calculating pairwise similarities and saved to disc"')
