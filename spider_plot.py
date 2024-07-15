@@ -2,7 +2,6 @@ import neural_network as nn_mod
 import spectral_analysis as spec
 import network_similarity as sim
 import class_splitter as cs
-import distance_mapping as dm
 import perturbation as pert
 import perturbation_to_map as pm
 
