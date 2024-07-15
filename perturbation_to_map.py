@@ -4,6 +4,7 @@ import alignment as align
 import class_splitter as cs
 import neural_network as nn_mod
 import network_similarity as sim
+from spectral_analysis import set_torch_device
 
 import numpy as np
 import torch
@@ -16,10 +17,10 @@ import pickle
 from matplotlib import pyplot as plt
 from matplotlib import colors
 
-#from sklearn import manifold
+from sklearn import manifold
 
 # check if there is a GPU available
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = set_torch_device()
 
 ########################
 ### GLOBAL VARIABLES ###
@@ -144,7 +145,7 @@ def plot_similarity_matrix(sims, title, ticks=None, axis_label=None,
                            split_inds=None, vrange=(0,1), rotation=0):
     fig = plt.figure(figsize=(10, 10))
 
-    mask = np.triu(np.ones_like(sims, dtype=bool), k=1)
+    mask = np.triu(np.ones_like(sims, dtype=bool), k=0)
     
     mappy = plt.imshow(np.ma.array(sims, mask=mask), cmap='binary', vmin=vrange[0], vmax=vrange[1],
                         interpolation='nearest')
@@ -180,7 +181,7 @@ def plot_similarity_matrix(sims, title, ticks=None, axis_label=None,
 def plot_compute_MDS(similarity_matrix, n_models=None, labels=None, 
                      increments=None, text_locs=None, colors=None,
                      legend_cols=2, legend_order=None, markers=None,
-                     zero_index = None, accuracies=None):
+                     zero_index = None, accuracies=None, acc_range=(0,1)):
     """
     :param n_models: list-like for the the number of models for each 
     type of perturbation represented
@@ -219,15 +220,15 @@ def plot_compute_MDS(similarity_matrix, n_models=None, labels=None,
                        max_iter=1000, n_init=100)
     mds.fit_transform(dissims)
     coords = mds.embedding_
-    print(coords)
+    #print(coords)
 
     if zero_index is not None:
         coords -= coords[zero_index]
-        print(coords)
+        #print(coords)
     #print(len(coords))
 
     # plotting the result
-    fig = plt.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=(12, 10))
     ax = plt.subplot(111)
 
     for i in range(n_perturbations):
@@ -246,7 +247,8 @@ def plot_compute_MDS(similarity_matrix, n_models=None, labels=None,
                  color=colors[i], label=labels[i], linewidth=0.25, zorder=1)
         if accuracies:
             plt.scatter(xs, ys, c=accuracies[i], marker=mark, s=100,
-                        cmap=plt.cm.plasma, vmin=0, vmax=1, zorder=2)
+                        cmap=plt.cm.plasma, vmin=acc_range[0], 
+                        vmax=acc_range[1], zorder=2)
         
         # plotting the increments
         if increments:
@@ -278,5 +280,7 @@ def plot_compute_MDS(similarity_matrix, n_models=None, labels=None,
         
     plt.tick_params(axis='both', which='both', labelsize=16)
     plt.show()
+
+   # plt.savefig()
 
     return

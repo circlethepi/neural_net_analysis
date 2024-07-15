@@ -22,9 +22,10 @@ from fractions import Fraction as frac
 
 # other packages/files
 import neural_network
+from spectral_analysis import set_torch_device
 
 # check if there is a GPU available
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = set_torch_device()
 
 ###############################
 # Training the Neural Network #
