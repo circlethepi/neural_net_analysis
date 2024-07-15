@@ -5,7 +5,7 @@ from tqdm.notebook import tqdm
 from ipywidgets import FloatProgress
 import time
 import copy
-from tracker import AverageMeter
+from utils import AverageMeter
 
 # torch things
 import torch
@@ -22,7 +22,7 @@ from fractions import Fraction as frac
 
 # other packages/files
 import neural_network
-from spectral_analysis import set_torch_device
+from utils import set_torch_device
 
 # check if there is a GPU available
 device = set_torch_device()

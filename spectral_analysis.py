@@ -23,18 +23,8 @@ import plotting_networks as plotter
 import alignment as align
 
 # check if there is a GPU available
-def set_torch_device():
-    if torch.cuda.is_available():
-        idstr = 'cuda'
-    elif torch.backends.mps.is_available():
-        idstr = 'mps'
-    else:
-        idstr = 'cpu'
-    
-    device = torch.device(idstr)
-    return device
-
-device = set_torch_device()
+from utils import set_torch_device
+device = set_torch_device
 
 
 class spectrum_analysis:

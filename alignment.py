@@ -1,13 +1,13 @@
 # import
 import numpy as np
-from tracker import AverageMeter
+from utils import AverageMeter
 from tqdm import tqdm
 from tqdm.notebook import tqdm
 import torch
 import scipy
 
 from matplotlib import pyplot as plt
-from spectral_analysis import set_torch_device
+from utils import set_torch_device
 
 #######################
 # Getting Activations #

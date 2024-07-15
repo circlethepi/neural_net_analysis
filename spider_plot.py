@@ -26,16 +26,16 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--name', type=str, required=True, 
                     help="name of the experiment/file to save to")
 # experiments it could run
-parser.add_argument('--nclass', action='save_true', help="whether do n classes")
-parser.add_argument('--cols', action='save_true', help="whether do col masking")
-parser.add_argument('--gnoise', action='save_true', help="whether do gnoise")
-parser.add_argument('--mixing', action='save_true', help="whether mix images")
+parser.add_argument('--nclass', action='store_true', help="whether do n classes")
+parser.add_argument('--cols', action='store_true', help="whether do col masking")
+parser.add_argument('--gnoise', action='store_true', help="whether do gnoise")
+parser.add_argument('--mixing', action='store_true', help="whether mix images")
 
 # names of trained models to load if that's a thing
 parser.add_argument('--load_model_names', nargs='+')
 
 # whether to calculate pairwise similarities
-parser.add_argument('--do_sims', action='save_true', help="whether calculate \
+parser.add_argument('--do_sims', action='store_true', help="whether calculate \
                     pairwise sims")
 
 # directory names
