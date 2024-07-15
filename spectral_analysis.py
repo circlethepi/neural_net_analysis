@@ -24,7 +24,7 @@ import alignment as align
 
 # check if there is a GPU available
 from utils import set_torch_device
-device = set_torch_device
+device = set_torch_device()
 
 
 class spectrum_analysis:
