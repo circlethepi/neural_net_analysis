@@ -15,13 +15,11 @@ class AverageMeter(object):
 
 def set_torch_device():
     if torch.cuda.is_available():
-        idstr = 'cuda'
+        device = torch.device("cuda")
     elif torch.backends.mps.is_available():
-        idstr = 'mps'
+        device = torch.device("mps")
     else:
-        idstr = 'cpu'
-    
-    device = torch.device(idstr)
+        device = torch.device("cpu")
     return device
 
 device = set_torch_device()
