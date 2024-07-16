@@ -32,6 +32,8 @@ class SinglePerturbationResultsConverter:
     """
     Converts the results from a single perturbation run into a 
     similaritiy matrix
+
+    NOT USED - mostly use compute_pairwise_sims
     """
     def __init__(self, resultObj : pert.PerturbationResults, clipped=True):
         self.similarities_1 = resultObj.similarities_clipped if clipped\
@@ -50,9 +52,18 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64,
     """
     Compute the pairwise distances between a list of trained models for 
     a single layer
+
     :param model_set:   list(spec.spectrum_analysis) : models to compute 
     distances between
-
+    :param layer    :   int :   the layer at which to compute the distances
+    :param w_clip   :   int :   which rank to clip the weights to when doing 
+                                the calculation
+    :param a_clip   :   int :   which rank to clip the activations to when 
+                                doing the calculation 
+    :param similarity   :   bool    :   whether the metric should be similarity 
+                                        (default True). If False, then the 
+                                        metric is the BW2 distance for zero-
+                                        mean gaussians
     """
     # move all models to gpu if available
     # for model in model_set:
@@ -129,9 +140,16 @@ def compute_similarity_line(perturbation_result_similarities):
 
 
 def similarity_matrix_from_lists(lists):
+    """
+    Computes a similarity matrix from lists of similarities of decreasing 
+    length corresponding to the upper diagonal of a similarity matrix 
+
+    :param lists:   list(list(float))   :   to create an nxn similarity matrix,
+                                            this should be a list of n-1 lists
+                                            decreasing in length from n-1 to 1
+    """
     new_lists = []
     for l in lists:
-        print()
         number_add = len(lists) - len(list(l))
         l_new = list(0 for _ in range(number_add)) + list(l)
         new_lists.append(l_new)
@@ -141,13 +159,18 @@ def similarity_matrix_from_lists(lists):
 
     return similarity_matrix
 
+
 def plot_similarity_matrix(sims, title, ticks=None, axis_label=None, 
                            split_inds=None, vrange=(0,1), rotation=0):
+    """
+    plots a similarity matrix heatmap
+    """
     fig = plt.figure(figsize=(10, 10))
 
     mask = np.triu(np.ones_like(sims, dtype=bool), k=0)
     
-    mappy = plt.imshow(np.ma.array(sims, mask=mask), cmap='binary', vmin=vrange[0], vmax=vrange[1],
+    mappy = plt.imshow(np.ma.array(sims, mask=mask), cmap='binary', 
+                       vmin=vrange[0], vmax=vrange[1],
                         interpolation='nearest')
 
     plt.colorbar(mappy, fraction=0.045)
@@ -175,6 +198,44 @@ def plot_similarity_matrix(sims, title, ticks=None, axis_label=None,
 
     plt.show()
 
+    return
+
+def compute_MDS(similarity_matrix, zero_index=None, pickle=None,):
+    """
+    Computes MDS projection using similarity matrix
+
+    :param similarity_matrix:   array-like  :   similarity matrix to use 
+    :param zero_index       :   int         :   index of element to center the 
+                                                coordinates about. default None
+    :param pickle           :   str         :   if desired, name of file to 
+                                                save coords to as a pickled 
+                                                variable. default None
+    """
+
+    # first, convert into a dissimilarity matrix
+    dissims = np.ones(similarity_matrix.shape) - similarity_matrix
+
+    # compute the MDS
+    mds = manifold.MDS(n_components=2, dissimilarity='precomputed', eps=1e-16,
+                       max_iter=1000, n_init=100)
+    mds.fit_transform(dissims)
+    coords = mds.embedding_
+
+    if zero_index:
+        coords -= coords[zero_index]
+    
+    if pickle:
+        with open(f'{pickle}.pkl', 'wb') as file:
+            pickle.dump(coords, file)
+
+    return coords
+
+
+def plot_MDS_coords(*args, n_models=None, labels=None, increments=None, 
+                    text_locs=None, colors=None, legend_cols=2, 
+                    legend_order=None, markers=None, accuracies=None, 
+                    acc_range=(0,1)):
+    
     return
 
 

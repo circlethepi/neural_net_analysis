@@ -31,7 +31,7 @@ parser.add_argument('--gnoise', action='store_true', help="whether do gnoise")
 parser.add_argument('--mixing', action='store_true', help="whether mix images")
 
 # names of trained models to load if that's a thing
-parser.add_argument('--load_model_names', nargs='+')
+parser.add_argument('--load_model_names', nargs='+', default=None)
 
 # whether to calculate pairwise similarities
 parser.add_argument('--do_sims', action='store_true', help="whether calculate \
@@ -106,7 +106,7 @@ for i in range(4):
     if k:
         all_settings += setting_list[i]
 
-print(len(all_settings))
+print('Number of Models to Train: ', len(all_settings))
 
 """Train each of the models as specified"""
 if all_settings:
@@ -144,7 +144,11 @@ if all_settings:
     #os.system(f'say {announcement_string}')
 
 
-if args.load_model_names:
+if args.load_model_names is not None:
+    if not hasattr(args.load_model_names, '__len__'):
+        print(f'Only one model set given. Duplicating model set as second set')
+        args.load_model_names = [args.load_model_names]*2
+        pass
     # load from the model dir given
     # load each model name
     # add each to a list and call it model list
