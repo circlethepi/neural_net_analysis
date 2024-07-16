@@ -32,6 +32,11 @@ parser.add_argument('--mixing', action='store_true', help="whether mix images")
 
 # LOADING TRAINED MODELS
 parser.add_argument('--load_model_names', nargs='+', default=None)
+# trained model index selections for up to 4 models 
+parser.add_argument('--exp_indices_1', nargs='+', type=int, default=None)
+parser.add_argument('--exp_indices_2', nargs='+', type=int, default=None)
+parser.add_argument('--exp_indices_3', nargs='+', type=int, default=None)
+parser.add_argument('--exp_indices_4', nargs='+', type=int, default=None)
 
 # SIMILARITIES
 parser.add_argument('--do_sims', action='store_true', help="whether calculate \
@@ -57,7 +62,8 @@ parser.add_argument('--sim_dir', default='sim_library', help="name of dir to \
 args = parser.parse_args()
 
 
-"""General Settings"""
+
+"""General Settings from Parser"""
 # setting the name of the files
 pickle_name_models = args.name
 pickle_name_accuracies = f'{args.name}_accuracies'
@@ -73,6 +79,7 @@ sim_dir = args.sim_dir
 w_clip = args.w_clip
 a_clip = args.a_clip
 do_sim = args.distance
+
 
 
 
@@ -120,10 +127,10 @@ for i in range(4):
     if k:
         all_settings += setting_list[i]
 
-print('Number of Models to Train: ', len(all_settings))
 
 """Train each of the models as specified"""
 if all_settings:
+    print('Number of Models to Train: ', len(all_settings))
     model_list = []
     accuracies = []
     for setting in all_settings:
@@ -159,16 +166,43 @@ if all_settings:
 
 
 """ Loading in Models as Specified """
+# first check to see if there are indices given 
+model_idex_lists = [args.exp_indices_1, args.exp_indices_2, args.exp_indices_3,
+                    args.exp_indices_4]
+not_null = [i for i,v in enumerate(model_idex_lists) if v != None]
+
+# check to see if all the indices that have lists are valid
+assert max(not_null) <= (len(args.load_model_names)-1) if \
+    hasattr(args.load_model_names, '__len__') else max(not_null) == 1, \
+    'maximum k for exp_indices_k must be <= the number of model lists imported'
+
 if args.load_model_names is not None:
     # load from the model dir given
     # load each model name
     # add each to a list and call it model list
     if not args.side_sims_2:
         model_list = []
+        i = 0
         for model_name in args.load_model_names:
             with open(f'{mod_dir}/{model_name}.pkl', 'rb') as file:
                 model_list_constituent = pickle.load(file)
+            # if importing a single model
+            if not hasattr(model_list_constituent, '__len__'):
+                model_list_constituent = [model_list_constituent]
+            
+            # if this set of models has index selection
+            if i in not_null:
+                this_model_inds = model_idex_lists[i]
+                # check to make sure the max index is valid
+                assert max(this_model_inds) <= len(model_list_constituent) -1,\
+                f'invalid index selection for {i+1}th model list'
+
+                # if it is valid, then do the index selection
+                model_list_constituent = [model_list_constituent[k] for k in \
+                                          this_model_inds]
+
             model_list += model_list_constituent
+            i += 1
     else: 
         if hasattr(args.load_model_names, '__len__'):
             if len(args.load_model_names) != 2:
