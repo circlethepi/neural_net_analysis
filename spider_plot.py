@@ -21,23 +21,31 @@ To-Do:
 """Arguments for Command Line"""
 parser = argparse.ArgumentParser()
 
-# adding arguments
+## adding arguments
 parser.add_argument('--name', type=str, required=True, 
                     help="name of the experiment/file to save to")
-# experiments it could run
+# RUNNING EXPERIMENTS (preset, small)
 parser.add_argument('--nclass', action='store_true', help="whether do n classes")
 parser.add_argument('--cols', action='store_true', help="whether do col masking")
 parser.add_argument('--gnoise', action='store_true', help="whether do gnoise")
 parser.add_argument('--mixing', action='store_true', help="whether mix images")
 
-# names of trained models to load if that's a thing
+# LOADING TRAINED MODELS
 parser.add_argument('--load_model_names', nargs='+', default=None)
 
-# whether to calculate pairwise similarities
+# SIMILARITIES
 parser.add_argument('--do_sims', action='store_true', help="whether calculate \
                     pairwise sims")
+parser.add_argument('--w_clip', default=30, type=int, help="weight clip rank \
+                    for metric calculation")
+parser.add_argument('--a_clip', default=64, type=int, help="activcation clip \
+                    rank for metric calculation")
+parser.add_argument('--distance', action='store_false', help="sets sim to BW \
+                    distance instead")
+parser.add_argument('--side_sims_2', action='store_true', help="whether to \
+                    treat loaded model lists as two sides of the matrix of 1")
 
-# directory names
+# DIRECTORY NAMES
 parser.add_argument('--mod_dir', default='model_library', help="name of dir to\
                      store/load trained models")
 parser.add_argument('--acc_dir', default='acc_library', help="name of dir to \
@@ -45,6 +53,7 @@ parser.add_argument('--acc_dir', default='acc_library', help="name of dir to \
 parser.add_argument('--sim_dir', default='sim_library', help="name of dir to \
                     store/load pairwise sims")
 
+## pargs the args
 args = parser.parse_args()
 
 
@@ -59,6 +68,11 @@ acc_dir = args.acc_dir
 sim_dir = args.sim_dir
 
 # parsing the model settings
+
+# parsing the similarity settings
+w_clip = args.w_clip
+a_clip = args.a_clip
+do_sim = args.distance
 
 
 
@@ -144,23 +158,39 @@ if all_settings:
     #os.system(f'say {announcement_string}')
 
 
+""" Loading in Models as Specified """
 if args.load_model_names is not None:
-    if not hasattr(args.load_model_names, '__len__'):
-        print(f'Only one model set given. Duplicating model set as second set')
-        args.load_model_names = [args.load_model_names]*2
-        pass
     # load from the model dir given
     # load each model name
     # add each to a list and call it model list
-    model_list = []
-    for model_name in args.load_model_names:
-        with open(f'{mod_dir}/{model_name}.pkl', 'rb') as file:
-            model_list_constituent = pickle.load(file)
-        model_list += model_list_constituent
+    if not args.side_sims_2:
+        model_list = []
+        for model_name in args.load_model_names:
+            with open(f'{mod_dir}/{model_name}.pkl', 'rb') as file:
+                model_list_constituent = pickle.load(file)
+            model_list += model_list_constituent
+    else: 
+        if hasattr(args.load_model_names, '__len__'):
+            if len(args.load_model_names) != 2:
+                raise Exception(f'For 2-sided similarity calculation, the \
+                                number of models loaded must\nbe exactly 2')
+        model_sets = []
+        for model_name in args.load_model_names:
+            with open(f'{mod_dir}/{model_name}.pkl', 'rb') as file:
+                model_list_constituent = pickle.load(file)
+            model_list.append(model_list_constituent)
     
+
 """Calculate the Pairwise Similarities"""
 if args.do_sims:
-    similarities = pm.compute_pairwise_sims(model_list)
+    if not args.side_sims_2:
+        similarities = pm.compute_pairwise_sims(model_list, similarity=do_sim,
+                                                w_clip=w_clip, a_clip=a_clip)
+    else:
+        similarities = pm.compute_pairwise_sims(model_sets[0], similarity=do_sim,
+                                                w_clip=w_clip, a_clip=a_clip,
+                                                model_set2=model_sets[1])
+    
     with open(f'{sim_dir}/{pickle_name_sims}.pkl', 'wb') as file:
     #with open(f'{pickle_name_sims}.pkl', 'wb') as file:
         pickle.dump(similarities, file)

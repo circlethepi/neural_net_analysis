@@ -48,7 +48,7 @@ class SinglePerturbationResultsConverter:
 
 # Helper Functions
 def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64, 
-                          similarity=True, labels=None):
+                          similarity=True, labels=None, model_set2=None):
     """
     Compute the pairwise distances between a list of trained models for 
     a single layer
@@ -70,14 +70,16 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64,
     #     model.to(device)
 
     # if there are names, set those names. Otherwise, use generic model names
-    if labels:
-        if len(labels) != len(model_set): # check that the number of given names is correct
-            os.system('say "dummy do you even know how to count?"')
-            raise Exception("""Number of models is not the same as number of 
-                            names provided""")
-        names = labels
-    else:
-        names = [f'Model {i}' for i in range(len(model_set))]
+    # if labels:
+    #     if len(labels) != len(model_set): # check that the number of given names is correct
+    #         os.system('say "dummy do you even know how to count?"')
+    #         raise Exception("""Number of models is not the same as number of 
+    #                         names provided""")
+    #     names = labels
+    # else:
+    #     names = [f'Model {i}' for i in range(len(model_set))]
+    model_set2 = model_set2 if model_set2 else model_set
+    
 
     # Results container
     pairwise_sims = {'activations' : [], 'weights' : []}
@@ -88,13 +90,15 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64,
         model1 = model_set[i]
         model_i_act = []
         model_i_way = []
-        for j in tqdm(range(i+1, len(model_set)), 
-                      desc=f'Computing {i+1}th pairwise similarity'):
+        second_loop = range(i+1, len(model_set)) if model_set == model_set2 \
+            else range(len(model_set2))
+        for j in tqdm(second_loop, 
+                      desc=f'Computing {i+1}th pairwise {metric}'):
             
             model2 = model_set[j]
             # create the similarity object
-            simobj = sim.network_comparison(model1, model2, 
-                                            names=(names[i], names[j]))
+            simobj = sim.network_comparison(model1, model2) 
+                                            #names=(names[i], names[j]))
 
             # get the alignments
             cs.set_seed(COMMON_SEED)
@@ -109,6 +113,9 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64,
             
             model_i_act.append(activations[0])
             model_i_way.append(weights[0])
+            
+            del simobj
+
         print(model_i_act, model_i_way)
 
         pairwise_sims['activations'].append(model_i_act)
@@ -117,8 +124,12 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64,
     print(pairwise_sims)
     
     # contstruct the similarity matrix
-    act_sims = similarity_matrix_from_lists(pairwise_sims['activations'])
-    way_sims = similarity_matrix_from_lists(pairwise_sims['weights'])        
+    if model_set == model_set2:
+        act_sims = similarity_matrix_from_lists(pairwise_sims['activations'])
+        way_sims = similarity_matrix_from_lists(pairwise_sims['weights']) 
+    else:
+        act_sims = np.array(pairwise_sims['activations'])
+        way_sims = np.array(pairwise_sims['weights'])       
 
     return act_sims, way_sims
 
