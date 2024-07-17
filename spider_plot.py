@@ -213,7 +213,7 @@ if args.load_model_names is not None:
         for model_name in args.load_model_names:
             with open(f'{mod_dir}/{model_name}.pkl', 'rb') as file:
                 model_list_constituent = pickle.load(file)
-            model_list.append(model_list_constituent)
+            model_sets.append(model_list_constituent)
     
 
 """Calculate the Pairwise Similarities"""
