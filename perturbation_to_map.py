@@ -95,7 +95,7 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64,
         for j in tqdm(second_loop, 
                       desc=f'Computing {i+1}th pairwise {metric}'):
             
-            model2 = model_set[j]
+            model2 = model_set2[j]
             # create the similarity object
             simobj = sim.network_comparison(model1, model2) 
                                             #names=(names[i], names[j]))
