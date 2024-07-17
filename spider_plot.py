@@ -172,9 +172,10 @@ model_idex_lists = [args.exp_indices_1, args.exp_indices_2, args.exp_indices_3,
 not_null = [i for i,v in enumerate(model_idex_lists) if v != None]
 
 # check to see if all the indices that have lists are valid
-assert max(not_null) <= (len(args.load_model_names)-1) if \
-    hasattr(args.load_model_names, '__len__') else max(not_null) == 1, \
-    'maximum k for exp_indices_k must be <= the number of model lists imported'
+if not_null:
+    assert max(not_null) <= (len(args.load_model_names)-1) if \
+        hasattr(args.load_model_names, '__len__') else max(not_null) == 1, \
+        'max index k for exp_indices_k must be < # model lists imported'
 
 if args.load_model_names is not None:
     # load from the model dir given
