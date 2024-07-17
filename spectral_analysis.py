@@ -73,6 +73,18 @@ class spectrum_analysis:
         # weights
         self.weight_covs = None
         self.weight_spectrum = None
+    
+    def set_train_loader(self, loader, overwrite=False):
+        if (not self.train_loader) or (overwrite and trainloader):
+            self.train_loader = loader
+        else:
+            print(f'warning: train loader will be overwritten. reenter command with overwrite=True if this is intended')
+
+
+    def evaluate_model(self, test_loader):
+        acc = train_network.evaluate_model(test_loader)
+        
+
 
     def get_spectrum(self):
         shh = []

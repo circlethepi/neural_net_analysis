@@ -210,10 +210,23 @@ if args.load_model_names is not None:
                 raise Exception(f'For 2-sided similarity calculation, the \
                                 number of models loaded must\nbe exactly 2')
         model_sets = []
+        i = 0
         for model_name in args.load_model_names:
             with open(f'{mod_dir}/{model_name}.pkl', 'rb') as file:
                 model_list_constituent = pickle.load(file)
+
+            if i in not_null:
+                this_model_inds = model_idex_lists[i]
+                # check to make sure the max index is valid
+                assert max(this_model_inds) <= len(model_list_constituent) -1,\
+                f'invalid index selection for {i+1}th model list'
+
+                # if it is valid, then do the index selection
+                model_list_constituent = [model_list_constituent[k] for k in \
+                                          this_model_inds]
+
             model_sets.append(model_list_constituent)
+
     
 
 """Calculate the Pairwise Similarities"""

@@ -242,10 +242,101 @@ def compute_MDS(similarity_matrix, zero_index=None, pickle=None,):
     return coords
 
 
-def plot_MDS_coords(*args, n_models=None, labels=None, increments=None, 
+def plot_MDS_coords(coords, n_models=None, labels=None, increments=None, 
                     text_locs=None, colors=None, legend_cols=2, 
                     legend_order=None, markers=None, accuracies=None, 
                     acc_range=(0,1)):
+    """
+    *args are similarity matrices 
+    """
+    color_map = plt.cm.plasma
+
+    if n_models:
+        split_indices = [0]+[sum(n_models[:i]) for i in range(1,len(n_models)+1)]
+    else: 
+        split_indices = [0, len(dissims) -1]
+
+    n_perturbations = len(n_models) if n_models else 1
+    
+     #check that increments are set OK
+    # if increments and len(increments) != n_perturbations:
+    #     raise Exception("""Increment list count and number of perturbation 
+    #                     experiments represented must be the same""")
+    
+    colors = colors if colors else plt.cm.viridis(np.linspace(0, 1, n_perturbations)) 
+    if labels:
+        labels = [labels[i] if labels[i] else "" for i in range(len(labels))]
+        make_legend = True
+    else:
+        labels = ["" for i in range(n_perturbations)] 
+        make_legend = False
+    #labels = labels if labels else None#[f'Perturbation {i+1}' for i in 
+                                   # range(n_perturbations)]
+    text_locs = text_locs if text_locs else [(-12,-12) for i in range(len(labels))]
+    #print(text_locs)
+
+
+    # plotting the result
+    fig = plt.figure(figsize=(12, 10))
+    ax = plt.subplot(111)
+
+    for i in range(n_perturbations):
+        low = split_indices[i]
+        hig = split_indices[i+1]
+        xs = coords[low:hig, 0]
+        ys = coords[low:hig, 1]
+        #print(increments[i])
+        
+        if markers is None:
+            mark = 'o'
+        else:
+            mark = markers[i] if markers[i] else 'o'
+        # plotting the trajectory
+        if accuracies:
+            plt.plot(xs, ys, markersize=10, linestyle=':',
+                 color='k', label=labels[i], linewidth=0.5, zorder=1)
+            plt.scatter(xs, ys, c=accuracies[i], marker=mark, s=100,
+                        cmap=color_map, vmin=acc_range[0], 
+                        vmax=acc_range[1], zorder=2)
+            increment_color = color_map(accuracies[i])
+        else:
+            plt.plot(xs, ys, markersize=10, marker=mark, linestyle=':',
+                 color=colors[i], label=labels[i], linewidth=0.25, zorder=1)
+            increment_color = colors[i]
+        
+        # plotting the increments
+
+        if increments and labels:
+            # set the ith increments
+            increments_i = ['']*(n_models[i]-1) + [f'{labels[i]}']
+            print(increments_i)
+            for inc, x, y in zip(increments_i, xs, ys):
+                #print(inc, x, y)
+                if inc:
+                    plt.annotate(inc, xy=(x, y), xytext=text_locs[i],
+                                textcoords='offset points', 
+                                ha='right', va='bottom',
+                                bbox=dict(boxstyle='round,pad=0.05', fc=increment_color, 
+                                              alpha=0.2),
+                                arrowprops=dict(arrowstyle='-', 
+                                                    connectionstyle='arc3,rad=0'),
+                                fontsize=16)
+    
+    if labels and not increments:
+        if legend_order:
+            handles, labels = plt.gca().get_legend_handles_labels()
+            ax.legend([handles[idx] for idx in legend_order],
+                    [labels[idx] for idx in legend_order], loc='upper left', 
+                    bbox_to_anchor=(0.1, -0.08), fontsize=16, ncol=legend_cols)
+        else:
+            ax.legend(loc='upper left', bbox_to_anchor=(0.1, -0.08), fontsize=16, 
+                ncol=legend_cols)
+    if accuracies:
+        plt.colorbar()
+        
+    plt.tick_params(axis='both', which='both', labelsize=16)
+    plt.gca().set_aspect('equal')
+    plt.show()
     
     return
 

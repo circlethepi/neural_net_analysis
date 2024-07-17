@@ -93,6 +93,20 @@ def val_accuracy(model_name, criterion, val_loader, val_loss_history, val_acc_hi
     return val_loss_history, val_acc_history
 
 
+def evaluate_model(model_name, val_loader):
+    model_name.eval()
+    val_acc = 0.0
+    with torch.no_grad():
+        for inputs, labels in val_loader:
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            outputs = model_name(inputs)
+            val_acc += (outputs.argmax(1) == labels).sum().item()
+    val_acc /= len(val_loader.dataset)
+
+    return val_acc
+
+
 def train_accuracy(model_name, optimizer, criterion, train_loader, train_loss_history, train_acc_history):
     train_loss = 0
     train_acc = 0
@@ -153,7 +167,10 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
     print(f'testing at {intervals} batches of {total_batches} total batches')
 
     # set the epochs at which to check the performance
-    max_ep = int(np.floor(np.emath.logn(ep_grain, n_epochs)))
+    if ep_grain < n_epochs:
+        max_ep = int(np.floor(np.emath.logn(ep_grain, n_epochs)))
+    else:
+        max_ep = n_epochs
     ep_intervals = [ep_grain**i for i in range(1, max_ep+1)]
     if n_epochs not in ep_intervals and n_epochs > 1:
         ep_intervals.append(n_epochs)
@@ -226,54 +243,55 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
     ### training the model for the other epochs ###
     ###############################################
     # train over the epochs
-    for epoch in range(2, n_epochs+1):
-        train_loss = 0.0
-        train_acc = 0.0
+    if n_epochs > 1:
+        for epoch in range(2, n_epochs+1):
+            train_loss = 0.0
+            train_acc = 0.0
 
-        # set model to train mode
-        model_name.train()
+            # set model to train mode
+            model_name.train()
 
-        # iterate over the training data
-        for inputs, labels in tqdm(train_loader, desc=f'Training epoch {epoch}'):
-            inputs = inputs.to(device)
-            labels = labels.to(device)
-            
-            optimizer.zero_grad()
-            outputs = model_name(inputs)
-            # compute the loss
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
-            # increment the running loss and accuracy
-            train_loss += loss.item()
-            train_acc += (outputs.argmax(1) == labels).sum().item()
+            # iterate over the training data
+            for inputs, labels in tqdm(train_loader, desc=f'Training epoch {epoch}'):
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+                
+                optimizer.zero_grad()
+                outputs = model_name(inputs)
+                # compute the loss
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
+                # increment the running loss and accuracy
+                train_loss += loss.item()
+                train_acc += (outputs.argmax(1) == labels).sum().item()
 
-        if epoch in ep_intervals:
-            #print(f'epoch {epoch} getting spectrum')
+            if epoch in ep_intervals:
+                #print(f'epoch {epoch} getting spectrum')
+                ep_history.append(epoch)
+                # UPDATING the things
+                spectrum_history, total_var_history, cov_history = update_spectrum(model_name, spectrum_history,
+                                                                                total_var_history, cov_history)
+                # updating the test history
+                val_loss_history, val_acc_history = val_accuracy(model_name, criterion, val_loader, val_loss_history,
+                                                                val_acc_history)
+                # updating the train history
+                train_loss_history, train_acc_history = train_accuracy(model_name, optimizer, criterion, train_loader,
+                                                                    train_loss_history, train_acc_history)
+
+        # getting the last epoch
+        if epoch not in ep_intervals:
+            #print(f'epoch {epoch} getting spectrum (last)')
             ep_history.append(epoch)
             # UPDATING the things
             spectrum_history, total_var_history, cov_history = update_spectrum(model_name, spectrum_history,
-                                                                               total_var_history, cov_history)
+                                                                            total_var_history, cov_history)
             # updating the test history
             val_loss_history, val_acc_history = val_accuracy(model_name, criterion, val_loader, val_loss_history,
-                                                             val_acc_history)
+                                                            val_acc_history)
             # updating the train history
             train_loss_history, train_acc_history = train_accuracy(model_name, optimizer, criterion, train_loader,
-                                                                   train_loss_history, train_acc_history)
-
-    # getting the last epoch
-    if epoch not in ep_intervals:
-        #print(f'epoch {epoch} getting spectrum (last)')
-        ep_history.append(epoch)
-        # UPDATING the things
-        spectrum_history, total_var_history, cov_history = update_spectrum(model_name, spectrum_history,
-                                                                           total_var_history, cov_history)
-        # updating the test history
-        val_loss_history, val_acc_history = val_accuracy(model_name, criterion, val_loader, val_loss_history,
-                                                         val_acc_history)
-        # updating the train history
-        train_loss_history, train_acc_history = train_accuracy(model_name, optimizer, criterion, train_loader,
-                                                               train_loss_history, train_acc_history)
+                                                                train_loss_history, train_acc_history)
 
 
     ##########################
