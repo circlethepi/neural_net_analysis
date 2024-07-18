@@ -206,6 +206,7 @@ if args.load_model_names is not None:
             i += 1
     else: 
         if hasattr(args.load_model_names, '__len__'):
+            # print(args.load_model_names)
             if len(args.load_model_names) != 2:
                 raise Exception(f'For 2-sided similarity calculation, the \
                                 number of models loaded must\nbe exactly 2')
@@ -226,6 +227,8 @@ if args.load_model_names is not None:
                                           this_model_inds]
 
             model_sets.append(model_list_constituent)
+        
+        i += 1
 
     
 
