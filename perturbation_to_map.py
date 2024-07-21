@@ -115,7 +115,9 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64,
             model_i_way.append(weights[0])
             
             del simobj
+            del model2
 
+        del model1
         print(model_i_act, model_i_way)
 
         pairwise_sims['activations'].append(model_i_act)
@@ -228,7 +230,7 @@ def compute_MDS(similarity_matrix, zero_index=None, pickle=None,):
 
     # compute the MDS
     mds = manifold.MDS(n_components=2, dissimilarity='precomputed', eps=1e-16,
-                       max_iter=1000, n_init=100)
+                       max_iter=1000, n_init=100, random_state=0)
     mds.fit_transform(dissims)
     coords = mds.embedding_
 
@@ -255,6 +257,8 @@ def plot_MDS_coords(coords, n_models=None, labels=None, increments=None,
         split_indices = [0]+[sum(n_models[:i]) for i in range(1,len(n_models)+1)]
     else: 
         split_indices = [0, len(dissims) -1]
+    
+    # print(split_indices)
 
     n_perturbations = len(n_models) if n_models else 1
     
@@ -298,7 +302,7 @@ def plot_MDS_coords(coords, n_models=None, labels=None, increments=None,
             plt.scatter(xs, ys, c=accuracies[i], marker=mark, s=100,
                         cmap=color_map, vmin=acc_range[0], 
                         vmax=acc_range[1], zorder=2)
-            increment_color = color_map(accuracies[i])
+            increment_color = color_map(accuracies[i][-1])
         else:
             plt.plot(xs, ys, markersize=10, marker=mark, linestyle=':',
                  color=colors[i], label=labels[i], linewidth=0.25, zorder=1)
@@ -310,6 +314,8 @@ def plot_MDS_coords(coords, n_models=None, labels=None, increments=None,
             # set the ith increments
             increments_i = ['']*(n_models[i]-1) + [f'{labels[i]}']
             print(increments_i)
+            if i == 0:
+                increments_i[0] = '0'
             for inc, x, y in zip(increments_i, xs, ys):
                 #print(inc, x, y)
                 if inc:

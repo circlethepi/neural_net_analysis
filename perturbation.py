@@ -27,7 +27,7 @@ from torchvision import transforms
 # load in the baseline identical measurements
 #
 # with open('/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/pickle_vars/baseline_identical.pkl', 'rb') as f:
-with open('pickle_vars/baseline_identical.pkl', 'rb') as f:
+with open('../pickle_vars/baseline_identical.pkl', 'rb') as f:
     id_baseline = pickle.load(f)
 way_id_sim = id_baseline['way_sim']
 act_id_sim = id_baseline['act_sim']
@@ -36,17 +36,12 @@ act_id_dist = id_baseline['act_dist']
 
 # load in the quantity baselines
 # with open('/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/pickle_vars/baseline_quantiles.pkl', 'rb') as f:
-with open('pickle_vars/baseline_quantiles.pkl', 'rb') as f:
+with open('../pickle_vars/baseline_quantiles.pkl', 'rb') as f:
     quantities = pickle.load(f)
 
-# default baseline perturbation settings
-perturbation_settings_list = ('unmod_classes', 'mod_classes', 'batch_size', 'columns', 'rows', 'val',
-                              'intensity', 'noise', 'var', 'random_pixels')
-default_settings_list = (tuple(range(10)), None, 64, None, None, (1, 1, 1), False, False, None, None)
-default_perturb_dict = dict(zip(perturbation_settings_list, default_settings_list))
-
 # class names
-class_names = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+class_names = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 
+               'ship', 'truck')
 
 # Figure font sizes
 axis_fontsize=18
@@ -59,16 +54,23 @@ COMMON_SEED = 1234
 ### Perturbation Object and Settings ###
 ########################################
 class SwapSettings:
-    def __init__(self, old_label, new_label, n_images, bidirectional=False, old_outside=False):
+    def __init__(self, old_label, new_label, n_images, bidirectional=False, 
+                 old_outside=False):
         """
 
-        :param old_label: int   : the old class label that will be changed on the images (the images getting "mixed in"
-                                  to the new label)
-        :param new_label: int   : the new class label for the images getting "mixed in"
-        :param n_images: int    : the number of images to change the label for (the number of images to "mix in")
-        :param bidirectional: bool  : whether to make changes to both classes (trading images between them)
-        :param old_outside:   bool  : whether the old label images are outside of the dataset otherwise (whether the
-                                      old label is one of the classes used in training)
+        :param old_label: int   :   the old class label that will be changed on 
+                                    the images (the images getting "mixed in"
+                                    to the new label)
+        :param new_label: int   :   the new class label for the images getting 
+                                    "mixed in"
+        :param n_images: int    :   the number of images to change the label 
+                                    for (the number of images to "mix in")
+        :param bidirectional: bool  :   whether to make changes to both classes 
+                                        (trading images between them)
+        :param old_outside:   bool  :   whether the old label images are 
+                                        outside of the dataset otherwise 
+                                        (whether the old label is one of the 
+                                        classes used in training)
         """
         self.old_label = old_label
         self.new_label = new_label
@@ -80,26 +82,37 @@ class SwapSettings:
 
 class PerturbationSettings:
     """
-    Holds the information for a call of subset_class_loader or for an initialization of a Perturbation experiment.
+    Holds the information for a call of subset_class_loader or for an 
+    initialization of a Perturbation experiment.
     """
-    def __init__(self, columns=None, rows=None, val=(1,1,1), intensity=False, noise=False, var=None, random_pixels=None,
+    def __init__(self, columns=None, rows=None, val=(1,1,1), intensity=False, 
+                 noise=False, var=None, random_pixels=None,
                  unmod_classes=tuple(range(10)), mod_classes=None, name=None,
-                 batch_size=64, dataset_class=datasets.CIFAR10, class_count=None):
+                 batch_size=64, dataset_class=datasets.CIFAR10, 
+                 class_count=None, random_subsets:int=None, resize=None,
+                 greyscale=False):
         """
 
-        :param columns: list() or list(list))   : the columns or list of settings for columns to be masked
-        :param rows:                              same as for columns
-        :param val: tuple(float, float, float)  : RGB value for masking
-        :param intensity: bool                  : whether the experiment should cut off values of intensity
-        :param noise: bool                      : whether to add noise to the perturbation
-        :param var: float or list(float)        : the value(s) of the variance for when noise is true
+        :param columns: list() or list(list))   :   the columns or list of settings 
+                                                    for columns to be masked
+        :param rows:                            :   same as for columns
+        :param val: tuple(float, float, float)  :   RGB value for masking
+        :param intensity: bool                  :   whether the experiment 
+                                                    should cut off values of 
+                                                    intensity
+        :param noise: bool                      :   whether to add noise to the 
+                                                    perturbation
+        :param var: float or list(float)        :   the value(s) of the variance 
+                                                    for when noise is true
         :param random_pixels: DO NOT USE THIS< IT DOES NOT WORK
-        :param unmod_classes: list(int) or list(list(int))  : list of class indices to load un-modified
-        :param mod_classes:                                   same as above, but for modified classes
-        :param name: str                        : the name of the experiment
-        :param batch_size: int                  : the size of batch to use in the dataloader
+        :param unmod_classes: list(int) or list(list(int))  : list of class indices 
+                                                            to load un-modified
+        :param mod_classes:             same as above, but for modified classes
+        :param name: str                        :   the name of the experiment
+        :param batch_size: int                  :   the size of batch to use in 
+                                                    the dataloader
         """
-        self.columns = columns
+        self.columns = columns 
         self.rows = rows
         self.val = val
 
@@ -126,6 +139,11 @@ class PerturbationSettings:
             class_count = class_count * len(mod_classes)
         
         self.class_count = class_count
+
+        self.random_subsets = random_subsets
+
+        self.resize = resize
+        self.greyscale = greyscale
 
         return
 
@@ -188,9 +206,12 @@ class PerturbationResults:
             os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
             raise Exception('Need to set ticks before plotting')
 
-        plot_result_trajectories(self.similarities[layer], self.similarities_clipped[layer],
-                                 self.distances[layer], self.distances_clipped[layer],
-                                 xticks=ticks, ylog=ylog, xlog=xlog, xlabadd=xlabadd, plot_baselines=plot_baselines,
+        plot_result_trajectories(self.similarities[layer], 
+                                 self.similarities_clipped[layer],
+                                 self.distances[layer], 
+                                 self.distances_clipped[layer],
+                                 xticks=ticks, ylog=ylog, xlog=xlog, 
+                                 xlabadd=xlabadd, plot_baselines=plot_baselines,
                                  title=f'Layer {layer}', ylims=ylims)
         return
 
@@ -208,26 +229,38 @@ class PerturbationResults:
 
         return
 
-    def plot_accuracy(self, type='test', ticks=None, titleadd='', legend_loc='lower left', xlabel='Perturbation',
-                      ymin=0, ymax=1, xscale='log', yscale='linear', chance_classes=10, hline_lims=None):
+    def plot_accuracy(self, type='test', ticks=None, titleadd='', 
+                      legend_loc='lower left', xlabel='Perturbation',
+                      ymin=0, ymax=1, xscale='log', yscale='linear', 
+                      chance_classes=10, hline_lims=None):
         ticks = self.ticks if self.ticks else ticks
         if not ticks:
             os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
             raise Exception('Need to set ticks before plotting')
-        plot_accuracy_trajectory(self.accuracy[type], self.accuracy_baseline[type], xticks=ticks,
-                                 legend_loc=legend_loc, titleadd=f'{type} {titleadd}', ymin=ymin, ymax=ymax,
-                                 xscale=xscale, yscale=yscale, n_classes=chance_classes, hline_lims=hline_lims, xlabel=xlabel)
+        plot_accuracy_trajectory(self.accuracy[type], 
+                                 self.accuracy_baseline[type], xticks=ticks,
+                                 legend_loc=legend_loc, 
+                                 titleadd=f'{type} {titleadd}', 
+                                 ymin=ymin, ymax=ymax,
+                                 xscale=xscale, yscale=yscale, 
+                                 n_classes=chance_classes, 
+                                 hline_lims=hline_lims, xlabel=xlabel)
         return
 
 
-    def plot_effective_dimensions(self, layer=1, ticks=None, xlabel='', titleadd='', legend_loc='lower right',
-                                  xlog=False, ylog=True, hline_lims = None, ylims=None):
+    def plot_effective_dimensions(self, layer=1, ticks=None, xlabel='', 
+                                  titleadd='', legend_loc='lower right',
+                                  xlog=False, ylog=True, 
+                                  hline_lims = None, ylims=None):
         ticks = self.ticks if self.ticks else ticks
         if not ticks:
             os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
             raise Exception('Need to set ticks before plotting')
 
-        plot_effective_dimensions(self, ticks, xlabel, layer=layer, titleadd=titleadd, legend_loc=legend_loc, xlog=xlog, ylog=ylog, hline_lims=hline_lims, ylims=ylims)
+        plot_effective_dimensions(self, ticks, xlabel, layer=layer, 
+                                  titleadd=titleadd, legend_loc=legend_loc, 
+                                  xlog=xlog, ylog=ylog, 
+                                  hline_lims=hline_lims, ylims=ylims)
 
         return
 
@@ -369,7 +402,8 @@ class Perturbation:
 
         # training
         #cs.set_seed(COMMON_SEED) # set the seed
-        baseline_model.train(baseline_train, baseline_val, n_epochs, grain=50000, ep_grain=n_epochs)
+        baseline_model.train(baseline_train, baseline_val, n_epochs, 
+                             grain=50000, ep_grain=n_epochs)
 
         # adding the accuracy to the record
         self.accuracy_baseline = baseline_model.val_history[-1]
@@ -675,18 +709,24 @@ def display_dataloader_images(dataloader, n_images, display=False):
 
 ############################################################# Generating Datasets
 # for generating the datasets
-def get_first_n_from_class(dataset, count, class_ind):
-    tracker = 0
-    mind_list = [i for i, (e,c) in enumerate(dataset) if c == class_ind][:count]
+def get_first_n_from_class(dataset, count, class_ind, random=False):
+    if random:
+        all_class_inds = [i for i, (e,c) in enumerate(dataset) if c == class_ind]
+        # random order and choose first n
+        mind_list = list(np.random.permutation(all_class_inds))[:count]
+    else:
+        mind_list = [i for i, (e,c) in enumerate(dataset) if c == class_ind][:count]
     
     return mind_list
 
-def get_first_n_from_class_lists(dataset, counts, class_inds):
-    assert len(counts)==len(class_inds), 'Counts list and index list should be the same length'
+def get_first_n_from_class_lists(dataset, counts, class_inds, random=False):
+    assert len(counts)==len(class_inds), \
+           'Counts list and index list should be the same length'
 
     index_list = []
     for k in range(len(counts)):
-        index_list += get_first_n_from_class(dataset, counts[k], class_inds[k])
+        index_list += get_first_n_from_class(dataset, counts[k], class_inds[k],
+                                             random=random)
     
     return index_list
         
@@ -723,6 +763,9 @@ def subset_class_loader(subset_settings : PerturbationSettings = default_perturb
     batch_size = getattr(subset_settings, 'batch_size')
 
     mod_class_count = getattr(subset_settings, 'class_count')
+    mod_random_subsets = getattr(subset_settings, 'random_subsets')
+    resize = getattr(subset_settings, 'resize')
+    greyscale = getattr(subset_settings, 'greyscale')
 
     # get unmodified classes first
     # load the entire dataset
@@ -746,6 +789,9 @@ def subset_class_loader(subset_settings : PerturbationSettings = default_perturb
         # get the indices
         if not mod_class_count:
             mind_train = [i for i, (e, c) in enumerate(trainset) if c in mod_ind]
+        elif mod_random_subsets:
+            mind_train = get_first_n_from_class(trainset, mod_random_subsets, 
+                                                mod_ind, random=True)
         else:
             mind_train = get_first_n_from_class_lists(trainset, mod_class_count, mod_ind)
 
@@ -793,20 +839,21 @@ def subset_class_loader(subset_settings : PerturbationSettings = default_perturb
 
 
             #m_train_sub, m_val_sub = swap_trainset_labels(swap, mod_ind, m_train_sub, m_val_sub)
-
-        if dataset_class == datasets.CIFAR10:
-            mod_transform = transforms.Compose([#transforms.Normalize(mean=mean, std=std),
-                                                #transforms.ToTensor(),
-                                                dataset_perturbations(column_indices=columns,
+        transform_list = [dataset_perturbations(column_indices=columns,
                                                                     row_indices=rows,
                                                                     val=val,
                                                                     intensity=intensity,
                                                                     noise=noise, var=var,
-                                                                    random_pixels=random_pixels),
-                                                #transforms.Normalize(mean=mean, std=std)
-            ])
+                                                                    random_pixels=random_pixels)]
+        if resize:
+            transform_list.append(torchvision.transforms.Resize(resize))
+        if greyscale:
+            transform_list.append(torchvision.transforms.Grayscale())
+
+        if dataset_class == datasets.CIFAR10:
+            mod_transform = transforms.Compose(transform_list)
         if dataset_class == datasets.MNIST:
-            mod_transform = transforms.Compose([])
+            mod_transform = transforms.Compose(transform_list)
 
         modded_train = MyDataset(m_train_sub, transform=mod_transform)
         modded_val = MyDataset(m_val_sub, transform=mod_transform)

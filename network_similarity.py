@@ -23,6 +23,8 @@ class network_comparison:
 
         :param net1: spectral_analysis.spectrum_analysis object that has been trained already
         :param net2: spectral_analysis.spectrum_analysis object that has been trained already
+
+        OR they can be the weights of a network 
         """
         self.models = (net1, net2)
         if names:
@@ -195,7 +197,7 @@ class network_comparison:
                   plot_clip=None,
                   filename_append=None,
                   ed_plot=False,
-                  explained_variance=False):
+                  explained_variance=False, save=False):
         if not layers:
             layers = self.layers
         if not clips:
@@ -256,11 +258,12 @@ class network_comparison:
                     plt.title(title, fontsize=20)
 
                     # saving the figure
-                    path = '/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/image_hold/'
-                    filename = (f'{self.names}_{quantity}_{aligned}_{layer}'
-                                f'{"_"+filename_append if filename_append else ""}')
+                    if save:
+                        path = '/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/image_hold/'
+                        filename = (f'{self.names}_{quantity}_{aligned}_{layer}'
+                                    f'{"_"+filename_append if filename_append else ""}')
 
-                    plt.savefig(path + filename)
+                        plt.savefig(path + filename)
                     plt.show()
 
         return
