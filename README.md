@@ -1,5 +1,18 @@
 # Neural Net Analysis
 
+All models should be stored in a directory named for the model. The files inside the directory hold the saved models with `.pt` extensions, and should be named as the epoch after which the save file was created. 
+> [!example] Example Save Configuration
+> ``` 
+> root
+>  |- saved_models
+>  		|- ModelName
+> 			|- 0.pt
+> 			|- 5.pt
+> 			|- 10.pt
+>			|- 50.pt
+> ```
+
+
 > [!note]
 > Dear reader, I apologize in advance for the disorganized-ness of my code. As this project is ongoing, I have not yet taken the opportunity to clean and package everything. However, in this markdown I have included instructions on how to reproduce the majority of the figures included in my Probabilistic Machine Learning final project. 
 

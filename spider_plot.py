@@ -1,9 +1,10 @@
 import neural_network as nn_mod
 import spectral_analysis as spec
 import network_similarity as sim
-import class_splitter as cs
+import archive.class_splitter as cs
 import perturbation as pert
 import perturbation_to_map as pm
+from utils import *
 
 import numpy as np
 import pickle
@@ -13,8 +14,8 @@ import argparse
 
 """
 To-Do:
-- add a way to take certain indices from a loaded model
-- (can save this subset to model library to use, or directly begin using)
+- implement way to import models in new format (just the torch model files)
+- (instead of a pickled list of spec_analysis objects)
 """
 
 
@@ -134,16 +135,16 @@ if all_settings:
     model_list = []
     accuracies = []
     for setting in all_settings:
-        cs.set_seed(1234)
+        set_seed(1234)
         if hasattr(setting, '__len__'):
             loaders = pert.subset_class_loader(setting[0], swap=setting[1])
         else:
             loaders = pert.subset_class_loader(setting)
         
         # create the model
-        cs.set_seed(1234)
+        set_seed(1234)
         model = spec.spectrum_analysis([512])
-        cs.set_seed(1234)
+        set_seed(1234)
         model.train(loaders[0], loaders[1], 5, grain=10000, ep_grain=5)
         model_list.append(model)
         accuracies.append(model.val_history[-1])

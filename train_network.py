@@ -22,7 +22,7 @@ from fractions import Fraction as frac
 
 # other packages/files
 import neural_network
-from utils import set_torch_device
+from utils import *
 
 # check if there is a GPU available
 device = set_torch_device()

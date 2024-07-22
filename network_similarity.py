@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import scipy
 import torch
 
-from utils import set_torch_device
+from utils import *
 
 #from geomloss import SamplesLoss
 device = set_torch_device()

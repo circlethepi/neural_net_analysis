@@ -120,6 +120,7 @@ def get_dataloaders(batch_size=64, dataset_class=datasets.CIFAR10):
 
 ############################
 # Split Dataset Generation #
+"""USE PERTURBATION IMPLEMENTATION INSTEAD"""
 ############################
 # create dictionary with the classes and the number
 classes = ['plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']

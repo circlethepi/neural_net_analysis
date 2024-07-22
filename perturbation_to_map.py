@@ -1,10 +1,10 @@
 import perturbation as pert
 import spectral_analysis as spec
 import alignment as align
-import class_splitter as cs
+import archive.class_splitter as cs
 import neural_network as nn_mod
 import network_similarity as sim
-from spectral_analysis import set_torch_device
+from utils import *
 
 import numpy as np
 import torch
@@ -101,7 +101,7 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64,
                                             #names=(names[i], names[j]))
 
             # get the alignments
-            cs.set_seed(COMMON_SEED)
+            set_seed(COMMON_SEED)
             simobj.compute_alignments(model1.train_loader, [layer])
             simobj.compute_cossim()
 

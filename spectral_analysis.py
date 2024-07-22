@@ -22,10 +22,10 @@ import train_network
 import effective_dimensions as eff_dim
 import plotting_networks as plotter
 import alignment as align
-import class_splitter as cs
+import archive.class_splitter as cs
 
 # check if there is a GPU available
-from utils import set_torch_device
+from utils import *
 device = set_torch_device()
 
 
@@ -46,7 +46,7 @@ class spectrum_analysis:
         # create the associated model
         # set the seed
         if seed is not None:
-            cs.set_seed(seed)
+            set_seed(seed)
         if not load:
             self.model = nn_mod.Neural_Network(n_neurons, num_classes=n_class, 
                                             input_size=input_size)

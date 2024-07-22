@@ -1,8 +1,9 @@
 import spectral_analysis as spec
 import alignment as align
 import network_similarity as sim
-import class_splitter as cs
+import archive.class_splitter as cs
 import neural_network as nn_mod
+from utils import *
 
 import pickle
 from tqdm import tqdm
@@ -301,7 +302,7 @@ class Perturbation:
         # load in the baseline dataset
         self.baseline_settings = base_perturbations
         # set the seed
-        cs.set_seed(COMMON_SEED)
+        set_seed(COMMON_SEED)
         self.loaders_baseline = subset_class_loader(base_perturbations)
 
         self.dataset_class = dataset_class
@@ -389,19 +390,19 @@ class Perturbation:
         :return:
         """
         # create the model
-        cs.set_seed(COMMON_SEED)  # set the seed
+        set_seed(COMMON_SEED)  # set the seed
         baseline_model = spec.spectrum_analysis(n_neurons)
         self.n_neurons = n_neurons
 
         # train the model for n_epochs
         self.n_epochs = n_epochs # save so we can use the same number for later
-        cs.set_seed(COMMON_SEED) # set the seed
+        set_seed(COMMON_SEED) # set the seed
         baseline_train = self.loaders_baseline[0]
         baseline_val = self.loaders_baseline[1]
         display_dataloader_images(baseline_train, 8, display=True)
 
         # training
-        #cs.set_seed(COMMON_SEED) # set the seed
+        #set_seed(COMMON_SEED) # set the seed
         baseline_model.train(baseline_train, baseline_val, n_epochs, 
                              grain=50000, ep_grain=n_epochs)
 
@@ -467,16 +468,16 @@ class Perturbation:
                                                      random_pixels=j_pix, unmod_classes=[])
 
         # create the dataloader
-        cs.set_seed(COMMON_SEED)  # set the seed
+        set_seed(COMMON_SEED)  # set the seed
         trial_loaders = subset_class_loader(class_loader_settings, swap=j_swp)
 
         # show the dataset
         display_dataloader_images(trial_loaders[0], 8, display=True)
 
         # train the model
-        cs.set_seed(COMMON_SEED)  # set the seed
+        set_seed(COMMON_SEED)  # set the seed
         trial_model = spec.spectrum_analysis(self.n_neurons) # create the model
-        cs.set_seed(COMMON_SEED)  # set the seed
+        set_seed(COMMON_SEED)  # set the seed
         trial_model.train(trial_loaders[0], trial_loaders[1], #self.n_epochs, grain=8, ep_grain=2)#
                           self.n_epochs, grain=50000, ep_grain=self.n_epochs) # train the model
         trial_model.get_effective_dimensions(clip=w_clip_val)  # get the effective dimensions
@@ -943,7 +944,7 @@ class dataset_perturbations(object):
         :param var:
         :param random_pixels:
         '''
-        #cs.set_seed(COMMON_SEED)
+        #set_seed(COMMON_SEED)
         self.val = val
         self.columns = column_indices
         self.rows = row_indices
@@ -986,7 +987,7 @@ class dataset_perturbations(object):
 
         #print(img_tensor.size())
         # Do some transformations. Here, we're just passing though the input
-        #cs.set_seed(COMMON_SEED)
+        #set_seed(COMMON_SEED)
         if self.columns:
             for index in self.columns:
                 img_tensor[0, :, index] = self.val[0]
@@ -996,7 +997,7 @@ class dataset_perturbations(object):
 
             if self.random and self.std > 0:
                 for index in self.columns:
-                    #cs.set_seed(COMMON_SEED)
+                    #set_seed(COMMON_SEED)
                     img_tensor[:, :, index] += torch.randn(img_tensor[:, :, index].size()) * self.std
 
         if self.rows:
@@ -1008,7 +1009,7 @@ class dataset_perturbations(object):
 
             if self.random and self.std > 0:
                 for index in self.columns:
-                    #cs.set_seed(COMMON_SEED)
+                    #set_seed(COMMON_SEED)
                     img_tensor[:, index, :] += torch.randn(img_tensor[:, index, :].size()) * self.std
 
         # if self.random_pix:
@@ -1025,7 +1026,7 @@ class dataset_perturbations(object):
         #             img_tensor[:, index[0], index[1]] += self.random.rvs(size=3)
 
         if self.random and not (self.rows or self.columns) and self.std > 0:
-            #cs.set_seed(COMMON_SEED)
+            #set_seed(COMMON_SEED)
             img_tensor += torch.randn(img_tensor.size()) * self.std
 
         if self.intensity:
