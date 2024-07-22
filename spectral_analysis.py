@@ -36,7 +36,8 @@ class spectrum_analysis:
 
     def __init__(self, n_neurons, vary=None, n_class=10, input_size=32*32*3, 
                  seed=1234, save=False, exp_name=None, 
-                 load=False, path=None, epoch=None):
+                 load=False, path=None, epoch=None,
+                 rel_path='../'):
         """
         Initializes model and associated quantitties
 
@@ -44,27 +45,23 @@ class spectrum_analysis:
         neurons in each layer desired
         """
         # create the associated model
+        arch = [f'fc{k}' for k in n_neurons]
         # set the seed
         if seed is not None:
             set_seed(seed)
         if not load:
             self.model = nn_mod.Neural_Network(n_neurons, num_classes=n_class, 
                                             input_size=input_size)
+            # set the experiment name and path
+            self.save_dir = f'{rel_path}/model_library/{exp_name}-{"".join(arch)}'
+            if save:
+                os.mkdir(self.save_dir)
         else:
             assert path is not None and epoch is not None, \
                 "Invalid model loading parameters; you must specify a path and epoch"
             self.load_from_saved(path, epoch)
             self.save_dir = path
-
-        # set the experiment name
-        # first set the architecture
-        arch = [f'fc{k}' for k in n_neurons]
         
-        if save and not load:
-            self.save_dir = f'../model_library/{exp_name}-{"".join(arch)}'
-            os.mkdir(self.save_dir)
-        
-
         self.model.to(device)
 
         self.n_neurons = n_neurons
