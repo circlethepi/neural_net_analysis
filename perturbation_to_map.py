@@ -174,11 +174,12 @@ def similarity_matrix_from_lists(lists):
 
 
 def plot_similarity_matrix(sims, title, ticks=None, axis_label=None, 
-                           split_inds=None, vrange=(0,1), rotation=0):
+                           split_inds=None, vrange=(0,1), rotation=0,
+                           figsize=(10,10)):
     """
     plots a similarity matrix heatmap
     """
-    fig = plt.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=figsize)
 
     mask = np.triu(np.ones_like(sims, dtype=bool), k=0)
     
