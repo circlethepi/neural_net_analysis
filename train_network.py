@@ -137,8 +137,8 @@ def train_accuracy(model_name, optimizer, criterion, train_loader, train_loss_hi
 
 
 def train_model(model_name, train_loader, val_loader, n_epochs,
-                grain=10, ep_grain=2,
-                criterion=nn.CrossEntropyLoss()):
+                grain=10, ep_grain:int=2,
+                criterion=nn.CrossEntropyLoss(), save=False, savepath=None):
 
     """
     trains a single-layer model for a single epoch and records the val and train accuracy
@@ -150,6 +150,10 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
     #################
     #### Set-up #####
     #################
+    if save:
+        assert savepath is not None, 'To save, there must be a save path'
+        save_model(model_name, 0, savepath)
+
     ep_history = []
 
     # setting the optimizer
@@ -167,11 +171,14 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
     print(f'testing at {intervals} batches of {total_batches} total batches')
 
     # set the epochs at which to check the performance
-    if ep_grain < n_epochs:
+    assert ep_grain >= 1, 'Epoch grain must be >= 1'
+    if ep_grain < n_epochs and ep_grain != 1:
         max_ep = int(np.floor(np.emath.logn(ep_grain, n_epochs)))
+        ep_intervals = [ep_grain**i for i in range(1, max_ep+1)]
+    elif ep_grain == 1:
+        ep_intervals = list(range(2, n_epochs))
     else:
-        max_ep = n_epochs
-    ep_intervals = [ep_grain**i for i in range(1, max_ep+1)]
+        ep_intervals = []
     if n_epochs not in ep_intervals and n_epochs > 1:
         ep_intervals.append(n_epochs)
 
@@ -233,7 +240,12 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
             # updating the train history
             train_loss_history, train_acc_history = train_accuracy(model_name, optimizer, criterion, train_loader,
                                                                    train_loss_history, train_acc_history)
-
+            if save:
+                epoch = f'{i}-{total_batches}'
+                if i == total_batches:
+                    epoch = int(1)
+                save_model(model_name, epoch, savepath)
+                
         # increasing the step
         i += 1
 
@@ -278,6 +290,8 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
                 # updating the train history
                 train_loss_history, train_acc_history = train_accuracy(model_name, optimizer, criterion, train_loader,
                                                                     train_loss_history, train_acc_history)
+                if save:
+                    save_model(model_name, epoch, savepath)
 
         # getting the last epoch
         if epoch not in ep_intervals:
@@ -292,9 +306,20 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
             # updating the train history
             train_loss_history, train_acc_history = train_accuracy(model_name, optimizer, criterion, train_loader,
                                                                 train_loss_history, train_acc_history)
-
+            if save:
+                save_model(model_name, epoch, savepath)
 
     ##########################
     ### setting up returns ###
     ##########################
     return ep_history, val_acc_history, train_acc_history, spectrum_history
+
+
+def save_model(model, epoch, path):
+    filename = f'{path}/{epoch}.pt'
+
+    torch.save(model, filename)
+
+    print(f'Model saved to disc, epoch {epoch}')
+
+    return

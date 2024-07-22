@@ -256,7 +256,7 @@ def plot_MDS_coords(coords, n_models=None, labels=None, increments=None,
     if n_models:
         split_indices = [0]+[sum(n_models[:i]) for i in range(1,len(n_models)+1)]
     else: 
-        split_indices = [0, len(dissims) -1]
+        split_indices = [0, len(coords) -1]
     
     # print(split_indices)
 

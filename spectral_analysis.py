@@ -14,6 +14,7 @@ from tqdm.notebook import tqdm
 # basics
 import numpy as np
 from matplotlib import pyplot as plt
+import os
 
 # other packages/files
 import neural_network as nn_mod
@@ -21,6 +22,7 @@ import train_network
 import effective_dimensions as eff_dim
 import plotting_networks as plotter
 import alignment as align
+import class_splitter as cs
 
 # check if there is a GPU available
 from utils import set_torch_device
@@ -28,10 +30,38 @@ device = set_torch_device()
 
 
 class spectrum_analysis:
+    """
+    Holds, saves, trains linear Neural Network for analysis
+    """
 
-    def __init__(self, n_neurons, vary=None, n_class=10, input_size=32*32*3):
+    def __init__(self, n_neurons, vary=None, n_class=10, input_size=32*32*3, 
+                 seed=1234, save=False, exp_name=None, 
+                 load=False, path=None, epoch=None):
+        """
+        Initializes model and associated quantitties
+
+        If loading a model, you must still initialize with the number of 
+        neurons in each layer desired
+        """
         # create the associated model
-        self.model = nn_mod.Neural_Network(n_neurons, num_classes=n_class, input_size=input_size)
+        # set the seed
+        if seed is not None:
+            cs.set_seed(seed)
+        if not load:
+            self.model = nn_mod.Neural_Network(n_neurons, num_classes=n_class, 
+                                            input_size=input_size)
+        else:
+            assert path is not None and epoch is not None, \
+                "Invalid model loading parameters; you must specify a path and epoch"
+            self.load_from_saved(path, epoch)
+
+        # set the experiment name
+        # first set the architecture
+        arch = [f'fc{k}' for k in n_neurons]
+        self.save_dir = f'../model_library/{exp_name}-{"".join(arch)}'
+        if save:
+            os.mkdir(self.save_dir)
+        
 
         self.model.to(device)
 
@@ -73,18 +103,24 @@ class spectrum_analysis:
         # weights
         self.weight_covs = None
         self.weight_spectrum = None
+
+    
+    def load_from_saved(self, path, epoch):
+        filename = f'{path}/{epoch}.pt'
+        self.model = torch.load(filename)
+        print(f'Model successfully loaded')
+        return
     
     def set_train_loader(self, loader, overwrite=False):
-        if (not self.train_loader) or (overwrite and trainloader):
+        if (not self.train_loader) or (overwrite and loader):
             self.train_loader = loader
         else:
             print(f'warning: train loader will be overwritten. reenter command with overwrite=True if this is intended')
 
-
     def evaluate_model(self, test_loader):
         acc = train_network.evaluate_model(test_loader)
-        
 
+        return acc
 
     def get_spectrum(self):
         shh = []
@@ -164,13 +200,19 @@ class spectrum_analysis:
 
         return act_spectra
 
-    def train(self, train_loader, val_loader, n_epochs, grain=5, ep_grain=2):
+    def train(self, train_loader, val_loader, n_epochs, grain=5, ep_grain=2, 
+              save=False):
         self.train_loader = train_loader
         e_list, val_hist, train_hist, spec_hist = train_network.train_model(self.model, train_loader, val_loader,
-                                                                            n_epochs, grain=grain, ep_grain=ep_grain)
+                                                                            n_epochs, grain=grain, ep_grain=ep_grain,
+                                                                            save=save, savepath=self.save_dir)
 
         # setting the appropriate features
-        self.n_epochs = n_epochs
+        if self.n_epochs is not None:
+            self.n_epochs += n_epochs
+        else:
+            self.n_epochs = n_epochs
+
         # setting the appropriate features
         self.epoch_history = e_list
         self.val_history = val_hist
