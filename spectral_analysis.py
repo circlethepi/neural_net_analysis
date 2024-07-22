@@ -54,12 +54,14 @@ class spectrum_analysis:
             assert path is not None and epoch is not None, \
                 "Invalid model loading parameters; you must specify a path and epoch"
             self.load_from_saved(path, epoch)
+            self.save_dir = path
 
         # set the experiment name
         # first set the architecture
         arch = [f'fc{k}' for k in n_neurons]
-        self.save_dir = f'../model_library/{exp_name}-{"".join(arch)}'
-        if save:
+        
+        if save and not load:
+            self.save_dir = f'../model_library/{exp_name}-{"".join(arch)}'
             os.mkdir(self.save_dir)
         
 
