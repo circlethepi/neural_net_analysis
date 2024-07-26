@@ -1,3 +1,5 @@
+import matplotlib
+from matplotlib.lines import Line2D
 import perturbation as pert
 import spectral_analysis as spec
 import alignment as align
@@ -248,11 +250,36 @@ def compute_MDS(similarity_matrix, zero_index=None, pickle=None,):
 def plot_MDS_coords(coords, n_models=None, labels=None, increments=None, 
                     text_locs=None, colors=None, legend_cols=2, 
                     legend_order=None, markers=None, accuracies=None, 
-                    acc_range=(0,1)):
+                    bar_range=(0,1), color_traj=None, steps=None, 
+                    cb_norm=None, zero_incs=[0], figsize=(12, 10),
+                    zero_sep=False, zero_lab=None, zero_color='red'):
     """
     *args are similarity matrices 
+
+    color_traj is a colormap or none. If true, uses the default colormap
+    increments is a bool whether or not to place the labels on the map (instead
+    of placing them in the legend)
+    epochs is a list of numbers corresponding to the epochs represented
     """
-    color_map = plt.cm.plasma
+    color_map = plt.cm.plasma  
+
+    if color_traj:
+        assert steps is not None, "to use color_traj, you must include steps"
+        # for i in range(len(steps)):
+        #     if np.max(steps[i]) != 1: # normalize if necessary
+        #         steps[i] /= np.max(steps[i])
+        if cb_norm and 'log' not in cb_norm:
+            lims_cb = (np.min([np.min(k) for k in steps]), np.max([np.max(k) for k in steps]))
+        else:
+            print('Using setting for bar_range since log scale being used')
+            lims_cb = bar_range
+        print(lims_cb)
+        if accuracies is None:
+            bar_range=lims_cb
+    if color_traj == True:
+        color_traj = color_map
+
+    
 
     if n_models:
         split_indices = [0]+[sum(n_models[:i]) for i in range(1,len(n_models)+1)]
@@ -282,7 +309,7 @@ def plot_MDS_coords(coords, n_models=None, labels=None, increments=None,
 
 
     # plotting the result
-    fig = plt.figure(figsize=(12, 10))
+    fig = plt.figure(figsize=figsize)
     ax = plt.subplot(111)
 
     for i in range(n_perturbations):
@@ -297,13 +324,30 @@ def plot_MDS_coords(coords, n_models=None, labels=None, increments=None,
         else:
             mark = markers[i] if markers[i] else 'o'
         # plotting the trajectory
-        if accuracies:
+        if zero_sep:
+            plt.scatter(xs[0], ys[0], marker=mark, s=100, 
+                        color=zero_color, zorder=5)
+            if i == 0:
+                zero_legend = [matplotlib.patches.Patch(facecolor=zero_color,
+                                                        edgecolor=zero_color,
+                                                        label=zero_lab)]
+        if accuracies or color_traj:
             plt.plot(xs, ys, markersize=10, linestyle=':',
                  color='k', label=labels[i], linewidth=0.5, zorder=1)
-            plt.scatter(xs, ys, c=accuracies[i], marker=mark, s=100,
-                        cmap=color_map, vmin=acc_range[0], 
-                        vmax=acc_range[1], zorder=2)
-            increment_color = color_map(accuracies[i][-1])
+            if accuracies:
+                plt.scatter(xs, ys, c=accuracies[i], marker=mark, s=100,
+                            cmap=color_map, vmin=bar_range[0], 
+                            vmax=bar_range[1], zorder=2, norm=cb_norm)
+                increment_color = color_map(accuracies[i][-1])
+            if color_traj:
+                colors = np.array(steps[i])
+                if cb_norm and 'log' in cb_norm:
+                    colors[colors <= 0] = 1e10-4
+                #print(colors)
+                plt.scatter(xs, ys, c=colors, cmap=color_traj, 
+                            marker=mark, s=100, norm=cb_norm,
+                            vmin=bar_range[0], vmax=bar_range[1], zorder=2)
+                increment_color = color_traj(steps[i][-1])
         else:
             plt.plot(xs, ys, markersize=10, marker=mark, linestyle=':',
                  color=colors[i], label=labels[i], linewidth=0.25, zorder=1)
@@ -314,9 +358,11 @@ def plot_MDS_coords(coords, n_models=None, labels=None, increments=None,
         if increments and labels:
             # set the ith increments
             increments_i = ['']*(n_models[i]-1) + [f'{labels[i]}']
-            print(increments_i)
-            if i == 0:
+            #print(increments_i)
+            if i in zero_incs:
                 increments_i[0] = '0'
+                if zero_sep:
+                    increments_i[0] = f'{labels[i]}'
             for inc, x, y in zip(increments_i, xs, ys):
                 #print(inc, x, y)
                 if inc:
@@ -338,8 +384,13 @@ def plot_MDS_coords(coords, n_models=None, labels=None, increments=None,
         else:
             ax.legend(loc='upper left', bbox_to_anchor=(0.1, -0.08), fontsize=16, 
                 ncol=legend_cols)
-    if accuracies:
-        plt.colorbar()
+    if zero_lab:
+        ax.legend(handles=zero_legend, fontsize=16)
+    if accuracies or color_traj:
+        cbar = plt.colorbar()
+        cbar_label = 'Accuracy' if accuracies else 'Epoch'
+        cbar.set_label(cbar_label, fontsize=16)
+        cbar.ax.tick_params(labelsize=16)
         
     plt.tick_params(axis='both', which='both', labelsize=16)
     plt.gca().set_aspect('equal')

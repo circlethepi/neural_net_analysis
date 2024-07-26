@@ -166,7 +166,7 @@ class spectrum_analysis:
 
         acts = []
         for x, _ in tqdm(dataloader, desc="Computing activations"):
-            # x = x.to(device)
+            x = x.to(device)
             activations1 = get_acts(x, layers, self.model)
             acts.append(activations1)
 
