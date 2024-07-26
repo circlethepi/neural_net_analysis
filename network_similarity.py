@@ -18,7 +18,8 @@ Network similarity object
 
 class network_comparison:
 
-    def __init__(self, net1: spec.spectrum_analysis, net2: spec.spectrum_analysis, names = None):
+    def __init__(self, net1: spec.spectrum_analysis, 
+                 net2: spec.spectrum_analysis, names = None):
         """
 
         :param net1: spectral_analysis.spectrum_analysis object that has been trained already
@@ -76,7 +77,9 @@ class network_comparison:
         if 0 in layers:
             raise Exception('0 is not a valid layer index for comparison')
 
-        align_list, r2s = align.compute_alignments(dataloader, layers, self.models[0].model, self.models[1].model)
+        align_list, r2s = align.compute_alignments(dataloader, layers, 
+                                                   self.models[0].model, 
+                                                   self.models[1].model)
 
         align_dict = dict(zip(layers, align_list))
         r2_dict = dict(zip(layers, r2s))
@@ -87,13 +90,15 @@ class network_comparison:
         self.layers = layers.copy()
         self.r2s = r2_dict.copy()
 
-        # get the alignment covariances and vectors wrt the dataloader for comparison
+        # get the alignment covariances and vectors wrt the dataloader 
+        # for comparison
         for net in self.models:
             _ = net.get_activation_spectrum()
 
         # get the eigenvectors for the weights
-        # 0 is the 0th model, 1 is the 1st model. The weights are then stored in a dictionary with
-        # a key corresponding to each layer of the model
+        # 0 is the 0th model, 1 is the 1st model. The weights are then 
+        # stored in a dictionary with a key corresponding to each layer 
+        # of the model
         weight_vec_dict = {0: None, 1: None}
         act_vec_dict = {0: None, 1: None}
         weight_spec_dict = {0: None, 1: None}
@@ -107,7 +112,8 @@ class network_comparison:
                 u, s, vh = torch.linalg.svd(weight_list, full_matrices=False)
                 weight_vectors.append(vh)
 
-            # also get the weight covariances for when we might want the distances
+            # also get the weight covariances for when we might want 
+            # the distances
             weight_covlist = [net.weight_covs[i - 1] for i in layers]
             self.weight_covs = dict(zip(self.layers, weight_covlist.copy()))
             w_spec = []

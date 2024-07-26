@@ -2,7 +2,7 @@
 import numpy as np
 from utils import AverageMeter
 from tqdm import tqdm
-from tqdm.notebook import tqdm
+#from tqdm.notebook import tqdm
 import torch
 import scipy
 

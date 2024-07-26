@@ -1,7 +1,7 @@
 # imports
 # interactivity
 from tqdm import tqdm
-from tqdm.notebook import tqdm
+#from tqdm.notebook import tqdm
 from ipywidgets import FloatProgress
 import time
 import copy

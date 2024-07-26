@@ -7,8 +7,8 @@ import perturbation as pert
 import spectral_analysis as spec
 from utils import *
 
-import tqdm
-from tqdm.notebook import tqdm
+from tqdm import tqdm
+#from tqdm.notebook import tqdm
 
 """
 TO-DO

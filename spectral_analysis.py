@@ -9,7 +9,7 @@ import torch.optim as optim
 import torchvision.datasets as datasets
 
 from tqdm import tqdm
-from tqdm.notebook import tqdm
+#from tqdm.notebook import tqdm
 
 # basics
 import numpy as np

@@ -7,7 +7,7 @@ from utils import *
 
 import pickle
 from tqdm import tqdm
-from tqdm.notebook import tqdm
+#from tqdm.notebook import tqdm
 import time
 import os
 
