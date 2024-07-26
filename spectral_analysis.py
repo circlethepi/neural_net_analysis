@@ -36,7 +36,7 @@ class spectrum_analysis:
 
     def __init__(self, n_neurons, vary=None, n_class=10, input_size=32*32*3, 
                  seed=1234, save=False, exp_name=None, 
-                 load=False, path=None, epoch=None,
+                 load=False, path='/model_library', epoch=None,
                  rel_path='../'):
         """
         Initializes model and associated quantitties
@@ -53,7 +53,7 @@ class spectrum_analysis:
             self.model = nn_mod.Neural_Network(n_neurons, num_classes=n_class, 
                                             input_size=input_size)
             # set the experiment name and path
-            self.save_dir = f'{rel_path}/model_library/{exp_name}-{"".join(arch)}'
+            self.save_dir = f'{rel_path}{path}/{exp_name}-{"".join(arch)}'
             if save:
                 os.mkdir(self.save_dir)
         else:
