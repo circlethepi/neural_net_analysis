@@ -519,9 +519,6 @@ class NetworkComparisonCollection:
         self.alignments = align_dict.copy()
         self.r2s = r2_dict.copy()
 
-        return 
-    
-    def get_aligned_eigenvectors(self):
         w_vecs = self.weight_eigenvectors
         w_vals = self.weight_spectrum
         a_vecs = self.activation_eigenvectors
@@ -576,7 +573,19 @@ class NetworkComparisonCollection:
         self.activation_aligned_vectors = aligned_eigen_activations
         
         return
-    
+
+    def compute_aligned_vectors(self, dataloader=None):
+        dataloader = dataloader if dataloader else self.dataloader
+
+        aligned_weights, aligned_activations = \
+            compute_aligned_vectors(self.reference, self.models, dataloader,
+                                    self.layers, self.weight_eigenvectors,
+                                    self.activation_eigenvectors)
+        self.weight_aligned_vectors = aligned_weights
+        self.activation_aligned_vectors = aligned_activations
+        
+        return
+
     def compute_cossims_vecs(self):
         """
         compute the cosine similarities between the reference and the models 
@@ -714,6 +723,7 @@ def compute_alignment_list(reference, models_to_align, dataloader, layers,
         for model in batch_models:
             align_li, r2 = align.compute_alignments(dataloader, layers, reference.model, model.model)
             
+            align_li = [k.to('cpu') for k in align_li]
             model_align_dict = dict(zip(layers, align_li))
             model_r2_dict = dict(zip(layers, r2))
             
@@ -830,3 +840,94 @@ def similarity_matrix_from_lists(lists):
                         np.array(new_lists).transpose()
 
     return similarity_matrix
+
+
+def compute_aligned_vectors(reference, models_to_align, dataloader, layers, 
+                           model_weight_eigenvectors, model_activation_eigenvectors,
+                           batch_size=9):
+    """
+    Compute alignments for multiple models wrt a given reference
+
+    reference : spec.spectrum_analysis
+    models_to_align : list(spec.spectrum_analysis)
+    dataloader : torch.dataloader
+    layers : list(int)
+
+    returns dict of alignments for the given layers for the models to the ref
+    indexes the models with integers in order as keys
+
+    return is 
+    dict: [model index] -> [layer] -> alignment matrix (or r2 value)
+    (reference model has index 0)
+    
+    """
+    # check that layer selection is valid
+    assert 0 not in layers, '0 is not a valid layer index for comparison'
+    #align_dict = {}
+    #r2_dict = {}
+
+    aligned_weights_dict = {}
+    aligned_activations_dict = {}
+    
+    num_models = len(models_to_align)
+    
+    for i in tqdm(range(0, num_models, batch_size), desc='Aligning Models'):
+        end_ind = min(i+batch_size, num_models)
+        batch_models = models_to_align[i:end_ind]
+        #align_lists = []
+        align_way_list = []
+        align_act_list = []
+       # r2_list = []
+
+        j = 0 # index of model in batch
+        for model in batch_models:
+            align_li, _ = align.compute_alignments(dataloader, layers, 
+                                                    reference.model, model.model)
+            
+            # align the matrices
+            k = 0 # layer index
+            aligned_act_vecs = []
+            aligned_way_vecs = []
+            for lay in layer:
+                w_vecs = model_weight_eigenvectors[i+j][lay]
+                a_vecs = model_activation_eigenvectors[i+j][lay]
+
+                # get the alignment matrices
+                align_w = align_li[k-1] if k != 0 else None
+                align_a = align_li[k]
+
+                # doing the alignments
+                if align_w is not None:
+                    w_vecs = w_vecs @ align_w.T
+                a_vecs = a_vecs @ align_a.T
+
+                aligned_act_vecs.append(a_vecs)
+                aligned_way_vecs.append(w_vecs)
+
+                k += 1
+            # make into dicts
+            aligned_activations = dict(zip(layers, aligned_act_vecs))
+            aligned_weights = dict(zip(layers, aligned_way_vecs))
+            #model_align_dict = dict(zip(layers, align_li))
+            #model_r2_dict = dict(zip(layers, r2))
+            
+            aligned_way_list.append(aligned_weights)
+            aligned_act_list.append(aligned_activations)
+            #align_lists.append(model_align_dict)
+            #r2_list.append(model_r2_dict)
+
+            del model, aligned_activations, aligned_weights#,\model_align_dict, model_r2_dict
+            clear_memory()
+
+            j += 1
+
+        batch_indices = list(range(i, min(i + batch_size, num_models)))
+        #align_dict.update(dict(zip(batch_indices, align_lists)))
+        #r2_dict.update(dict(zip(batch_indices, r2_list)))
+        aligned_weights_dict.update(dict(zip(batch_indices, aligned_way_list)))
+        aligned_activations_dict.update(dict(zip(batch_indices, aligned_act_list)))
+        
+        # Clear memory after each batch
+        clear_memory()
+
+    return aligned_weights_dict, aligned_activations_dict #align_dict, r2_dict
