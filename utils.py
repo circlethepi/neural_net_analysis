@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import gc
 
 class AverageMeter(object):
     """ Computes and stores the average and current value. """
@@ -33,4 +34,12 @@ def set_seed(SEED):
     torch.backends.cudnn.deterministic = True
     ######
     print(f'set seed to {SEED}')
+    return
+
+def clear_memory():
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
     return

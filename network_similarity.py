@@ -447,7 +447,8 @@ class NetworkComparisonCollection:
     Weights and Activations
     """
 
-    def __init__(self, *args, align_to=None, align=False, names=None):
+    def __init__(self, *args, layers=[1], dataloader=None, align_to=None, 
+                names=None):
         """
         args is a list of networks to compare. these should be spec.spectrum_analysis objects
         align_to is a spec.spectrum_analysis
@@ -456,6 +457,7 @@ class NetworkComparisonCollection:
 
         self.models = args
         self.reference = align_to if align_to else args[0]
+        dataloader = dataloader if dataloader else self.reference.train_loader
 
         if names:
             self.names = names
@@ -469,11 +471,14 @@ class NetworkComparisonCollection:
         if not self.reference.weight_spectrum:
             self.reference.get_weight_spectrum()
         
+        w_vecs, w_vals, a_vecs, a_vals = \
+            compute_eigenvector_spectrum_list(self.models, dataloader, layers)
+        
         # attributes set by alignment
         self.activation_covs = None # dict []
-        self.layers = None # list(int)
+        self.layers = layers # list(int)
         self.alignments = None # dict
-        self.dataloader = None # torch.dataloader()
+        self.dataloader = dataloader # torch.dataloader()
         self.r2s = None # dict
 
         # covariances
@@ -481,12 +486,12 @@ class NetworkComparisonCollection:
         self.activation_covs = None
 
         # eigenvectors
-        self.weight_eigenvectors = None
-        self.activation_eigenvectors = None
+        self.weight_eigenvectors = w_vecs
+        self.activation_eigenvectors = a_vecs
 
         # eigenvalues
-        self.weight_spectrum = None
-        self.activation_spectrum = None
+        self.weight_spectrum = w_vals
+        self.activation_spectrum = a_vals
 
         # aligned eigenvectors
         self.weight_aligned_vectors = None
@@ -499,37 +504,34 @@ class NetworkComparisonCollection:
 
         return
     
-    def compute_alignments(self, dataloader, layers):
+    def compute_alignments(self, dataloader=None):
         """
         Gets the alignments, r2 values, eigenvectors/spectra for each of the 
         models and set the appropriate features
         
         """
+        dataloader = dataloader if dataloader else self.dataloader
 
         # first, compute alignments
         align_dict, r2_dict = compute_alignment_list(self.reference, self.models,
-                                                     dataloader, layers)
+                                                     dataloader, self.layers)
             # [model index] -> [layer] -> alignment matrix (or r2 value)
         self.alignments = align_dict.copy()
         self.r2s = r2_dict.copy()
 
-        # also, get all the eigenvectors and spectra for the layers 
-        w_vecs, w_vals, a_vecs, a_vals = \
-            compute_eigenvector_spectrum_list(self.models, dataloader, layers)
-        
-        self.weight_eigenvectors = w_vecs
-        self.weight_spectrum = w_vals
-        self.activation_eigenvectors = a_vecs
-        self.activation_spectrum = a_vals
-
-        self.layers = layers
-        self.dataloader = dataloader
-
+        return 
+    
+    def get_aligned_eigenvectors(self):
+        w_vecs = self.weight_eigenvectors
+        w_vals = self.weight_spectrum
+        a_vecs = self.activation_eigenvectors
+        a_vals = self.activation_spectrum
         # set the aligned vectors for each quanitity
         # container for each model's aligned vectors
         aligned_vectors_w = []
         aligned_vectors_a = []
-        for i in range(len(self.models)):
+
+        for i in tqdm(range(len(self.models)), desc='Calculating aligned eigenvectors'):
             # get the collection of eigenvectors for each layer
             w_vecs = self.weight_eigenvectors[i]
             a_vecs = self.activation_eigenvectors[i]
@@ -572,8 +574,8 @@ class NetworkComparisonCollection:
         # set the features
         self.weight_aligned_vectors = aligned_eigen_weights
         self.activation_aligned_vectors = aligned_eigen_activations
-
-        return 
+        
+        return
     
     def compute_cossims_vecs(self):
         """
@@ -590,6 +592,9 @@ class NetworkComparisonCollection:
 
     def get_network_distance_matrix(self, w_clip=None, a_clip=None, sim=False):
         """
+        Gives back the metric matrices as a dictionary:
+        [layer] -> similarity matrix
+        for each of activations and weights (returned in that order)
         """
         weights = []
         activations = []
@@ -653,7 +658,8 @@ class NetworkComparisonCollection:
 
         return weight_matrix_dict, activation_matrix_dict
 
-def compute_alignment_list(reference, models_to_align, dataloader, layers):
+def compute_alignment_list(reference, models_to_align, dataloader, layers, 
+                           batch_size=9):
     """
     Compute alignments for multiple models wrt a given reference
 
@@ -673,22 +679,56 @@ def compute_alignment_list(reference, models_to_align, dataloader, layers):
     # check that layer selection is valid
     assert 0 not in layers, '0 is not a valid layer index for comparison'
 
-    align_lists = []
-    r2_list = []
-    for model in tqdm(models_to_align, desc='Aligning Models'):
-        align_li, r2 = align.compute_alignments(dataloader, layers, reference.model, 
-                                             model.model)
+    # align_lists = []
+    # r2_list = []
+    # for model in tqdm(models_to_align, desc='Aligning Models'):
+    #     align_li, r2 = align.compute_alignments(dataloader, layers, reference.model, 
+    #                                          model.model)
         
-        model_align_dict = dict(zip(layers, align_li))
-        model_r2_dict = dict(zip(layers, r2))
+    #     model_align_dict = dict(zip(layers, align_li))
+    #     model_r2_dict = dict(zip(layers, r2))
         
-        align_lists.append(model_align_dict)
-        r2_list.append(model_r2_dict)
+    #     align_lists.append(model_align_dict)
+    #     r2_list.append(model_r2_dict)
 
-    # create dictionary to return
-    model_inds = list(range(len(models_to_align)))
-    align_dict = dict(zip(model_inds, align_lists))
-    r2_dict = dict(zip(model_inds, r2_list))
+    #     del model, model_align_dict, model_r2_dict
+    #     clear_memory()
+
+    # # create dictionary to return
+    # model_inds = list(range(len(models_to_align)))
+    # align_dict = dict(zip(model_inds, align_lists))
+    # r2_dict = dict(zip(model_inds, r2_list))
+
+    # return align_dict, r2_dict
+    align_dict = {}
+    r2_dict = {}
+    
+    num_models = len(models_to_align)
+    
+    for i in tqdm(range(0, num_models, batch_size), desc='Aligning Models'):
+        end_ind = min(i+batch_size, num_models)
+        batch_models = models_to_align[i:end_ind]
+        align_lists = []
+        r2_list = []
+
+        for model in batch_models:
+            align_li, r2 = align.compute_alignments(dataloader, layers, reference.model, model.model)
+            
+            model_align_dict = dict(zip(layers, align_li))
+            model_r2_dict = dict(zip(layers, r2))
+            
+            align_lists.append(model_align_dict)
+            r2_list.append(model_r2_dict)
+
+            del model, model_align_dict, model_r2_dict
+            clear_memory()
+
+        batch_indices = list(range(i, min(i + batch_size, num_models)))
+        align_dict.update(dict(zip(batch_indices, align_lists)))
+        r2_dict.update(dict(zip(batch_indices, r2_list)))
+        
+        # Clear memory after each batch
+        clear_memory()
 
     return align_dict, r2_dict
 
@@ -709,7 +749,7 @@ def compute_eigenvector_spectrum_list(models_list, dataloader, layers):
     a_vec_dicts = []
     a_val_dicts = []
 
-    for model in models_list:
+    for model in tqdm(models_list, desc="Getting Eigenvectors"):
         # make sure weights and activations are there
         _ = model.get_activation_covs(dataloader, layers)
         _ = model.get_activation_spectrum()
