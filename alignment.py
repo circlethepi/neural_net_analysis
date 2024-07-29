@@ -87,6 +87,9 @@ def compute_activation_covariances(loader, layers, model1, model2=None):
 # Computing Alignments for Models #
 ###################################
 def compute_alignments(loader, layers, model1, model2):
+    """
+    Aligns Model 2 to model 1
+    """
     # getting the layer covariances for each model (and each layer)
     model1_layer_covs = compute_activation_covariances(loader, layers, model1)
     model2_layer_covs = compute_activation_covariances(loader, layers, model2)

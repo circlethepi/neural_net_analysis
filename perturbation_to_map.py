@@ -14,7 +14,7 @@ import torchvision
 
 import os
 from tqdm import tqdm
-from tqdm.notebook import tqdm
+#from tqdm.notebook import tqdm
 import pickle
 from matplotlib import pyplot as plt
 from matplotlib import colors
@@ -237,7 +237,7 @@ def compute_MDS(similarity_matrix, zero_index=None, pickle=None,):
     mds.fit_transform(dissims)
     coords = mds.embedding_
 
-    if zero_index:
+    if zero_index or isinstance(zero_index, int):
         coords -= coords[zero_index]
     
     if pickle:
@@ -295,7 +295,7 @@ def plot_MDS_coords(coords, n_models=None, labels=None, increments=None,
     #     raise Exception("""Increment list count and number of perturbation 
     #                     experiments represented must be the same""")
     
-    colors = colors if colors else plt.cm.viridis(np.linspace(0, 1, n_perturbations)) 
+    colors = colors if colors is not None else plt.cm.viridis(np.linspace(0, 1, n_perturbations)) 
     if labels:
         labels = [labels[i] if labels[i] else "" for i in range(len(labels))]
         make_legend = True
@@ -333,24 +333,24 @@ def plot_MDS_coords(coords, n_models=None, labels=None, increments=None,
                                                         label=zero_lab)]
         if accuracies or color_traj:
             plt.plot(xs, ys, markersize=10, linestyle=':',
-                 color='k', label=labels[i], linewidth=0.5, zorder=1)
+                 color='k', label=labels[i], linewidth=1, zorder=1)
             if accuracies:
                 plt.scatter(xs, ys, c=accuracies[i], marker=mark, s=100,
                             cmap=color_map, vmin=bar_range[0], 
                             vmax=bar_range[1], zorder=2, norm=cb_norm)
                 increment_color = color_map(accuracies[i][-1])
             if color_traj:
-                colors = np.array(steps[i])
+                step_i = np.array(steps[i])
                 if cb_norm and 'log' in cb_norm:
                     colors[colors <= 0] = 1e10-4
                 #print(colors)
-                plt.scatter(xs, ys, c=colors, cmap=color_traj, 
+                plt.scatter(xs, ys, c=step_i, cmap=color_traj, 
                             marker=mark, s=100, norm=cb_norm,
                             vmin=bar_range[0], vmax=bar_range[1], zorder=2)
                 increment_color = color_traj(steps[i][-1])
         else:
             plt.plot(xs, ys, markersize=10, marker=mark, linestyle=':',
-                 color=colors[i], label=labels[i], linewidth=0.25, zorder=1)
+                 color=colors[i], label=labels[i], linewidth=1, zorder=1)
             increment_color = colors[i]
         
         # plotting the increments
@@ -386,11 +386,29 @@ def plot_MDS_coords(coords, n_models=None, labels=None, increments=None,
                 ncol=legend_cols)
     if zero_lab:
         ax.legend(handles=zero_legend, fontsize=16)
+    
+    # setting the colorbar
     if accuracies or color_traj:
-        cbar = plt.colorbar()
-        cbar_label = 'Accuracy' if accuracies else 'Epoch'
-        cbar.set_label(cbar_label, fontsize=16)
+        # ticks
+        cbar_ticks = steps[0] if color_traj else [np.min(np.array(accuracies)), np.max(np.array(accuracies))]
+        cbar = plt.colorbar(ticks=cbar_ticks)
         cbar.ax.tick_params(labelsize=16)
+        
+        # define the tick labels
+        def tick_format(x):
+            if int(x) == x:
+                y = int(x)
+            elif 0.01 < x < 1e2:
+                y = f'{x:.2f}'
+            else:
+                y = f'{x:.2e}'
+            return y
+        cbar_labels = [tick_format(k) for k in cbar_ticks]
+        cbar.ax.set_yticklabels(cbar_labels)
+
+        # label
+        cbar_label = 'Accuracy' if accuracies else 'Epoch'
+        cbar.set_label(cbar_label, fontsize=16)    
         
     plt.tick_params(axis='both', which='both', labelsize=16)
     plt.gca().set_aspect('equal')
