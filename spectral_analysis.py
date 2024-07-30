@@ -22,7 +22,7 @@ import train_network
 import effective_dimensions as eff_dim
 import plotting_networks as plotter
 import alignment as align
-import archive.class_splitter as cs
+#import archive.class_splitter as cs
 
 # check if there is a GPU available
 from utils import *

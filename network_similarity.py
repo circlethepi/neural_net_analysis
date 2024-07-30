@@ -504,6 +504,7 @@ class NetworkComparisonCollection:
 
         return
     
+    # unused ATM - too clunky
     def compute_alignments(self, dataloader=None):
         """
         Gets the alignments, r2 values, eigenvectors/spectra for each of the 
@@ -523,6 +524,7 @@ class NetworkComparisonCollection:
         w_vals = self.weight_spectrum
         a_vecs = self.activation_eigenvectors
         a_vals = self.activation_spectrum
+        layers = self.layers
         # set the aligned vectors for each quanitity
         # container for each model's aligned vectors
         aligned_vectors_w = []
@@ -574,6 +576,7 @@ class NetworkComparisonCollection:
         
         return
 
+    # this is the one
     def compute_aligned_vectors(self, dataloader=None):
         dataloader = dataloader if dataloader else self.dataloader
 
@@ -583,7 +586,15 @@ class NetworkComparisonCollection:
                                     self.activation_eigenvectors)
         self.weight_aligned_vectors = aligned_weights
         self.activation_aligned_vectors = aligned_activations
-        
+
+        self.clear_unaligned_vectors()
+        clear_memory()
+
+        return
+    
+    def clear_unaligned_vectors(self):
+        self.weight_eigenvectors = None
+        self.activation_eigenvectors = None
         return
 
     def compute_cossims_vecs(self):
@@ -599,14 +610,20 @@ class NetworkComparisonCollection:
         
         return
 
-    def get_network_distance_matrix(self, w_clip=None, a_clip=None, sim=False):
+    def get_pairwise_matrix(self, inds_1=None, inds_2=None, 
+                            w_clip=30, a_clip=64, sim=True):
         """
         Gives back the metric matrices as a dictionary:
         [layer] -> similarity matrix
         for each of activations and weights (returned in that order)
+
+        inds_1 and inds_2 should be the indices of the models in model_list. 
+        This gives us the "sides" of the similarity matrix
         """
         weights = []
         activations = []
+        model_set1 = self.models[inds_1[0]:inds_1[1]] if inds_1 else self.models
+        model_set2 = self.models[inds_2[0]:inds_2[1]] if inds_2 else self.models
 
         #quants = {'activations' : [], 'weights' : []}
 
@@ -616,10 +633,12 @@ class NetworkComparisonCollection:
             layer_sims_acts = []
             layer_sims_ways = []
 
-            for ind in range(len(self.models)):
+            for ind in range(len(model_set1)):
                 i_acts = []
                 i_ways = []
-                for jnd in range(ind+1, len(self.models)):
+                second_loop = range(ind+1, len(model_set1)) \
+                    if model_set1 == model_set2 else (range(len(model_set2)))
+                for jnd in tqdm(second_loop, desc=f'Computing {ind} pairwise'):
                     #print(f'Layer: {layer}\nind:  {ind}\njnd:  {jnd}')
                     # activation info
                     act_vecs1 = self.activation_aligned_vectors[ind][layer]
@@ -655,8 +674,12 @@ class NetworkComparisonCollection:
             
             # sims for the layer add to all
             #print(layer_sims_acts)
-            weights.append(similarity_matrix_from_lists(layer_sims_ways))
-            activations.append(similarity_matrix_from_lists(layer_sims_acts))
+            if model_set1 == model_set2: # if symmetric, turn into sim mat
+                weights.append(similarity_matrix_from_lists(layer_sims_ways))
+                activations.append(similarity_matrix_from_lists(layer_sims_acts))
+            else:       # otherwise, convert into matrix
+                weights.append(np.array(layer_sims_ways))
+                activations.append(np.array(layer_sims_acts))
         
         weight_matrix_dict = dict(zip(self.layers, weights))
         activation_matrix_dict = dict(zip(self.layers, activations))
@@ -667,6 +690,7 @@ class NetworkComparisonCollection:
 
         return weight_matrix_dict, activation_matrix_dict
 
+# unused right now
 def compute_alignment_list(reference, models_to_align, dataloader, layers, 
                            batch_size=9):
     """
@@ -723,7 +747,6 @@ def compute_alignment_list(reference, models_to_align, dataloader, layers,
         for model in batch_models:
             align_li, r2 = align.compute_alignments(dataloader, layers, reference.model, model.model)
             
-            align_li = [k.to('cpu') for k in align_li]
             model_align_dict = dict(zip(layers, align_li))
             model_r2_dict = dict(zip(layers, r2))
             
@@ -888,7 +911,7 @@ def compute_aligned_vectors(reference, models_to_align, dataloader, layers,
             k = 0 # layer index
             aligned_act_vecs = []
             aligned_way_vecs = []
-            for lay in layer:
+            for lay in layers:
                 w_vecs = model_weight_eigenvectors[i+j][lay]
                 a_vecs = model_activation_eigenvectors[i+j][lay]
 
@@ -911,12 +934,12 @@ def compute_aligned_vectors(reference, models_to_align, dataloader, layers,
             #model_align_dict = dict(zip(layers, align_li))
             #model_r2_dict = dict(zip(layers, r2))
             
-            aligned_way_list.append(aligned_weights)
-            aligned_act_list.append(aligned_activations)
+            align_way_list.append(aligned_weights)
+            align_act_list.append(aligned_activations)
             #align_lists.append(model_align_dict)
             #r2_list.append(model_r2_dict)
 
-            del model, aligned_activations, aligned_weights#,\model_align_dict, model_r2_dict
+            del model, align_li, aligned_activations, aligned_weights#,\model_align_dict, model_r2_dict
             clear_memory()
 
             j += 1
@@ -924,8 +947,8 @@ def compute_aligned_vectors(reference, models_to_align, dataloader, layers,
         batch_indices = list(range(i, min(i + batch_size, num_models)))
         #align_dict.update(dict(zip(batch_indices, align_lists)))
         #r2_dict.update(dict(zip(batch_indices, r2_list)))
-        aligned_weights_dict.update(dict(zip(batch_indices, aligned_way_list)))
-        aligned_activations_dict.update(dict(zip(batch_indices, aligned_act_list)))
+        aligned_weights_dict.update(dict(zip(batch_indices, align_way_list)))
+        aligned_activations_dict.update(dict(zip(batch_indices, align_act_list)))
         
         # Clear memory after each batch
         clear_memory()

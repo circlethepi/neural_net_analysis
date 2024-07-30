@@ -1,7 +1,7 @@
 import spectral_analysis as spec
 import alignment as align
 import network_similarity as sim
-import archive.class_splitter as cs
+#import archive.class_splitter as cs
 import neural_network as nn_mod
 from utils import *
 

@@ -3,7 +3,7 @@ from matplotlib.lines import Line2D
 import perturbation as pert
 import spectral_analysis as spec
 import alignment as align
-import archive.class_splitter as cs
+#import archive.class_splitter as cs
 import neural_network as nn_mod
 import network_similarity as sim
 from utils import *
