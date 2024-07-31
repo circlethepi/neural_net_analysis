@@ -339,7 +339,7 @@ class network_comparison:
                 activations.append(act_bw)
                 weights.append(way_bw)
 
-        print('BW weights calculated. Returning activations and weights in layer order')
+        #print('BW weights calculated. Returning activations and weights in layer order')
         if return_quantities:
             return activations, weights, quantities
         else:
@@ -580,12 +580,38 @@ class NetworkComparisonCollection:
     def compute_aligned_vectors(self, dataloader=None):
         dataloader = dataloader if dataloader else self.dataloader
 
-        aligned_weights, aligned_activations = \
-            compute_aligned_vectors(self.reference, self.models, dataloader,
-                                    self.layers, self.weight_eigenvectors,
-                                    self.activation_eigenvectors)
-        self.weight_aligned_vectors = aligned_weights
-        self.activation_aligned_vectors = aligned_activations
+        # aligned_weights, aligned_activations = \
+        #     compute_aligned_vectors(self.reference, self.models, dataloader,
+        #                             self.layers, self.weight_eigenvectors,
+        #                             self.activation_eigenvectors)
+        # self.weight_aligned_vectors = aligned_weights
+        # self.activation_aligned_vectors = aligned_activations
+        
+        # 2024-07-31
+        # attempting to orient to standard basis in all cases
+        # in this case the alignment for the weights does not depend on the activations
+        aligned_vectors = []
+        for vector_dict in (self.weight_eigenvectors, self.activation_eigenvectors):
+            # [model index] -> [layer] -> eigenvectors
+            # the other function above gives output of the same shape
+            model_keys = list(vector_dict.keys())
+            quantity_dict = {}
+            for k in model_keys:
+                model_dict = vector_dict[k]
+                #print(model_dict)
+                layer_keys = list(model_dict.keys())
+
+                model_dict_new = {}
+                for ell in layer_keys:
+                    vectors = model_dict[ell]
+                    layer_align = vectors.T
+
+                    model_dict_new[ell] = vectors @ layer_align 
+                quantity_dict[k] = model_dict_new
+            aligned_vectors.append(quantity_dict)
+        
+        self.weight_aligned_vectors = aligned_vectors[0]
+        self.activation_aligned_vectors = aligned_vectors[1]
 
         self.clear_unaligned_vectors()
         clear_memory()
@@ -784,6 +810,7 @@ def compute_eigenvector_spectrum_list(models_list, dataloader, layers):
 
     for model in tqdm(models_list, desc="Getting Eigenvectors"):
         # make sure weights and activations are there
+        set_seed(1234)
         _ = model.get_activation_covs(dataloader, layers)
         _ = model.get_activation_spectrum()
 
