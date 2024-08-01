@@ -96,7 +96,7 @@ class network_comparison:
         self.alignments = align_dict.copy()
         self.dataloader = dataloader
         self.layers = layers.copy()
-        self.r2s = r2_dict.copy()
+        #self.r2s = r2_dict.copy()
 
         # get the alignment covariances and vectors wrt the dataloader 
         # for comparison
@@ -525,7 +525,7 @@ class NetworkComparisonCollection:
                                                      dataloader, self.layers)
             # [model index] -> [layer] -> alignment matrix (or r2 value)
         self.alignments = align_dict.copy()
-        self.r2s = r2_dict.copy()
+        #self.r2s = r2_dict.copy()
 
         w_vecs = self.weight_eigenvectors
         w_vals = self.weight_spectrum
