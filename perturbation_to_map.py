@@ -105,7 +105,7 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64,
             # get the alignments
             set_seed(COMMON_SEED)
             simobj.compute_alignments(model1.train_loader, [layer])
-            simobj.compute_cossim()
+            #simobj.compute_cossim()
 
             # get the metrics
             activations, weights = simobj.network_distance(w_clip=w_clip, 
@@ -135,7 +135,7 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64,
         act_sims = np.array(pairwise_sims['activations'])
         way_sims = np.array(pairwise_sims['weights'])       
 
-    return act_sims, way_sims
+    return act_sims, way_sims#, r2s
 
 
 def compute_similarity_line(perturbation_result_similarities):
@@ -256,10 +256,13 @@ def plot_MDS_coords(coords, n_models=None, labels=None, increments=None,
     """
     *args are similarity matrices 
 
-    color_traj is a colormap or none. If true, uses the default colormap
+    color_traj is a colormap, True, or None. If True, uses the default colormap
     increments is a bool whether or not to place the labels on the map (instead
     of placing them in the legend)
     epochs is a list of numbers corresponding to the epochs represented
+    zero_lab is what to label the zero point if zero_sep is true
+    zero_sep is whether to color the zeroth point separately from everything else
+    zero_color is the color of the zeroth point
     """
     color_map = plt.cm.plasma  
 

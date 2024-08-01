@@ -78,16 +78,19 @@ class network_comparison:
         :param layers: the layers at which to calculate the alignment matrices
         :return: none
         """
+        start = time.time()
         if 0 in layers:
             raise Exception('0 is not a valid layer index for comparison')
         
         # aligns second model to first
-        align_list, r2s = align.compute_alignments(dataloader, layers, 
+        #align_list, r2s = align.compute_alignments(dataloader, layers,
+        align_list = align.compute_alignments(dataloader, layers, 
                                                    self.models[0].model, 
                                                    self.models[1].model)
 
         align_dict = dict(zip(layers, align_list))
-        r2_dict = dict(zip(layers, r2s))
+        print(f'Alignment: {(time.time()-start):.4f} s')
+        #r2_dict = dict(zip(layers, r2s))
 
         # set the attributes
         self.alignments = align_dict.copy()
@@ -97,13 +100,16 @@ class network_comparison:
 
         # get the alignment covariances and vectors wrt the dataloader 
         # for comparison
+        start = time.time()
         for net in self.models:
             _ = net.get_activation_spectrum()
+        print(f'Act Spect: {(time.time()-start):.4f} s')
 
         # get the eigenvectors for the weights
         # 0 is the 0th model, 1 is the 1st model. The weights are then 
         # stored in a dictionary with a key corresponding to each layer 
         # of the model
+        start = time.time()
         weight_vec_dict = {0: None, 1: None}
         act_vec_dict = {0: None, 1: None}
         weight_spec_dict = {0: None, 1: None}
@@ -148,6 +154,7 @@ class network_comparison:
             weight_spec_dict[i] = dict(zip(layers, w_spec.copy()))
 
             i += 1
+        print(f'AlignVecs: {(time.time()-start):.4f} s')
 
         self.weight_eigenvectors = weight_vec_dict.copy()
         self.activation_eigenvectors = act_vec_dict.copy()
@@ -578,6 +585,11 @@ class NetworkComparisonCollection:
 
     # this is the one
     def compute_aligned_vectors(self, dataloader=None):
+        """
+        Gets the eigenvectors aligned to reference for each model and stores 
+        them in the object as
+        [model index] -> [layer] -> aligned vectors
+        """
         dataloader = dataloader if dataloader else self.dataloader
 
         aligned_weights, aligned_activations = \
@@ -586,6 +598,7 @@ class NetworkComparisonCollection:
                                     self.activation_eigenvectors)
         self.weight_aligned_vectors = aligned_weights
         self.activation_aligned_vectors = aligned_activations
+        #self.r2s = r2s
         
         # 2024-07-31
         # attempting to orient to standard basis in all cases
@@ -641,7 +654,7 @@ class NetworkComparisonCollection:
         """
         Gives back the metric matrices as a dictionary:
         [layer] -> similarity matrix
-        for each of activations and weights (returned in that order)
+        for each of weights and activations (returned in that order)
 
         inds_1 and inds_2 should be the indices of the models in model_list. 
         This gives us the "sides" of the similarity matrix
@@ -811,7 +824,7 @@ def compute_eigenvector_spectrum_list(models_list, dataloader, layers):
     for model in tqdm(models_list, desc="Getting Eigenvectors"):
         # make sure weights and activations are there
         set_seed(1234)
-        _ = model.get_activation_covs(dataloader, layers)
+        #_ = model.get_activation_covs(dataloader, layers)
         _ = model.get_activation_spectrum()
 
         if not model.weight_spectrum:
@@ -918,6 +931,7 @@ def compute_aligned_vectors(reference, models_to_align, dataloader, layers,
 
     aligned_weights_dict = {}
     aligned_activations_dict = {}
+    #r2_dict = {}
     
     num_models = len(models_to_align)
     
@@ -927,11 +941,12 @@ def compute_aligned_vectors(reference, models_to_align, dataloader, layers,
         #align_lists = []
         align_way_list = []
         align_act_list = []
-       # r2_list = []
+        #r2_list = []
 
         j = 0 # index of model in batch
+        
         for model in batch_models:
-            align_li, _ = align.compute_alignments(dataloader, layers, 
+            align_li = align.compute_alignments(dataloader, layers, 
                                                     reference.model, model.model)
             
             # align the matrices
@@ -959,7 +974,7 @@ def compute_aligned_vectors(reference, models_to_align, dataloader, layers,
             aligned_activations = dict(zip(layers, aligned_act_vecs))
             aligned_weights = dict(zip(layers, aligned_way_vecs))
             #model_align_dict = dict(zip(layers, align_li))
-            #model_r2_dict = dict(zip(layers, r2))
+            #model_r2_dict = dict(zip(layers, r2s))
             
             align_way_list.append(aligned_weights)
             align_act_list.append(aligned_activations)
@@ -980,4 +995,4 @@ def compute_aligned_vectors(reference, models_to_align, dataloader, layers,
         # Clear memory after each batch
         clear_memory()
 
-    return aligned_weights_dict, aligned_activations_dict #align_dict, r2_dict
+    return aligned_weights_dict, aligned_activations_dict, #r2_dict #align_dict, r2_dict
