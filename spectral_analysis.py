@@ -179,9 +179,10 @@ class spectrum_analysis:
         self.activation_covs = act_cov_layers.copy()
         return act_cov_layers
 
-    def get_activation_spectrum(self):
+    def get_activation_spectrum(self, dataloader=None):
         if self.activation_covs is None:
-            self.get_activation_covs(self.train_loader, range(1, self.n_layers+1))
+            dataloader = dataloader if dataloader is not None else self.train_loader
+            self.get_activation_covs(dataloader, range(1, self.n_layers+1))
 
         act_spectra = []
         act_bases = []

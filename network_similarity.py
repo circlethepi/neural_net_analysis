@@ -102,7 +102,7 @@ class network_comparison:
         # for comparison
         start = time.time()
         for net in self.models:
-            _ = net.get_activation_spectrum()
+            _ = net.get_activation_spectrum(dataloader)
         print(f'Act Spect: {(time.time()-start):.4f} s')
 
         # get the eigenvectors for the weights
