@@ -120,7 +120,7 @@ def compute_pairwise_sims(model_set, dataloader, layer=1, w_clip=30, a_clip=64,
             del model2
 
         del model1
-        print(model_i_act, model_i_way)
+        #print(model_i_act, model_i_way)
 
         pairwise_sims['activations'].append(model_i_act)
         pairwise_sims['weights'].append(model_i_way)
