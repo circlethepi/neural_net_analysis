@@ -49,7 +49,7 @@ class SinglePerturbationResultsConverter:
 
 
 # Helper Functions
-def compute_pairwise_sims(model_set, dataloader, layer=1, w_clip=30, a_clip=64, 
+def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64, 
                           similarity=True, labels=None, model_set2=None):
     """
     Compute the pairwise distances between a list of trained models for 
@@ -104,7 +104,7 @@ def compute_pairwise_sims(model_set, dataloader, layer=1, w_clip=30, a_clip=64,
 
             # get the alignments
             set_seed(COMMON_SEED)
-            simobj.compute_alignments(dataloader, [layer])
+            simobj.compute_alignments(model1.train_loader, [layer])
             #simobj.compute_cossim()
 
             # get the metrics
