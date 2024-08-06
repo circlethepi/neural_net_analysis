@@ -1,0 +1,5 @@
+# model library / data
+model_library/*
+notebooks/*
+sim_library/*
+acc_library/*
