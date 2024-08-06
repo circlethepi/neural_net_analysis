@@ -3,3 +3,7 @@ model_library/*
 notebooks/*
 sim_library/*
 acc_library/*
+
+pickle_archive/*
+pickle_vars/pairwise_sims/*
+pickle_vars/perturbations/*
