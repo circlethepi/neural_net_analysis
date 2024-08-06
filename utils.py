@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import gc
+import os
 
 class AverageMeter(object):
     """ Computes and stores the average and current value. """
@@ -43,3 +44,20 @@ def clear_memory():
     if torch.cuda.is_available():
         torch.cuda.synchronize()
     return
+
+
+"""Loading in Models from Model Library"""
+def extract_epoch_name(filename):
+    name_part = os.path.splitext(filename)[0]  # Remove the file extension
+    if '-' in name_part:
+        numerator, denominator = map(int, name_part.split('-'))
+        return numerator / denominator
+    else:
+        return int(name_part)
+
+def get_sorted_epoch_names(dirname):
+    all_files = os.listdir(dirname)
+    epochs = [os.path.splitext(file)[0] for file in all_files]
+    epoch_list = sorted(epochs, key=extract_epoch_name)
+
+    return epoch_list

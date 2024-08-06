@@ -237,7 +237,8 @@ def compute_MDS(similarity_matrix, zero_index=None, pickle=None,):
     mds.fit_transform(dissims)
     coords = mds.embedding_
 
-    if zero_index or isinstance(zero_index, int):
+    if zero_index:
+        assert isinstance(zero_index, int), "Invalid datatype for zero index"
         coords -= coords[zero_index]
     
     if pickle:
@@ -247,7 +248,7 @@ def compute_MDS(similarity_matrix, zero_index=None, pickle=None,):
     return coords
 
 
-def plot_MDS_coords(coords, n_models=None, labels=None, increments=None, 
+def plot_MDS_coords(coords, title, n_models=None, labels=None, increments=None, 
                     text_locs=None, colors=None, legend_cols=2, 
                     legend_order=None, markers=None, accuracies=None, 
                     bar_range=(0,1), color_traj=None, steps=None, 
@@ -263,6 +264,8 @@ def plot_MDS_coords(coords, n_models=None, labels=None, increments=None,
     zero_lab is what to label the zero point if zero_sep is true
     zero_sep is whether to color the zeroth point separately from everything else
     zero_color is the color of the zeroth point
+
+    zero_incs 
     """
     color_map = plt.cm.plasma  
 
@@ -325,7 +328,10 @@ def plot_MDS_coords(coords, n_models=None, labels=None, increments=None,
         if markers is None:
             mark = 'o'
         else:
-            mark = markers[i] if markers[i] else 'o'
+            if i < len(markers):
+                mark = markers[i] if markers[i] else 'o'
+            else:
+                mark = 'o'
         # plotting the trajectory
         if zero_sep:
             plt.scatter(xs[0], ys[0], marker=mark, s=100, 
@@ -350,7 +356,7 @@ def plot_MDS_coords(coords, n_models=None, labels=None, increments=None,
                 plt.scatter(xs, ys, c=step_i, cmap=color_traj, 
                             marker=mark, s=100, norm=cb_norm,
                             vmin=bar_range[0], vmax=bar_range[1], zorder=2)
-                increment_color = color_traj(steps[i][-1])
+                increment_color = color_traj(step_i[-1])
         else:
             plt.plot(xs, ys, markersize=10, marker=mark, linestyle=':',
                  color=colors[i], label=labels[i], linewidth=1, zorder=1)
@@ -372,10 +378,10 @@ def plot_MDS_coords(coords, n_models=None, labels=None, increments=None,
                     plt.annotate(inc, xy=(x, y), xytext=text_locs[i],
                                 textcoords='offset points', 
                                 ha='right', va='bottom',
-                                bbox=dict(boxstyle='round,pad=0.05', fc=increment_color, 
-                                              alpha=0.2),
+                                bbox=dict(boxstyle='round,pad=0.05', 
+                                          fc=increment_color, alpha=0.2),
                                 arrowprops=dict(arrowstyle='-', 
-                                                    connectionstyle='arc3,rad=0'),
+                                                connectionstyle='arc3,rad=0'),
                                 fontsize=16)
     
     if labels and not increments:
@@ -414,6 +420,7 @@ def plot_MDS_coords(coords, n_models=None, labels=None, increments=None,
         cbar.set_label(cbar_label, fontsize=16)    
         
     plt.tick_params(axis='both', which='both', labelsize=16)
+    plt.title(title, fontsize=16)
     plt.gca().set_aspect('equal')
     plt.show()
     
@@ -535,3 +542,35 @@ def plot_compute_MDS(similarity_matrix, n_models=None, labels=None,
    # plt.savefig()
 
     return
+
+
+def align_trajectory(trajectory1, trajectory2):
+    """
+    Aligns trajectory 2 to trajectory 1 using SVD alignment matrix process
+    Trajectories are coordinates calculated from pairwise similarities of model
+    checkpoints taken over the course of training then MDS projected into 2D
+
+    each tajectory should be np.arrays of shape (n_checkpoints, 2)
+    """
+    # get the alignment
+    cross_cov = trajectory1.T @ trajectory2
+    u, s, vh = np.linalg.svd(cross_cov)
+    align = u @ vh
+
+    # align the coordinates
+    new_trajectory2 = np.array([align @ c.T for c in trajectory2])
+
+    return new_trajectory2#, align
+
+def align_trajectory_collection(*trajectories, ref=None):
+    if ref is None:
+        ref = trajectories[0]
+    
+    new_trajectories = []
+    #alignments = []
+    for traj in trajectories:
+        new, align = align_trajectory(ref, traj)
+        new_trajectories.append(new)
+        #alignments.append(align)
+
+    return new_trajectories#, alignments

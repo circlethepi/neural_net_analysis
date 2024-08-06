@@ -6,3 +6,22 @@
 # Datasource local storage ignored files
 /dataSources/
 /dataSources.local.xml
+
+# data models etc
+*/model_library/*
+*/model_library
+
+*/acc_library/*
+*/acc_library
+
+*/sim_library/*
+*/sim_library
+
+# notebooks
+*/notebooks/*
+*/notebooks
+
+# images
+*/image_hold/*
+*/image_hold
+

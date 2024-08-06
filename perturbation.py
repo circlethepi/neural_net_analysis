@@ -90,7 +90,7 @@ class PerturbationSettings:
                  noise=False, var=None, random_pixels=None,
                  unmod_classes=tuple(range(10)), mod_classes=None, name=None,
                  batch_size=64, dataset_class=datasets.CIFAR10, 
-                 class_count=None, random_subsets:int=None, resize=None,
+                 class_count=None, random_subsets:bool=False, resize=None,
                  greyscale=False):
         """
 
@@ -112,6 +112,14 @@ class PerturbationSettings:
         :param name: str                        :   the name of the experiment
         :param batch_size: int                  :   the size of batch to use in 
                                                     the dataloader
+        :param class_count: int or list(int)    :   sizes of each class in order
+        :param random_subsets: bool             :   used with class_count. When
+                                                    set to True, images will be
+                                                    chosen randomly. When False,
+                                                    images are picked in order.
+                                                    If class_count is None and
+                                                    random subsets is True, this
+                                                    has no effect
         """
         self.columns = columns 
         self.rows = rows
@@ -138,6 +146,7 @@ class PerturbationSettings:
             raise Exception(f'Number of images per class is different from the number of classes included.')
         elif class_count and mod_classes and len(class_count) == 1:
             class_count = class_count * len(mod_classes)
+            #print(f'len class count list', len(class_count))
         
         self.class_count = class_count
 
@@ -791,12 +800,12 @@ def subset_class_loader(subset_settings : PerturbationSettings = default_perturb
         if not mod_class_count:
             mind_train = [i for i, (e, c) in enumerate(trainset) if c in mod_ind]
         elif mod_random_subsets:
-            mind_train = get_first_n_from_class(trainset, mod_random_subsets, 
+            mind_train = get_first_n_from_class_lists(trainset, mod_class_count, 
                                                 mod_ind, random=True)
         else:
             mind_train = get_first_n_from_class_lists(trainset, mod_class_count, mod_ind)
 
-        print(len(mind_train))
+        print(f'number of images in training data: ', len(mind_train))
         mind_val = [i for i, (e, c) in enumerate(valset) if c in mod_ind]
     
         # get the subsets
