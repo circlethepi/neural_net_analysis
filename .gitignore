@@ -4,6 +4,10 @@ notebooks/*
 sim_library/*
 acc_library/*
 
+# old pickle variables
 pickle_archive/*
 pickle_vars/pairwise_sims/*
 pickle_vars/perturbations/*
+
+# images
+image_hold/*
