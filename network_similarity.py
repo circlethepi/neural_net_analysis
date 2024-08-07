@@ -89,7 +89,7 @@ class network_comparison:
                                                    self.models[1].model)
 
         align_dict = dict(zip(layers, align_list))
-        print(f'Alignment: {(time.time()-start):.4f} s')
+        #print(f'Alignment: {(time.time()-start):.4f} s')
         #r2_dict = dict(zip(layers, r2s))
 
         # set the attributes
@@ -104,7 +104,7 @@ class network_comparison:
         for net in self.models:
             #net.set_train_loader(dataloader)
             _ = net.get_activation_spectrum()
-        print(f'Act Spect: {(time.time()-start):.4f} s')
+        #print(f'Act Spect: {(time.time()-start):.4f} s')
 
         # get the eigenvectors for the weights
         # 0 is the 0th model, 1 is the 1st model. The weights are then 
@@ -117,25 +117,25 @@ class network_comparison:
         act_spec_dict = {0: None, 1: None}
         i = 0
         for net in self.models:
-            # # first, get the weight eigenvectors
-            # weight_vectors = []
-            # for layer in layers:
-            #     weight_list = torch.from_numpy(net.weights[layer - 1])
-            #     u, s, vh = torch.linalg.svd(weight_list, full_matrices=False)
-            #     weight_vectors.append(vh)
+            # first, get the weight eigenvectors
+            weight_vectors = []
+            for layer in layers:
+                weight_list = torch.from_numpy(net.weights[layer - 1])
+                u, s, vh = torch.linalg.svd(weight_list, full_matrices=False)
+                weight_vectors.append(vh)
 
-            # also get the weight covariances for when we might want 
-            # the distances
+            # #also get the weight covariances for when we might want 
+            # #the distances
             weight_covlist = [net.weight_covs[k - 1] for k in layers]
             self.weight_covs = dict(zip(self.layers, weight_covlist.copy()))
             w_spec = []
-            w_vecs = []
+           # w_vecs = []
             for wcov in weight_covlist:
                 vals, vecs = torch.linalg.eigh(wcov)
                 vals, vecs = vals.flip(-1), vecs.flip(-1)
 
                 w_spec.append(vals)
-                w_vecs.append(vecs)
+              #  w_vecs.append(vecs)
 
             # get the activations eigenvectors for each model
             cov_list = [net.activation_covs[k-1] for k in layers]
@@ -153,11 +153,12 @@ class network_comparison:
             act_vec_dict[i] = dict(zip(layers, vectors.copy()))
             act_spec_dict[i] = dict(zip(layers, values.copy()))
 
-            weight_vec_dict[i] = dict(zip(layers, w_vecs.copy()))
+            #weight_vec_dict[i] = dict(zip(layers, w_vecs.copy()))
+            weight_vec_dict[i] = dict(zip(layers, weight_vectors.copy()))
             weight_spec_dict[i] = dict(zip(layers, w_spec.copy()))
 
             i += 1
-        print(f'AlignVecs: {(time.time()-start):.4f} s')
+        #print(f'AlignVecs: {(time.time()-start):.4f} s')
 
         self.weight_eigenvectors = weight_vec_dict.copy()
         self.activation_eigenvectors = act_vec_dict.copy()
