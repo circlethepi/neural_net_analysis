@@ -78,32 +78,40 @@ class network_comparison:
         :param layers: the layers at which to calculate the alignment matrices
         :return: none
         """
+        start = time.time()
         if 0 in layers:
             raise Exception('0 is not a valid layer index for comparison')
         
         # aligns second model to first
-        align_list, r2s = align.compute_alignments(dataloader, layers, 
+        # align_list, r2s = align.compute_alignments(dataloader, layers, 
+        align_list = align.compute_alignments(dataloader, layers, 
                                                    self.models[0].model, 
                                                    self.models[1].model)
 
         align_dict = dict(zip(layers, align_list))
-        r2_dict = dict(zip(layers, r2s))
+        #r2_dict = dict(zip(layers, r2s))
+        print(f'Alignment : {(time.time()-start):.2f}')
+        check_memory()
 
         # set the attributes
-        self.alignments = align_dict.copy()
+        self.alignments = align_dict
         self.dataloader = dataloader
-        self.layers = layers.copy()
-        self.r2s = r2_dict.copy()
+        self.layers = layers
+        #self.r2s = r2_dict
 
         # get the alignment covariances and vectors wrt the dataloader 
         # for comparison
+        start = time.time()
         for net in self.models:
             _ = net.get_activation_spectrum()
+        print(f'Act Spec  : {(time.time()-start):.2f}')
+        check_memory()
 
         # get the eigenvectors for the weights
         # 0 is the 0th model, 1 is the 1st model. The weights are then 
         # stored in a dictionary with a key corresponding to each layer 
         # of the model
+        start = time.time()
         weight_vec_dict = {0: None, 1: None}
         act_vec_dict = {0: None, 1: None}
         weight_spec_dict = {0: None, 1: None}
@@ -119,8 +127,8 @@ class network_comparison:
 
             # also get the weight covariances for when we might want 
             # the distances
-            weight_covlist = [net.weight_covs[i - 1] for i in layers]
-            self.weight_covs = dict(zip(self.layers, weight_covlist.copy()))
+            weight_covlist = [net.weight_covs[k - 1] for k in layers]
+            self.weight_covs = dict(zip(self.layers, weight_covlist))
             w_spec = []
             for wcov in weight_covlist:
                 vals, vecs = torch.linalg.eigh(wcov)
@@ -129,7 +137,7 @@ class network_comparison:
                 w_spec.append(vals)
 
             # get the activations eigenvectors for each model
-            cov_list = [net.activation_covs[i-1] for i in layers]
+            cov_list = [net.activation_covs[k-1] for k in layers]
             vectors = []
             values = []
             for cov in cov_list:
@@ -141,13 +149,15 @@ class network_comparison:
                 values.append(vals)
 
             # setting the appropriate quantities
-            act_vec_dict[i] = dict(zip(layers, vectors.copy()))
-            act_spec_dict[i] = dict(zip(layers, values.copy()))
+            act_vec_dict[i] = dict(zip(layers, vectors))
+            act_spec_dict[i] = dict(zip(layers, values))
 
-            weight_vec_dict[i] = dict(zip(layers, weight_vectors.copy()))
-            weight_spec_dict[i] = dict(zip(layers, w_spec.copy()))
+            weight_vec_dict[i] = dict(zip(layers, weight_vectors))
+            weight_spec_dict[i] = dict(zip(layers, w_spec))
 
             i += 1
+        print(f'Set Vecs  : {(time.time()-start):.2f}')
+        check_memory()
 
         self.weight_eigenvectors = weight_vec_dict.copy()
         self.activation_eigenvectors = act_vec_dict.copy()
@@ -339,7 +349,7 @@ class network_comparison:
                 activations.append(act_bw)
                 weights.append(way_bw)
 
-        print('BW weights calculated. Returning activations and weights in layer order')
+        # print('BW weights calculated. Returning activations and weights in layer order')
         if return_quantities:
             return activations, weights, quantities
         else:
@@ -391,6 +401,8 @@ def bw_dist_covs(vecs1, vals1, vecs2, vals2, truncate=None, quant='dist', return
     :return: distance: float    the BW distance between the two matrices
     :return: (tr1, tr2, nnorm): (float, float, float)   the quantities used to calculate the distance
     """
+    vecs1, vecs2, vals1, vals2 = vecs1.to(device), vecs2.to(device), \
+        vals1.to(device), vals2.to(device)
     if truncate:
         # get the new values for the truncated matrix
         ## matrix 1
@@ -405,22 +417,22 @@ def bw_dist_covs(vecs1, vals1, vecs2, vals2, truncate=None, quant='dist', return
 
     # calculate the full matrices
     ## get the diagonal matrices
-    new_diag1 = torch.zeros((vecs1.size()[0], vecs1.size()[0]))
+    new_diag1 = torch.zeros((vecs1.size()[0], vecs1.size()[0])).to(device)
     new_diag1[:len(new_vals1), :len(new_vals1)] = torch.diag(new_vals1).to(device)
 
-    new_diag2 = torch.zeros((vecs2.size()[0], vecs2.size()[0]))
+    new_diag2 = torch.zeros((vecs2.size()[0], vecs2.size()[0])).to(device)
     new_diag2[:len(new_vals2), :len(new_vals2)] = torch.diag(new_vals2).to(device)
 
     ## multiply out the matrices
-    new_mat1 = vecs1.T.to(device) @ new_diag1.to(device) @ vecs1.to(device)
-    new_mat2 = vecs2.T.to(device) @ new_diag2.to(device) @ vecs2.to(device)
+    new_mat1 = vecs1.T @ new_diag1 @ vecs1
+    new_mat2 = vecs2.T @ new_diag2 @ vecs2
 
     ## Get the square roots
     sq_diag1 = torch.sqrt(new_diag1)
-    sq_mat1 = vecs1.T.to(device) @ sq_diag1.to(device) @ vecs1.to(device)
+    sq_mat1 = vecs1.T @ sq_diag1 @ vecs1
 
     sq_diag2 = torch.sqrt(new_diag2)
-    sq_mat2 = vecs2.T.to(device) @ sq_diag2.to(device) @ vecs2.to(device)
+    sq_mat2 = vecs2.T @ sq_diag2 @ vecs2
 
     ## get the quantities
     tr1 = torch.trace(new_mat1).item()

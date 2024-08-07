@@ -19,7 +19,7 @@ import pickle
 from matplotlib import pyplot as plt
 from matplotlib import colors
 
-from sklearn import manifold
+#from sklearn import manifold
 
 # check if there is a GPU available
 device = set_torch_device()
@@ -80,6 +80,8 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64,
     #     names = labels
     # else:
     #     names = [f'Model {i}' for i in range(len(model_set))]
+    print(f'BEGINNING MEMORY CHECK')
+    check_memory()
     model_set2 = model_set2 if model_set2 else model_set
     
 
@@ -89,6 +91,8 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64,
     # do the calculations
     metric = "similarities" if similarity else "distances"
     for i in range(len(model_set)):
+        print(f'{i+1}th pairwise MEMORY CHECK')
+        check_memory()
         model1 = model_set[i]
         model_i_act = []
         model_i_way = []
@@ -101,25 +105,34 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64,
             # create the similarity object
             simobj = sim.network_comparison(model1, model2) 
                                             #names=(names[i], names[j]))
+            print(f'Create SimObj {j} MEMORY CHECK')
+            check_memory()
 
             # get the alignments
             set_seed(COMMON_SEED)
             simobj.compute_alignments(model1.train_loader, [layer])
-            simobj.compute_cossim()
+            #simobj.compute_cossim() # not needed for distance metrics
+            print(f'Compute alignments MEMORY CHECK')
+            check_memory()
 
             # get the metrics
             activations, weights = simobj.network_distance(w_clip=w_clip, 
                                                            a_clip=a_clip, 
                                                            sim=similarity, 
                                                     return_quantities=False)
-            
+            print(f'Get distance MEMORY CHECK')
+            check_memory()
+
             model_i_act.append(activations[0])
             model_i_way.append(weights[0])
             
-            del simobj
-            del model2
+            simobj = None
+            model2 = None
+            clear_memory()
 
-        del model1
+        #del model1
+        model1 = None
+        clear_memory()
         print(model_i_act, model_i_way)
 
         pairwise_sims['activations'].append(model_i_act)

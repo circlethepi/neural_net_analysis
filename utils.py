@@ -37,9 +37,18 @@ def set_seed(SEED):
     return
 
 def clear_memory():
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
     gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.synchronize()
+    with torch.no_grad():
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+    return
+
+def check_memory():
+    total = torch.cuda.get_device_properties(0).total_memory
+    allocated = torch.cuda.memory_allocated()
+    reserved = torch.cuda.memory_reserved()
+    check = f'CUDA currently has {(allocated/total)*100:.2f}% memory allocated, {(reserved/total)*100:.2f}% memory reserved'
+    print(check)
     return

@@ -91,8 +91,8 @@ def compute_alignments(loader, layers, model1, model2):
     Aligns Model 2 to model 1
     """
     # getting the layer covariances for each model (and each layer)
-    model1_layer_covs = compute_activation_covariances(loader, layers, model1)
-    model2_layer_covs = compute_activation_covariances(loader, layers, model2)
+    # model1_layer_covs = compute_activation_covariances(loader, layers, model1)
+    # model2_layer_covs = compute_activation_covariances(loader, layers, model2)
 
     # getting the cross covariances
     cross_covs = compute_activation_covariances(loader, layers, model1, model2)
@@ -102,22 +102,22 @@ def compute_alignments(loader, layers, model1, model2):
 
     # getting the alignments
     aligns = []
-    r_squareds = []
+    # r_squareds = []
     for j in range(len(layers)):
         cross_cov = cross_covs[j]
         u, s, vh = torch.linalg.svd(cross_cov, full_matrices=False)
 
         # getting the explained variances
-        explained = torch.sum(s)
-        total = torch.sqrt(torch.trace(model1_layer_covs[j]) * torch.trace(model2_layer_covs[j]))
-        r_squared = explained / total
-        print(f'Layer {layers[j]}: {100 * r_squared.item():.1f}% of variance explained by alignment')
+        # explained = torch.sum(s)
+        # total = torch.sqrt(torch.trace(model1_layer_covs[j]) * torch.trace(model2_layer_covs[j]))
+        # r_squared = explained / total
+        # print(f'Layer {layers[j]}: {100 * r_squared.item():.1f}% of variance explained by alignment')
 
         align = u @ vh
         aligns.append(align)
-        r_squareds.append(r_squared)
+        #r_squareds.append(r_squared)
 
-    return aligns, r_squareds
+    return aligns#, r_squareds
 
 
 #######################
