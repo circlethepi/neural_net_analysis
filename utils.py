@@ -27,14 +27,15 @@ def set_torch_device():
 
 device = set_torch_device()
 
-def set_seed(SEED):
+def set_seed(SEED, confirm=False):
     ###### set the seed
     #random.seed(SEED)
     np.random.seed(SEED)
     torch.manual_seed(SEED)
     torch.backends.cudnn.deterministic = True
     ######
-    print(f'set seed to {SEED}')
+    if confirm:
+        print(f'set seed to {SEED}')
     return
 
 def clear_memory():

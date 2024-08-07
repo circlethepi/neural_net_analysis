@@ -118,6 +118,9 @@ class network_comparison:
         i = 0
         for net in self.models:
             # first, get the weight eigenvectors
+            # 2024-08-06 MO
+            ## This needs to be calculated separately! Due to numerical 
+            ## issues or the way that I calculate the weight covariance
             weight_vectors = []
             for layer in layers:
                 weight_list = torch.from_numpy(net.weights[layer - 1])
