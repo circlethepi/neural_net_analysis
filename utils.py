@@ -23,6 +23,8 @@ def set_torch_device():
     #     device = torch.device("mps")
     else:
         device = torch.device("cpu")
+    # seeing if I can solve this memory issue
+    device = torch.device('cpu')
     return device
 
 device = set_torch_device()

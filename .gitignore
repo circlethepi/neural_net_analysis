@@ -11,3 +11,10 @@ pickle_vars/perturbations/*
 
 # images
 image_hold/*
+
+# all notebooks
+*.ipynb
+
+# volta logs
+*.log
+script_logs/*

@@ -12,10 +12,8 @@ All models should be stored in a directory named for the model. The files inside
 >			|- 50.pt
 > ```
 
-
-> [!note]
-> Dear reader, I apologize in advance for the disorganized-ness of my code. As this project is ongoing, I have not yet taken the opportunity to clean and package everything. However, in this markdown I have included instructions on how to reproduce the majority of the figures included in my Probabilistic Machine Learning final project. 
-
+## This is all outdated. Sorry! 
+Some of it will still work as described.
 A quick summary of what each file does:
 - **neural_network** defines a simple linear neural network object, loads datasets, and creates unmodified dataloaders. I can also create multiple training dataloaders to create partitions of the training data. 
 - **train_network** contains the train procedure for a linear fully connected network, including the collection of the weight spectrum of the network at intervals throughout training
