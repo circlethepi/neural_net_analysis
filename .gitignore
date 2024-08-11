@@ -18,3 +18,7 @@ image_hold/*
 # volta logs
 *.log
 script_logs/*
+
+# data and cache
+data
+__pycache__
