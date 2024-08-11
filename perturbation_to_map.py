@@ -177,7 +177,7 @@ def similarity_matrix_from_lists(lists):
 
 def plot_similarity_matrix(sims, title, ticks=None, axis_label=None, 
                            split_inds=None, vrange=(0,1), rotation=0,
-                           figsize=(10,10)):
+                           figsize=(10,10), save=False, saveloc='../image_hold'):
     """
     plots a similarity matrix heatmap
     """
@@ -214,10 +214,15 @@ def plot_similarity_matrix(sims, title, ticks=None, axis_label=None,
     plt.tick_params(axis='x', labelrotation=rotation)
 
     plt.show()
+    
+    if save:
+        savepath = f'{saveloc}/MAT{title}'
+        plt.savefig(savepath)
 
     return
 
-def compute_MDS(similarity_matrix, zero_index=None, pickle=None,):
+def compute_MDS(similarity_matrix, zero_index=None, pickle=None, 
+                align_coords=True, yflip=False, xflip=False):
     """
     Computes MDS projection using similarity matrix
 
@@ -242,6 +247,9 @@ def compute_MDS(similarity_matrix, zero_index=None, pickle=None,):
         assert isinstance(zero_index, int), "Invalid datatype for zero index"
         coords -= coords[zero_index]
     
+    if align_coords:
+        coords = align_traj_to_x(coords, yflip=yflip, xflip=xflip)
+
     if pickle:
         with open(f'{pickle}.pkl', 'wb') as file:
             pickle.dump(coords, file)
@@ -254,7 +262,9 @@ def plot_MDS_coords(coords, title, n_models=None, labels=None, increments=None,
                     legend_order=None, markers=None, accuracies=None, 
                     bar_range=(0,1), color_traj=None, steps=None, 
                     cb_norm=None, zero_incs=[0], figsize=(12, 10),
-                    zero_sep=False, zero_lab=None, zero_color='red'):
+                    zero_sep=False, zero_lab=None, zero_color='red', 
+                    align_coords=True, yflip=False, xflip=False, 
+                    save=False, saveloc='../image_hold'):
     """
     *args are similarity matrices 
 
@@ -268,6 +278,10 @@ def plot_MDS_coords(coords, title, n_models=None, labels=None, increments=None,
 
     zero_incs 
     """
+    # align the coordinates if true and flip if true
+    if align_coords:
+        coords = align_traj_to_x(coords, yflip=yflip, xflip=xflip)
+
     color_map = plt.cm.plasma  
 
     if color_traj:
@@ -286,17 +300,13 @@ def plot_MDS_coords(coords, title, n_models=None, labels=None, increments=None,
     if color_traj == True:
         color_traj = color_map
 
-    
-
     if n_models:
         split_indices = [0]+[sum(n_models[:i]) for i in range(1,len(n_models)+1)]
     else: 
         split_indices = [0, len(coords) -1]
     
     # print(split_indices)
-
     n_perturbations = len(n_models) if n_models else 1
-    
      #check that increments are set OK
     # if increments and len(increments) != n_perturbations:
     #     raise Exception("""Increment list count and number of perturbation 
@@ -314,11 +324,11 @@ def plot_MDS_coords(coords, title, n_models=None, labels=None, increments=None,
     text_locs = text_locs if text_locs else [(-12,-12) for i in range(len(labels))]
     #print(text_locs)
 
-
     # plotting the result
     fig = plt.figure(figsize=figsize)
     ax = plt.subplot(111)
 
+    # plot each curve :)
     for i in range(n_perturbations):
         low = split_indices[i]
         hig = split_indices[i+1]
@@ -424,125 +434,12 @@ def plot_MDS_coords(coords, title, n_models=None, labels=None, increments=None,
     plt.title(title, fontsize=16)
     plt.gca().set_aspect('equal')
     plt.show()
+
+    if save:
+        savepath = f'{saveloc}/MDS{title}'
+        plt.savefig(savepath)
     
     return
-
-
-# def plot_compute_MDS(similarity_matrix, n_models=None, labels=None, 
-#                      increments=None, text_locs=None, colors=None,
-#                      legend_cols=2, legend_order=None, markers=None,
-#                      zero_index = None, accuracies=None, acc_range=(0,1)):
-#     """
-#     :param n_models: list-like for the the number of models for each 
-#     type of perturbation represented
-#     """
-#     color_map = plt.cm.plasma
-
-#     # first, convert into a dissimilarity matrix
-#     dissims = np.ones(similarity_matrix.shape) - similarity_matrix
-
-#     # get where to finish the 
-#     if n_models:
-#         split_indices = [0]+[sum(n_models[:i]) for i in range(1,len(n_models)+1)]
-#     else: 
-#         split_indices = [0, len(dissims) -1]
-#     #print(split_indices)
-
-#     n_perturbations = len(n_models) if n_models else 1
-
-#     #check that increments are set OK
-#     if len(increments) != n_perturbations:
-#         raise Exception("""Increment list count and number of perturbation 
-#                         experiments represented must be the same""")
-
-#     colors = colors if colors else plt.cm.viridis(np.linspace(0, 1, n_perturbations)) 
-#     if labels:
-#         labels = [labels[i] if labels[i] else "" for i in range(len(labels))]
-#         make_legend = True
-#     else:
-#         labels = ["" for i in range(n_perturbations)] 
-#         make_legend = False
-#     #labels = labels if labels else None#[f'Perturbation {i+1}' for i in 
-#                                    # range(n_perturbations)]
-#     text_locs = text_locs if text_locs else [(-12,-12) for i in range(len(labels))]
-#     #print(text_locs)
-
-#     # compute the MDS
-#     mds = manifold.MDS(n_components=2, dissimilarity='precomputed', eps=1e-16,
-#                        max_iter=1000, n_init=100)
-#     mds.fit_transform(dissims)
-#     coords = mds.embedding_
-#     #print(coords)
-
-#     if zero_index is not None:
-#         coords -= coords[zero_index]
-#         #print(coords)
-#     #print(len(coords))
-
-#     # plotting the result
-#     fig = plt.figure(figsize=(12, 10))
-#     ax = plt.subplot(111)
-
-#     for i in range(n_perturbations):
-#         low = split_indices[i]
-#         hig = split_indices[i+1]
-#         xs = coords[low:hig, 0]
-#         ys = coords[low:hig, 1]
-#         print(increments[i])
-        
-#         if not markers:
-#             mark = 'o'
-#         else:
-#             mark = markers[i] if markers[i] else 'o'
-#         # plotting the trajectory
-#         if accuracies:
-#             plt.plot(xs, ys, markersize=10, linestyle=':',
-#                  color='k', label=labels[i], linewidth=0.25, zorder=1)
-#             plt.scatter(xs, ys, c=accuracies[i], marker=mark, s=100,
-#                         cmap=color_map, vmin=acc_range[0], 
-#                         vmax=acc_range[1], zorder=2)
-#             increment_color = color_map(accuracies[i])
-#         else:
-#             plt.plot(xs, ys, markersize=10, linestyle=':',
-#                  color=colors[i], label=labels[i], linewidth=0.25, zorder=1)
-#             increment_color = colors[i]
-        
-#         # plotting the increments
-
-#         if increments and labels:
-#             # set the ith increments
-#             increments_i = ['']*n_models[i] + [f'{labels[i]}']
-#             for inc, x, y in zip(increments[i], xs, ys):
-#                 #print(inc, x, y)
-#                 if inc:
-#                     plt.annotate(inc, xy=(x, y), xytext=text_locs[i],
-#                                 textcoords='offset points', 
-#                                 ha='right', va='bottom',
-#                                 bbox=dict(boxstyle='round,pad=0.05', fc=increment_color, 
-#                                               alpha=0.2),
-#                                 arrowprops=dict(arrowstyle='-', 
-#                                                     connectionstyle='arc3,rad=0'),
-#                                 fontsize=16)
-    
-#     if make_legend:
-#         if legend_order:
-#             handles, labels = plt.gca().get_legend_handles_labels()
-#             ax.legend([handles[idx] for idx in legend_order],
-#                     [labels[idx] for idx in legend_order], loc='upper left', 
-#                     bbox_to_anchor=(0.1, -0.08), fontsize=16, ncol=legend_cols)
-#         else:
-#             ax.legend(loc='upper left', bbox_to_anchor=(0.1, -0.08), fontsize=16, 
-#                 ncol=legend_cols)
-#     if accuracies:
-#         plt.colorbar()
-        
-#     plt.tick_params(axis='both', which='both', labelsize=16)
-#     plt.gca().set_aspect('equal')
-#     plt.show()
-
-#    # plt.savefig()
-
-#     return
 
 
 def align_trajectory(trajectory1, trajectory2):
@@ -575,3 +472,43 @@ def align_trajectory_collection(*trajectories, ref=None):
         #alignments.append(align)
 
     return new_trajectories#, alignments
+
+
+def align_traj_to_x(trajectory, yflip=False, xflip=False):
+    """
+    Trajectory is array, has shape (n, 2)
+    """
+
+    # find PCA of coordinates
+    #trajectory -= np.mean(trajectory)
+    cov = trajectory.T @ trajectory
+    vals, vecs = np.linalg.eigh(cov)
+    np.flip(vals, axis=-1)
+    np.flip(vecs, axis=-1)
+
+    # find angle between x axis and PC1
+    pc1 = vecs[:, 0]
+    # get angle
+    t = np.arctan2(pc1[1], pc1[0])
+    # rotation matrix
+    rot = make_2d_rotation(-t)
+
+    # rotate the coordinates
+    new_traj = np.array([rot@k for k in trajectory])
+
+    # flip if necessary
+    flipmaty = np.array([[-1, 0], [0, 1]])
+    flipmatx = np.array([[1, 0], [0, -1]])
+    if yflip:
+        new_traj = np.array([flipmaty@k for k in new_traj])
+    if xflip:
+        new_traj = np.array([flipmatx@k for k in new_traj])
+
+    return new_traj#, vals, vecs
+
+
+def make_2d_rotation(t):
+
+    mat = np.array([[np.cos(t), -np.sin(t)], [np.sin(t), np.cos(t)]]) 
+
+    return mat
