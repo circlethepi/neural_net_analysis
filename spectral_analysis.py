@@ -36,7 +36,7 @@ class spectrum_analysis:
 
     def __init__(self, n_neurons, vary=None, n_class=10, input_size=32*32*3, 
                  seed=1234, save=False, exp_name=None, 
-                 load=False, path='/model_library', epoch=None,
+                 load=False, path='model_library', epoch=None,
                  rel_path='../'):
         """
         Initializes model and associated quantitties
