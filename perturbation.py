@@ -724,9 +724,11 @@ def get_first_n_from_class(dataset, count, class_ind, random=False):
         all_class_inds = [i for i, (e,c) in enumerate(dataset) if c == class_ind]
         # random order and choose first n
         mind_list = list(np.random.permutation(all_class_inds))[:count]
+        
     else:
         mind_list = [i for i, (e,c) in enumerate(dataset) if c == class_ind][:count]
-    
+    #print(mind_list)
+    #print(f'Number of indices for class {class_ind} : {len(mind_list)}')
     return mind_list
 
 def get_first_n_from_class_lists(dataset, counts, class_inds, random=False):
@@ -806,6 +808,7 @@ def subset_class_loader(subset_settings : PerturbationSettings = default_perturb
             mind_train = get_first_n_from_class_lists(trainset, mod_class_count, mod_ind)
 
         print(f'number of images in training data: ', len(mind_train))
+        #print(f'Indices : {mind_train}')
         mind_val = [i for i, (e, c) in enumerate(valset) if c in mod_ind]
     
         # get the subsets
@@ -850,11 +853,11 @@ def subset_class_loader(subset_settings : PerturbationSettings = default_perturb
 
             #m_train_sub, m_val_sub = swap_trainset_labels(swap, mod_ind, m_train_sub, m_val_sub)
         transform_list = [dataset_perturbations(column_indices=columns,
-                                                                    row_indices=rows,
-                                                                    val=val,
-                                                                    intensity=intensity,
-                                                                    noise=noise, var=var,
-                                                                    random_pixels=random_pixels)]
+                                                row_indices=rows,
+                                                val=val,
+                                                intensity=intensity,
+                                                noise=noise, var=var,
+                                                random_pixels=random_pixels)]
         if resize:
             transform_list.append(torchvision.transforms.Resize(resize))
         if greyscale:
@@ -872,7 +875,7 @@ def subset_class_loader(subset_settings : PerturbationSettings = default_perturb
         valset_sub = torch.utils.data.ConcatDataset([valset_sub, modded_val])
 
     # get the dataloader
-    train_loader_sub = nn_mod.get_dataloader(batch_size, trainset_sub, shuffle=True)
+    train_loader_sub = nn_mod.get_dataloader(batch_size, trainset_sub, shuffle=False)
     val_loader_sub = nn_mod.get_dataloader(batch_size, valset_sub, shuffle=False)
 
     return train_loader_sub, val_loader_sub
