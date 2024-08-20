@@ -103,7 +103,8 @@ class network_comparison:
         start = time.time()
         for net in self.models:
             #net.set_train_loader(dataloader)
-            _ = net.get_activation_spectrum()
+            _ = net.get_activation_spectrum() # this uses the train loader of the model
+
         #print(f'Act Spect: {(time.time()-start):.4f} s')
 
         # get the eigenvectors for the weights
@@ -126,7 +127,6 @@ class network_comparison:
                 weight_list = torch.from_numpy(net.weights[layer - 1])
                 u, s, vh = torch.linalg.svd(weight_list, full_matrices=False)
                 weight_vectors.append(vh)
-
             # #also get the weight covariances for when we might want 
             # #the distances
             weight_covlist = [net.weight_covs[k - 1] for k in layers]
@@ -136,7 +136,6 @@ class network_comparison:
             for wcov in weight_covlist:
                 vals, vecs = torch.linalg.eigh(wcov)
                 vals, vecs = vals.flip(-1), vecs.flip(-1)
-
                 w_spec.append(vals)
               #  w_vecs.append(vecs)
 
@@ -162,7 +161,7 @@ class network_comparison:
 
             i += 1
         #print(f'AlignVecs: {(time.time()-start):.4f} s')
-
+        ### SET THE FEATURES
         self.weight_eigenvectors = weight_vec_dict.copy()
         self.activation_eigenvectors = act_vec_dict.copy()
         self.activation_spectrum = act_spec_dict.copy()

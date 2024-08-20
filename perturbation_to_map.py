@@ -50,14 +50,17 @@ class SinglePerturbationResultsConverter:
 
 
 # Helper Functions
-def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64, 
+def compute_pairwise_sims(model_set, dataloader=None, layer=1, w_clip=30, a_clip=64, 
                           similarity=True, labels=None, model_set2=None):
     """
     Compute the pairwise distances between a list of trained models for 
-    a single layer
+    a SINGLE layer which is indicated
 
     :param model_set:   list(spec.spectrum_analysis) : models to compute 
-    distances between
+    distances between. These should have set .train_loader features where the
+    train_loaders are the loaders used to calculate activations for the 
+    corresponding model.
+    :param dataloader   :   torch.dataloader    :   dataloader for alignments
     :param layer    :   int :   the layer at which to compute the distances
     :param w_clip   :   int :   which rank to clip the weights to when doing 
                                 the calculation
@@ -67,6 +70,9 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64,
                                         (default True). If False, then the 
                                         metric is the BW2 distance for zero-
                                         mean gaussians
+    :param model_set2   :   list(spec.spectrum_analysis)    :   if this is set,
+    this indicates the calculation of a rectangular/asymmetric similarity 
+    matrix, for use (for example) in calculating a similarity matrix by chunks
     """
     # move all models to gpu if available
     # for model in model_set:
@@ -82,7 +88,10 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64,
     # else:
     #     names = [f'Model {i}' for i in range(len(model_set))]
     model_set2 = model_set2 if model_set2 else model_set
-    
+
+    # set the dataloaders
+    if dataloader is None:
+        dataloader = model_set[0].train_loader
 
     # Results container
     pairwise_sims = {'activations' : [], 'weights' : []}
@@ -101,11 +110,12 @@ def compute_pairwise_sims(model_set, layer=1, w_clip=30, a_clip=64,
             model2 = model_set2[j]
             # create the similarity object
             simobj = sim.network_comparison(model1, model2) 
-                                            #names=(names[i], names[j]))
+                                            # names=(names[i], names[j]))
 
             # get the alignments
             set_seed(COMMON_SEED)
-            simobj.compute_alignments(model1.train_loader, [layer])
+            #simobj.compute_alignments(model1.train_loader, [layer])
+            simobj.compute_alignments(dataloader, [layer])
             #simobj.compute_cossim()
 
             # get the metrics
