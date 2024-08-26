@@ -185,6 +185,8 @@ class spectrum_analysis:
     def get_activation_spectrum(self):#, dataloader=None):
         if self.activation_covs is None:
             #dataloader = dataloader if dataloader is not None else self.train_loader
+            # print(f'Calculating activations from assigned TRAIN LOADER\n \
+            #         TRAIN LOADER : {id(self.train_loader)}')
             self.get_activation_covs(self.train_loader, range(1, self.n_layers+1))
 
         act_spectra = []
