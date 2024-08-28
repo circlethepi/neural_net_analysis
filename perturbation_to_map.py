@@ -612,259 +612,6 @@ def get_variance_axes(coordinates):
     return var_plot_info
 
 
-# def plot_variance_plot(plot_info, 
-#                        title="Variace Plot", sd_mult=2,
-                       
-#                        n_models=None, 
-#                        labels=None, increments=None, 
-#                         text_locs=None, colors=None, legend_cols=2, 
-#                         legend_order=None, markers=None, accuracies=None, 
-#                         bar_range=(0,1), color_traj=None, steps=None, 
-#                         cb_norm=None, zero_incs=[0], figsize=(12, 10),
-#                         zero_sep=False, zero_lab=None, zero_color='red', 
-#                         align_coords=True, yflip=False, xflip=False, zero_ind=None,
-#                         save=False, saveloc='../image_hold',
-#                         xlim=None, ylim=None, xrot=0,
-#                         varwidth=1e-3, varcols=('#757575', '#757575')):
-#     """
-#     :param plot_info - output from get_variance_axes
-#     """
-#     xs_in = plot_info['xs']
-#     ys_in = plot_info['ys']
-
-#     # parse the dict
-#     # xs = plot_info['xs']
-#     # ys = plot_info['ys']
-#     u1 = plot_info['u1']
-#     v1 = plot_info['v1']
-
-#     u2 = plot_info['u2']
-#     v2 = plot_info['v2']
-
-#     # Lengths of the Arrow
-#     # smaller values make the arrows longer
-#     # as per matplotlib quiver documentation: the scale is inverse
-#     s1 = []
-#     for k in plot_info['s1']:
-#         if k != 0: 
-#             s1.append(1/(k * sd_mult) )
-#         else: 
-#             s1.append(0)
-#     s2 = []
-#     for k in plot_info['s2']:
-#         if k != 0: 
-#             s2.append(1/(k * sd_mult)) 
-#         else: 
-#             s2.append(0)
-    
-#     coords = np.array([xs_in, ys_in]).T
-
-#     print(np.array([u2, v2]).T[:,0])
-#     print(u2)
-
-#     # align the coordinates if true and flip if true
-#     if align_coords:
-#         coords = align_traj_to_x(coords, yflip=yflip, xflip=xflip, 
-#                                  zero_ind=zero_ind)
-#         # adjusting the axes as necessary
-#         if yflip:
-#             u1 = [-k for k in u1]
-#             u2 = [-k for k in u2]
-#         if xflip:
-#             v1 = [-k for k in v1]
-#             v2 = [-k for k in v2]
-        
-#     color_map = plt.cm.plasma  
-
-#     if color_traj:
-#         assert steps is not None, "to use color_traj, you must include steps"
-#         # for i in range(len(steps)):
-#         #     if np.max(steps[i]) != 1: # normalize if necessary
-#         #         steps[i] /= np.max(steps[i])
-#         if cb_norm and 'log' not in cb_norm:
-#             lims_cb = (np.min([np.min(k) for k in steps]), np.max([np.max(k) for k in steps]))
-#         else:
-#             print('Using setting for bar_range since log scale being used')
-#             lims_cb = bar_range
-#         print(lims_cb)
-#         if accuracies is None:
-#             bar_range=lims_cb
-#     if color_traj == True:
-#         color_traj = color_map
-
-#     if n_models:
-#         split_indices = [0]+[sum(n_models[:i]) for i in range(1,len(n_models)+1)]
-#     else: 
-#         split_indices = [0, len(coords) -1]
-    
-#     # print(split_indices)
-#     n_perturbations = len(n_models) if n_models else 1
-#      #check that increments are set OK
-#     # if increments and len(increments) != n_perturbations:
-#     #     raise Exception("""Increment list count and number of perturbation 
-#     #                     experiments represented must be the same""")
-    
-#     colors = colors if colors is not None else plt.cm.viridis(np.linspace(0, 1, n_perturbations)) 
-#     if labels:
-#         labels = [labels[i] if labels[i] else "" for i in range(len(labels))]
-#         make_legend = True
-#     else:
-#         labels = ["" for i in range(n_perturbations)] 
-#         make_legend = False
-#     #labels = labels if labels else None#[f'Perturbation {i+1}' for i in 
-#                                    # range(n_perturbations)]
-#     text_locs = text_locs if text_locs else [(-12,-12) for i in range(len(labels))]
-#     #print(text_locs)
-
-#     # plotting the result
-#     fig = plt.figure(figsize=figsize)
-#     ax = plt.subplot(111)
-
-#     # plot each curve :)
-#     for i in range(n_perturbations):
-#         low = split_indices[i]
-#         hig = split_indices[i+1]
-#         xs = coords[low:hig, 0]
-#         ys = coords[low:hig, 1]
-#         #print(increments[i])
-        
-#         if markers is None:
-#             mark = 'o'
-#         else:
-#             if i < len(markers):
-#                 mark = markers[i] if markers[i] else 'o'
-#             else:
-#                 mark = 'o'
-#         # plotting the trajectory
-#         if zero_sep:
-#             #print(xs, ys)
-#             plt.scatter(xs[0], ys[0], marker=mark, s=100, 
-#                         color=zero_color, zorder=5)
-#             if i == 0:
-#                 zero_legend = [matplotlib.patches.Patch(facecolor=zero_color,
-#                                                         edgecolor=zero_color,
-#                                                         label=zero_lab)]
-#         if accuracies or color_traj:
-#             plt.plot(xs, ys, markersize=10, linestyle=':',
-#                  color='k', label=labels[i], linewidth=1, zorder=1)
-#             if accuracies:
-#                 plt.scatter(xs, ys, c=accuracies[i], marker=mark, s=100,
-#                             cmap=color_map, vmin=bar_range[0], 
-#                             vmax=bar_range[1], zorder=2, norm=cb_norm)
-#                 increment_color = color_map(accuracies[i][-1])
-#             if color_traj:
-#                 step_i = np.array(steps[i])
-#                 if cb_norm and 'log' in cb_norm:
-#                     colors[colors <= 0] = 1e10-4
-#                 #print(colors)
-#                 plt.scatter(xs, ys, c=step_i, cmap=color_traj, 
-#                             marker=mark, s=100, norm=cb_norm,
-#                             vmin=bar_range[0], vmax=bar_range[1], zorder=2)
-#                 increment_color = color_traj(step_i[-1])
-#         else:
-#             plt.plot(xs, ys, markersize=10, marker=mark, linestyle=':',
-#                  color=colors[i], label=labels[i], linewidth=1, zorder=1,
-#                  mew=0)
-#             increment_color = colors[i]
-        
-#         # plotting the increments
-
-#         if increments and labels:
-#             # set the ith increments
-#             increments_i = ['']*(n_models[i]-1) + [f'{labels[i]}']
-#             #print(increments_i)
-#             if i in zero_incs:
-#                 increments_i[0] = '0'
-#                 if zero_sep:
-#                     increments_i[0] = f'{labels[i]}'
-#             for inc, x, y in zip(increments_i, xs, ys):
-#                 #print(inc, x, y)
-#                 if inc:
-#                     plt.annotate(inc, xy=(x, y), xytext=text_locs[i],
-#                                 textcoords='offset points', 
-#                                 ha='right', va='bottom',
-#                                 bbox=dict(boxstyle='round,pad=0.05', 
-#                                           fc=increment_color, alpha=0.2),
-#                                 arrowprops=dict(arrowstyle='-', 
-#                                                 connectionstyle='arc3,rad=0'),
-#                                 fontsize=16)
-    
-#     if labels and not increments:
-#         if legend_order:
-#             handles, labels = plt.gca().get_legend_handles_labels()
-#             ax.legend([handles[idx] for idx in legend_order],
-#                     [labels[idx] for idx in legend_order], loc='upper left', 
-#                     bbox_to_anchor=(0.1, -0.08), fontsize=16, ncol=legend_cols)
-#         else:
-#             ax.legend(loc='upper left', bbox_to_anchor=(0.1, -0.08), fontsize=16, 
-#                 ncol=legend_cols)
-#     if zero_lab:
-#         ax.legend(handles=zero_legend, fontsize=16)
-
-
-#     """ADDING THE ARROWS"""
-#     # add in the first axis
-#     for i in range(len(u1)):
-#         s = s1[i] if s1[i] != 0 else 1
-#         qv1 = plt.quiver(coords[i, 0], coords[i, 1], u1[i], v1[i], scale=s, headwidth=0, 
-#                    scale_units='x', width=varwidth, color=varcols[0],
-#                    label='')
-#         plt.quiver(coords[i, 0], coords[i, 1], -u1[i], -v1[i], scale=s, headwidth=0, 
-#                    scale_units='x', width=varwidth, color=varcols[0])
-#     # second axis
-#     for i in range(len(u2)):
-#         s = s2[i] if s2[i] != 0 else 1
-#         qv2 = plt.quiver(coords[i, 0], coords[i, 1], u2[i], v2[i], scale=s, headwidth=0,
-#                    scale_units='x', width=varwidth, color=varcols[1],
-#                    label='')
-#         plt.quiver(coords[i, 0], coords[i, 1], -u2[i], -v2[i], scale=s, headwidth=0,
-#                    scale_units='x', width=varwidth, color=varcols[1])
-
-    
-#     # setting the colorbar
-#     if accuracies or color_traj:
-#         # ticks
-#         cbar_ticks = steps[0] if color_traj else [np.min(np.array(accuracies)), np.max(np.array(accuracies))]
-#         cbar = plt.colorbar(ticks=cbar_ticks)
-#         cbar.ax.tick_params(labelsize=16)
-        
-#         # define the tick labels
-#         def tick_format(x):
-#             if int(x) == x:
-#                 y = int(x)
-#             elif 0.01 < x < 1e2:
-#                 y = f'{x:.2f}'
-#             else:
-#                 y = f'{x:.2e}'
-#             return y
-#         cbar_labels = [tick_format(k) for k in cbar_ticks]
-#         cbar.ax.set_yticklabels(cbar_labels)
-
-#         # label
-#         cbar_label = 'Accuracy' if accuracies else 'Epoch'
-#         cbar.set_label(cbar_label, fontsize=16)    
-    
-#     # setting the axis limits if they are given:
-#     if xlim:
-#         plt.xlim(xlim[0], xlim[1])
-#     if ylim:
-#         plt.ylim(ylim[0], ylim[1])
-
-#     plt.tick_params(axis='both', which='both', labelsize=16)
-#     plt.tick_params(axis='x', labelrotation=xrot)
-#     plt.title(title, fontsize=16)
-#     plt.gca().set_aspect('equal')
-    
-
-#     plt.show()
-
-#     if save:
-#         savepath = f'{saveloc}/MDS{title}_var'
-#         plt.savefig(savepath)
-    
-#     return 
-
-
 class VariancePlot:
 
     def __init__(self, *args, split=None):
@@ -895,6 +642,9 @@ class VariancePlot:
 
         self.coordinates = args #aligned_coords
 
+        # other features
+        self.plot_info = None
+
         return
 
     def get_variance_plot_info(self):
@@ -902,6 +652,25 @@ class VariancePlot:
         self.plot_info = plot_info
         return plot_info
     
+    def set_mean_point_origin(self, ind=0):
+        """
+        Translates all coordinates so that the first mean coordinate is (0, 0)
+        (or whichever index in the trajectory you desire to be at the origin)
+        (but by default this is the first one)
+        """
+        # get the corresponding values in the mean trajectory
+        xmean = self.plot_info['xs'][ind]
+        ymean = self.plot_info['ys'][ind]
+        first_mean = np.array([xmean, ymean])
+
+        # first, update all the means in plot_info
+        self.plot_info['xs'] = [c-xmean for c in self.plot_info['xs']]
+        self.plot_info['ys'] = [c-ymean for c in self.plot_info['ys']]
+
+        # now, update all the coordinates
+        self.coordinates -= first_mean
+
+        return self.coordinates, self.plot_info
 
     def plot_variance(self, title=None, variance=True, ylog=False, xlog=False,
                       ticks=None, ticklabs=None, xlab='Step', xrot=0):
@@ -961,7 +730,8 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
 
                        accuracies=None, 
                        bar_range=(0,1), color_traj=None, steps=None, 
-                       cb_norm=None, zero_incs=[0], figsize=(12, 10), 
+                       cb_norm=None, 
+                       zero_incs=[0], figsize=(12, 10), 
                        zero_sep=False, zero_lab=None, zero_color='red', 
 
                        align_coords=True, yflip=False, xflip=False, zero_ind=None,
@@ -1032,7 +802,7 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
                 # u2 = [-k for k in u2]
     
     # set the default color map
-    color_map = plt.cm.plasma  
+    color_map = plt.cm.plasma #if color_map is None else color_map
 
     if color_traj:
         assert steps is not None, "to use color_traj, you must include steps"
@@ -1104,16 +874,17 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
             plt.plot(xs, ys, markersize=markersize, linestyle=':',
                  color='k', label=labels[i], linewidth=1, zorder=1)
             if accuracies:
-                plt.scatter(xs, ys, c=accuracies[i], marker=mark, s=markersize**2,
+                scat = plt.scatter(xs, ys, c=accuracies[i], marker=mark, s=markersize**2,
                             cmap=color_map, vmin=bar_range[0], 
                             vmax=bar_range[1], zorder=2, norm=cb_norm)
                 increment_color = color_map(accuracies[i][-1])
             if color_traj:
                 step_i = np.array(steps[i])
+                #print(steps, steps[i])
                 if cb_norm and 'log' in cb_norm:
                     colors[colors <= 0] = 1e10-4
                 #print(colors)
-                plt.scatter(xs, ys, c=step_i, cmap=color_traj, 
+                scat = plt.scatter(xs, ys, c=step_i, cmap=color_traj, 
                             marker=mark, s=markersize**2, norm=cb_norm,
                             vmin=bar_range[0], vmax=bar_range[1], zorder=2)
                 increment_color = color_traj(step_i[-1])
@@ -1199,7 +970,7 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
     if accuracies or color_traj:
         # ticks
         cbar_ticks = steps[0] if color_traj else [np.min(np.array(accuracies)), np.max(np.array(accuracies))]
-        cbar = plt.colorbar(ticks=cbar_ticks)
+        cbar = plt.colorbar(scat, ticks=cbar_ticks)
         cbar.ax.tick_params(labelsize=16)
         
         # define the tick labels
