@@ -188,7 +188,8 @@ def similarity_matrix_from_lists(lists):
 
 def plot_similarity_matrix(sims, title, ticks=None, axis_label=None, 
                            split_inds=None, vrange=(0,1), rotation=0,
-                           figsize=(10,10), save=False, saveloc='../image_hold',
+                           figsize=(10,10), save=False, #saveloc='../image_hold',
+                           savepath='img',
                            split_color='r'):
     """
     plots a similarity matrix heatmap
@@ -224,12 +225,12 @@ def plot_similarity_matrix(sims, title, ticks=None, axis_label=None,
     plt.title(title, fontsize=pert.axis_fontsize)
     plt.tick_params(axis='both', which='both', labelsize=pert.axis_fontsize)
     plt.tick_params(axis='x', labelrotation=rotation)
-
-    plt.show()
     
     if save:
-        savepath = f'{saveloc}/MAT{title}'
-        plt.savefig(savepath)
+        #savepath = f'{saveloc}/MAT{title}'
+        plt.savefig(savepath, bbox_inches='tight')
+    
+    plt.show()
 
     return
 
@@ -279,7 +280,7 @@ def plot_MDS_coords(coords, title, n_models=None, labels=None, increments=None,
                     zero_sep=False, zero_lab=None, zero_color='red', 
                     align_coords=True, yflip=False, xflip=False, zero_ind=None,
                     save=False, saveloc='../image_hold',
-                    xlim=None, ylim=None, xrot=0, show=True):
+                    xlim=None, ylim=None, xrot=0, show=True, colorbar=False):
     """
     *args are similarity matrices 
 
@@ -425,7 +426,7 @@ def plot_MDS_coords(coords, title, n_models=None, labels=None, increments=None,
         ax.legend(handles=zero_legend, fontsize=16)
     
     # setting the colorbar
-    if accuracies or color_traj:
+    if (accuracies or color_traj) and colorbar:
         # ticks
         cbar_ticks = steps[0] if color_traj else [np.min(np.array(accuracies)), np.max(np.array(accuracies))]
         cbar = plt.colorbar(ticks=cbar_ticks)
@@ -463,7 +464,7 @@ def plot_MDS_coords(coords, title, n_models=None, labels=None, increments=None,
 
     if save:
         savepath = f'{saveloc}/MDS{title}_var'
-        plt.savefig(savepath)
+        plt.savefig(savepath, bbox_inches='tight')
     
     return 
 
@@ -647,9 +648,11 @@ class VariancePlot:
 
         return
 
-    def get_variance_plot_info(self):
+    def get_variance_plot_info(self, mean0=True, mean_ind=0):
         plot_info = get_variance_axes(self.coordinates)
         self.plot_info = plot_info
+        if mean0:
+            _ = self.set_mean_point_origin(ind=mean_ind)
         return plot_info
     
     def set_mean_point_origin(self, ind=0):
@@ -673,7 +676,8 @@ class VariancePlot:
         return self.coordinates, self.plot_info
 
     def plot_variance(self, title=None, variance=True, ylog=False, xlog=False,
-                      ticks=None, ticklabs=None, xlab='Step', xrot=0):
+                      ticks=None, ticklabs=None, xlab='Step', xrot=0,
+                      save=False, savename='img'):
         """
         PLot the change in variance over the course of the trajectories
 
@@ -717,10 +721,76 @@ class VariancePlot:
         plt.legend(fontsize=16)
         plt.tick_params(axis='x', labelrotation=xrot)
 
+        if save:
+            plt.savefig(savename, bbox_inches='tight')
+
         plt.show()
 
         return
-    
+
+    def plot_ellipse_error(self, title='', sd_mult=1,
+                          ticks=None, ticklabs=None, xlab=None, xlog=False,
+                          ylog=False, save=False, savename='img', xrot=0,
+                          plot=True, ylim=None):
+        """
+        Plot the area of the ellipse over the course of the trajectory
+        """
+        if self.plot_info is None:
+            _ = self.get_variance_plot_info
+        
+        # get the area of each ellipse defined by the SDs 
+        ## first collect the SDs assc. w each PC 
+        sd1 = self.plot_info['s1']
+        sd2 = self.plot_info['s2']
+
+        ## calculate area
+        areas = [sd1[k]*sd2[k]*np.pi*sd_mult**2 for k in range(len(sd1))]
+
+        if plot:
+            ## plot
+            fig = plt.figure(figsize=(10,5))
+
+            if ticks is None:
+                ticks = list(range(len(sd1)))
+
+            plt.plot(ticks, areas, label='PC1', marker='o', linewidth=0.5)
+
+            title += f' $\\pm${sd_mult}$\\sigma$'
+            if xlab is None:
+                xlab = 'Step'
+                
+            plt.title(title, fontsize=16)
+            plt.xlabel(xlab, fontsize=16)
+
+            ylab = 'error'
+            plt.ylabel(ylab, fontsize=16)
+            if ylog:
+                plt.yscale('log')
+            if xlog:
+                plt.xscale('log')
+            
+            if ylim is not None:
+                plt.ylim(ylim[0], ylim[1])
+            plt.tick_params(axis='both', which='both', labelsize=16)
+
+
+            if ticklabs is None:
+                ticklabs = ticks
+            plt.xticks(ticks, ticklabs)
+
+            plt.legend(fontsize=16)
+            plt.tick_params(axis='x', labelrotation=xrot)
+
+            if save:
+                plt.savefig(savename, bbox_inches='tight')
+
+            plt.show()
+
+        return areas
+
+
+        
+
 
 def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mult=2,
                        n_models=None, labels=None, increments=None, 
@@ -730,19 +800,22 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
 
                        accuracies=None, 
                        bar_range=(0,1), color_traj=None, steps=None, 
-                       cb_norm=None, 
+                       cb_norm=None, colorbar=False, 
                        zero_incs=[0], figsize=(12, 10), 
                        zero_sep=False, zero_lab=None, zero_color='red', 
 
                        align_coords=True, yflip=False, xflip=False, zero_ind=None,
 
-                       save=False, saveloc='../image_hold', 
+                       #save=False, saveloc='../image_hold', 
                        xlim=None, ylim=None, xrot=0, 
                        varwidth=1e-3, 
 
                        mean_color='k', varcols=('#757575', '#757575'),
                        mean_symbol='D', mean_mark_size=5,
-                       mean_lab='Mean Trajectory'
+                       mean_lab='Mean Trajectory',
+
+                       save=False, savename='img',
+
     ):
     """
     :param plot_info - output from get_variance_axes
@@ -882,7 +955,7 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
                 step_i = np.array(steps[i])
                 #print(steps, steps[i])
                 if cb_norm and 'log' in cb_norm:
-                    colors[colors <= 0] = 1e10-4
+                    colors[colors <= 0] = 1e-4
                 #print(colors)
                 scat = plt.scatter(xs, ys, c=step_i, cmap=color_traj, 
                             marker=mark, s=markersize**2, norm=cb_norm,
@@ -967,7 +1040,7 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
                         color=varcols[1], zorder=10000)
 
     # setting the colorbar
-    if accuracies or color_traj:
+    if (accuracies or color_traj) and colorbar:
         # ticks
         cbar_ticks = steps[0] if color_traj else [np.min(np.array(accuracies)), np.max(np.array(accuracies))]
         cbar = plt.colorbar(scat, ticks=cbar_ticks)
@@ -1000,12 +1073,10 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
     plt.title(title, fontsize=16)
     plt.gca().set_aspect('equal')
     
+    if save:
+        plt.savefig(savename, bbox_inches='tight')
 
     plt.show()
-
-    if save:
-        savepath = f'{saveloc}/MDS{title}_var'
-        plt.savefig(savepath)
     
     return 
 

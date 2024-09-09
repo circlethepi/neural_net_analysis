@@ -742,16 +742,34 @@ def display_sorted_class_images(dataloader, n_images, class_ind=0):
 
 ############################################################# Generating Datasets
 # for generating the datasets
-def get_first_n_from_class(dataset, count, class_ind, random=False):
-    if random:
-        all_class_inds = [i for i, (e,c) in enumerate(dataset) if c == class_ind]
-        # random order and choose first n
-        mind_list = list(np.random.permutation(all_class_inds))[:count]
+# def get_first_n_from_class(dataset, count, class_ind, random=False):
+    """
+    Sampling without replacement
+    """
+#     if random:
+#         all_class_inds = [i for i, (e,c) in enumerate(dataset) if c == class_ind]
+#         # random order and choose first n
+#         mind_list = list(np.random.permutation(all_class_inds))[:count]
         
-    else:
-        mind_list = [i for i, (e,c) in enumerate(dataset) if c == class_ind][:count]
-    #print(mind_list)
-    #print(f'Number of indices for class {class_ind} : {len(mind_list)}')
+#     else:
+#         mind_list = [i for i, (e,c) in enumerate(dataset) if c == class_ind][:count]
+#     #print(mind_list)
+#     #print(f'Number of indices for class {class_ind} : {len(mind_list)}')
+#     return mind_list
+
+def get_first_n_from_class(dataset, count, class_ind, random=None):
+    """
+    Sampling with replacement 
+    random still parameter for compatibility just switching between these two
+    functions if desired. But for this function, it serves no purpose :)
+    """
+    all_class_inds = [i for i, (e,c) in enumerate(dataset) if c == class_ind]
+    
+    # get the samples with replacement
+    sampler = np.random.default_rng()
+    mind_list = list(sampler.choice(all_class_inds, size=count, 
+                     replace=True))
+
     return mind_list
 
 def get_first_n_from_class_lists(dataset, counts, class_inds, random=False):
