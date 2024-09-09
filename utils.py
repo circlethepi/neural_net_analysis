@@ -29,7 +29,7 @@ def set_torch_device():
 
 device = set_torch_device()
 
-def set_seed(SEED, confirm=False):
+def set_seed(SEED, confirm=True):
     ###### set the seed
     #random.seed(SEED)
     np.random.seed(SEED)

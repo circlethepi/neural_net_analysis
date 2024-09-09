@@ -716,6 +716,29 @@ def display_dataloader_images(dataloader, n_images, display=False):
 
     return
 
+def display_sorted_class_images(dataloader, n_images, class_ind=0):
+    dataiter = iter(dataloader)
+
+    # get the first n_images instances where class ind = desired
+    k = 0
+    image_list = []
+    while k < n_images:
+        images, labels = next(dataiter)
+        
+        i = 0 
+        for label in labels:
+            if label == class_ind and k < n_images:
+                image_list.append(images[i])
+                k += 1
+            i += 1
+    
+    # show the images
+    imshow(torchvision.utils.make_grid(image_list))
+
+    return
+
+
+
 
 ############################################################# Generating Datasets
 # for generating the datasets

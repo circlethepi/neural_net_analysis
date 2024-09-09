@@ -84,6 +84,8 @@ class network_comparison:
         
         # aligns second model to first
         #align_list, r2s = align.compute_alignments(dataloader, layers,
+        # print(f'Computing alignments with provided ALIGNMENT LOADER\n\
+        #     ALIGN LOADER : {id(dataloader)}')
         align_list = align.compute_alignments(dataloader, layers, 
                                                    self.models[0].model, 
                                                    self.models[1].model)
@@ -103,6 +105,7 @@ class network_comparison:
         start = time.time()
         for net in self.models:
             #net.set_train_loader(dataloader)
+            # print(f'NET TRAIN LOAD : {id(net.train_loader)}')
             _ = net.get_activation_spectrum() # this uses the train loader of the model
 
         #print(f'Act Spect: {(time.time()-start):.4f} s')
