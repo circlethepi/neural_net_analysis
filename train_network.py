@@ -191,7 +191,10 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
     
     if checkpoints is not None:
         # if there are specific checkpoints, then set them
-        intervals = checkpoints[0]
+        if 0 in checkpoints.keys():
+            intervals = checkpoints[0]
+        else:
+            intervals = []
 
         # check to see if there are specific epochs
         ep_intervals = []
