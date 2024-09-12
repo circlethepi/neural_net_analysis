@@ -799,7 +799,7 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
                        legend_loc='best',
 
                        accuracies=None, 
-                       bar_range=(0,1), color_traj=None, steps=None, 
+                       bar_range=(0,1), color_traj=None, steps=None, traj_a=1,
                        cb_norm=None, colorbar=False, 
                        zero_incs=[0], figsize=(12, 10), 
                        zero_sep=False, zero_lab=None, zero_color='red', 
@@ -877,7 +877,7 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
     # set the default color map
     color_map = plt.cm.plasma #if color_map is None else color_map
 
-    if color_traj:
+    if color_traj is not None and color_traj != True: # taking in a color map
         assert steps is not None, "to use color_traj, you must include steps"
         # for i in range(len(steps)):
         #     if np.max(steps[i]) != 1: # normalize if necessary
@@ -890,6 +890,14 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
         print(lims_cb)
         if accuracies is None:
             bar_range=lims_cb
+        
+        mean_traj = color_traj
+        if traj_a != 1:
+            assert traj_a < 1 and traj_a >= 0, "custom cmap alpha must be in [0,1)"
+            color_traj = matplotlib.colors.ListedColormap([(r,g,b,traj_a) for 
+                                                r, g, b, _ in 
+                                                color_traj(np.arange(color_traj.N))])
+            print('ALPHA ADAPTED')
     if color_traj == True:
         color_traj = color_map
 
@@ -944,7 +952,7 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
                                                         edgecolor=zero_color,
                                                         label=zero_lab)]
         if accuracies or color_traj:
-            plt.plot(xs, ys, markersize=markersize, linestyle=':',
+            plt.plot(xs, ys, linestyle=':',
                  color='k', label=labels[i], linewidth=1, zorder=1)
             if accuracies:
                 scat = plt.scatter(xs, ys, c=accuracies[i], marker=mark, s=markersize**2,
@@ -1005,7 +1013,19 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
     """Plot the means"""
     if plot_info is not None:
         #print(mean_coords)
-        mean_legend = plt.scatter(mean_coords[:,0], mean_coords[:,1], color=mean_color,
+        if color_traj:
+            step_i = np.array(steps[0])
+            if cb_norm and 'log' in cb_norm:
+                colors[colors <= 0] = 1e-4
+            mean_legend = plt.scatter(mean_coords[:,0], mean_coords[:,1], 
+                                      c=step_i, cmap=mean_traj, 
+                                      marker=mean_symbol, s=mean_mark_size**2, 
+                                      norm=cb_norm, vmin=bar_range[0], 
+                                      vmax=bar_range[1], zorder=10000)
+            plt.scatter(mean_coords[0,0], mean_coords[0,1], color=zero_color,
+                        marker=mean_symbol, s=mean_mark_size**2, zorder=10000)
+        else:
+            mean_legend = plt.scatter(mean_coords[:,0], mean_coords[:,1], color=mean_color,
                     marker=mean_symbol, s=mean_mark_size**2, label=mean_lab, zorder=10000)
         
         if zero_sep:
