@@ -206,11 +206,17 @@ class spectrum_analysis:
         return act_spectra
 
     def train(self, train_loader, val_loader, n_epochs, grain=5, ep_grain=2, 
-              save=False):
+              save=False, checkpoints=None):
+        """
+        :param checkpoints :    dict[epoch : int] -> list(batches : int)   
+                                the checkpoints during training to take / save 
+                                / calculate the spectrum 
+        """
         self.train_loader = train_loader
         e_list, val_hist, train_hist, spec_hist = train_network.train_model(self.model, train_loader, val_loader,
                                                                             n_epochs, grain=grain, ep_grain=ep_grain,
-                                                                            save=save, savepath=self.save_dir)
+                                                                            save=save, savepath=self.save_dir,
+                                                                            checkpoints=checkpoints)
 
         # setting the appropriate features
         if self.n_epochs is not None:
@@ -313,3 +319,42 @@ def truncate_matrix_svd(matrix, rank):
     # calculate the truncated matrix
     truncated = U @ torch.diag(new_S) @ Vh
     return truncated
+
+
+def calculate_epochs_checkpoints(image_counts : list, batch_size : int, 
+                                 dataset_size : int):
+    """
+    calculates the number of epochs needed and the (epoch, batch) checkpoint
+    pairs to get checkpoints at the desired image counts. 
+
+    :param image_counts :   list(int)   numbers of images to take checkpoints
+    :param batch_size   :   int         number of images per batch
+    :param dataset_size :   int         total number of images in the dataset   
+
+    :return n_epochs    :   int         the total number of epochs to run
+    :return checkpoints :   dict        epoch -> list(batches : int) the 
+                                        checkpoints to take to get the desired
+                                        image count checkpoints
+    """
+    # get the total number of epochs needed to run 
+    n_epochs = int(np.ceil(np.max(image_counts)/dataset_size))
+    # calculate the intervals for the image counts
+    pairs = []
+    for im in image_counts:
+        ep = im // dataset_size
+        extra_ims = im % dataset_size
+        batch = int(np.ceil(extra_ims / batch_size))
+        pairs.append((ep, batch))
+    
+    # turn the pairs into a dictionary
+    epochs = set(k[0] for k in pairs)
+    checkpoints = {} # set up the dictionary
+    for e in epochs:
+        batch_list = []
+        for k in pairs:
+            if k[0] == e:
+                batch_list.append(k[1])
+        
+        checkpoints[e] = batch_list
+
+    return n_epochs, checkpoints

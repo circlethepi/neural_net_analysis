@@ -138,7 +138,8 @@ def train_accuracy(model_name, optimizer, criterion, train_loader, train_loss_hi
 
 def train_model(model_name, train_loader, val_loader, n_epochs,
                 grain=10, ep_grain:int=2,
-                criterion=nn.CrossEntropyLoss(), save=False, savepath=None):
+                criterion=nn.CrossEntropyLoss(), save=False, savepath=None,
+                checkpoints=None):
 
     """
     trains a single-layer model for a single epoch and records the val and train accuracy
@@ -146,6 +147,8 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
     Inputs
     model_name : single_layer     neural network model to train
     grain      : int              how often to check accuracy in log scale
+    checkpoints: dict[epoch : int] -> list(batches : int)  when to check accuracy/
+                                  saved model state at specific intervals
     """
     #################
     #### Set-up #####
@@ -161,27 +164,43 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
 
     total_batches = len(train_loader)
 
-    # setting the values for which we check the performance
-    max_it = int(np.floor(np.emath.logn(grain, total_batches)))  # the max n such that grain^n < total
-    # creating the list of iterations at which to check the performance
-    intervals = [grain**i for i in range(1, max_it + 1)]
-    # intervals.append(total)
-    if total_batches not in intervals:
-        intervals.append(total_batches)
-    print(f'testing at {intervals} batches of {total_batches} total batches')
+    # set when to evaluate the model state
 
-    # set the epochs at which to check the performance
-    assert ep_grain >= 1, 'Epoch grain must be >= 1'
-    if ep_grain < n_epochs and ep_grain != 1:
-        max_ep = int(np.floor(np.emath.logn(ep_grain, n_epochs)))
-        ep_intervals = [ep_grain**i for i in range(1, max_ep+1)]
-    elif ep_grain == 1:
-        ep_intervals = list(range(2, n_epochs))
-    else:
+    if checkpoints is None:
+        # if no specific checkpoints, then use the grain settings
+        # setting the values for which we check the performance
+        max_it = int(np.floor(np.emath.logn(grain, total_batches)))  # the max n such that grain^n < total
+        # creating the list of iterations at which to check the performance
+        intervals = [grain**i for i in range(1, max_it + 1)]
+        # intervals.append(total)
+        if total_batches not in intervals:
+            intervals.append(total_batches)
+        print(f'testing at {intervals} batches of {total_batches} total batches')
+
+        # set the epochs at which to check the performance
+        assert ep_grain >= 1, 'Epoch grain must be >= 1'
+        if ep_grain < n_epochs and ep_grain != 1:
+            max_ep = int(np.floor(np.emath.logn(ep_grain, n_epochs)))
+            ep_intervals = [ep_grain**i for i in range(1, max_ep+1)]
+        elif ep_grain == 1:
+            ep_intervals = list(range(2, n_epochs))
+        else:
+            ep_intervals = []
+        if n_epochs not in ep_intervals and n_epochs > 1:
+            ep_intervals.append(n_epochs)
+    
+    if checkpoints is not None:
+        # if there are specific checkpoints, then set them
+        intervals = checkpoints[0]
+
+        # check to see if there are specific epochs
         ep_intervals = []
-    if n_epochs not in ep_intervals and n_epochs > 1:
-        ep_intervals.append(n_epochs)
-
+        for ep in checkpoints.keys():
+            if 0 in checkpoints[ep]:
+                ep_intervals.append(ep)
+        if n_epochs not in ep_intervals and n_epochs > 1:
+            ep_intervals.append(n_epochs)
+    
     print(f'testing at {ep_intervals} epochs of {n_epochs} total epochs')
 
     # set tracking
@@ -260,9 +279,16 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
             train_loss = 0.0
             train_acc = 0.0
 
+            # get the batches for the intermediate steps
+            if epoch-1 in checkpoints.keys():
+                intermediate_intervals = checkpoints[epoch-1]
+            else:
+                intermediate_intervals = []
+
             # set model to train mode
             model_name.train()
 
+            i = 1
             # iterate over the training data
             for inputs, labels in tqdm(train_loader, desc=f'Training epoch {epoch}'):
                 inputs = inputs.to(device)
@@ -277,6 +303,23 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
                 # increment the running loss and accuracy
                 train_loss += loss.item()
                 train_acc += (outputs.argmax(1) == labels).sum().item()
+
+                if i in intermediate_intervals:
+                    #print(f'testing accuracy, calculating spectrum after {i}th batch')
+                    ep_history.append('{:.2e}'.format(float(frac(((total_batches*(epoch-1)))+i, total_batches))))
+                    # updating the spectrum
+                    spectrum_history, total_var_history, cov_history = update_spectrum(model_name, spectrum_history,
+                                                                                    total_var_history, cov_history)
+                    # updating the test history
+                    val_loss_history, val_acc_history = val_accuracy(model_name, criterion, val_loader, val_loss_history,
+                                                                    val_acc_history)
+                    # updating the train history
+                    train_loss_history, train_acc_history = train_accuracy(model_name, optimizer, criterion, train_loader,
+                                                                        train_loss_history, train_acc_history)
+                    if save:
+                        epoch_state = f'{(total_batches*(epoch-1))+i}-{total_batches}'
+                        save_model(model_name, epoch_state, savepath)
+                i += 1
 
             if epoch in ep_intervals:
                 #print(f'epoch {epoch} getting spectrum')
