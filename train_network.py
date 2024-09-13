@@ -195,6 +195,8 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
             intervals = checkpoints[0]
         else:
             intervals = []
+        if total_batches not in intervals:
+            intervals.append(total_batches)
 
         # check to see if there are specific epochs
         ep_intervals = []
