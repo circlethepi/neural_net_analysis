@@ -195,8 +195,9 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
             intervals = checkpoints[0]
         else:
             intervals = []
-        if total_batches not in intervals:
-            intervals.append(total_batches)
+        # if total_batches not in intervals:
+        #    intervals.append(total_batches) # we don't need to record epoch 1
+                                             # if not told to record epoch 1
 
         # check to see if there are specific epochs
         ep_intervals = []
@@ -204,7 +205,7 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
             if 0 in checkpoints[ep]:
                 ep_intervals.append(ep)
         if n_epochs not in ep_intervals and n_epochs > 1:
-            ep_intervals.append(n_epochs)
+           ep_intervals.append(n_epochs)
     
     print(f'testing at {ep_intervals} epochs of {n_epochs} total epochs')
 
