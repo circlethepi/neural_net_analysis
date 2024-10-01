@@ -286,7 +286,7 @@ def train_model(model_name, train_loader, val_loader, n_epochs,
             train_acc = 0.0
 
             # get the batches for the intermediate steps
-            if epoch-1 in checkpoints.keys():
+            if checkpoints is not None and epoch-1 in checkpoints.keys():
                 intermediate_intervals = checkpoints[epoch-1]
             else:
                 intermediate_intervals = []

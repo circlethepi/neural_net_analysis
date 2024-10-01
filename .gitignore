@@ -9,6 +9,9 @@ pickle_archive/*
 pickle_vars/pairwise_sims/*
 pickle_vars/perturbations/*
 
+# archived files
+archive/*
+
 # images
 image_hold/*
 

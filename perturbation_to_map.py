@@ -19,6 +19,7 @@ from tqdm import tqdm
 import pickle
 from matplotlib import pyplot as plt
 from matplotlib import colors
+import copy
 
 from sklearn import manifold
 
@@ -51,7 +52,7 @@ class SinglePerturbationResultsConverter:
 
 # Helper Functions
 def compute_pairwise_sims(model_set, dataloader=None, layer=1, w_clip=30, a_clip=64, 
-                          similarity=True, labels=None, model_set2=None):
+                          similarity=True, labels=None, model_set2=None, align=True):
     """
     Compute the pairwise distances between a list of trained models for 
     a SINGLE layer which is indicated
@@ -115,17 +116,23 @@ def compute_pairwise_sims(model_set, dataloader=None, layer=1, w_clip=30, a_clip
             # get the alignments
             #set_seed(COMMON_SEED)
             #simobj.compute_alignments(model1.train_loader, [layer])
-            simobj.compute_alignments(dataloader, [layer])
+            if align:
+                if layer == 1:
+                    simobj.compute_alignments(dataloader, [layer])
+                else:
+                    simobj.compute_alignments(dataloader, [layer-1, layer])
             #simobj.compute_cossim()
 
             # get the metrics
             activations, weights = simobj.network_distance(w_clip=w_clip, 
                                                            a_clip=a_clip, 
-                                                           sim=similarity, 
-                                                    return_quantities=False)
+                                                           sim=similarity,
+                                                           layers=[layer], 
+                                                    return_quantities=False,
+                                                    align=align)
             
-            model_i_act.append(activations[0])
-            model_i_way.append(weights[0])
+            model_i_act.append(activations[-1])
+            model_i_way.append(weights[-1])
             
             del simobj
             del model2
@@ -189,7 +196,8 @@ def similarity_matrix_from_lists(lists):
 def plot_similarity_matrix(sims, title, ticks=None, axis_label=None, 
                            split_inds=None, vrange=(0,1), rotation=0,
                            figsize=(10,10), save=False, #saveloc='../image_hold',
-                           savepath='img',
+                           savepath='img', nan_color='midnightblue',
+                           zero_color='#efefef',
                            split_color='r'):
     """
     plots a similarity matrix heatmap
@@ -197,10 +205,24 @@ def plot_similarity_matrix(sims, title, ticks=None, axis_label=None,
     fig = plt.figure(figsize=figsize)
 
     mask = np.triu(np.ones_like(sims, dtype=bool), k=0)
-    
-    mappy = plt.imshow(np.ma.array(sims, mask=mask), cmap='binary', 
+    nan_sims = np.isnan(sims)
+    nan_sims = np.ma.masked_where(nan_sims==False, nan_sims)
+    nan_sims = np.ma.array(nan_sims, mask=mask)
+    # colormap for normal sims
+    cmap = copy.copy(matplotlib.cm.binary)
+    cmap.set_bad(zero_color)
+    # colormap for nan values
+    cnan = matplotlib.colors.ListedColormap([nan_color,nan_color])
+
+    #plt.imshow(np.ma.array(masked_sims, mask=mask), cmap='BuGn_r')
+    #plt.imshow(np.ma.array(sims, mask=mask), cmap='BuGn')
+    mappy = plt.imshow(np.ma.array(sims, mask=mask), cmap=cmap, 
                        vmin=vrange[0], vmax=vrange[1],
                         interpolation='nearest')
+    plt.imshow(nan_sims, aspect='auto', cmap=cnan, vmin=0, vmax=1)
+
+   
+    
 
     cbar = plt.colorbar(mappy, fraction=0.045)
     for t in cbar.ax.get_yticklabels():
@@ -247,13 +269,22 @@ def compute_MDS(similarity_matrix, zero_index=None, pickle=None,
                                                 save coords to as a pickled 
                                                 variable. default None
     """
-
+    metric = True # whether to do metric MDS
+    # check if any of the entries are NaN
+    # if there are, replace them with ones so that the dissimilarity matrix
+    # treats them as missing values
+    if np.any(np.isnan(similarity_matrix)):
+        metric = False
+        similarity_matrix = np.nan_to_num(similarity_matrix, nan=1)
+        # replace the diagonal with a small value since 0 will be the same as missing
+        np.fill_diagonal(similarity_matrix, 1+np.finfo(float).eps)
     # first, convert into a dissimilarity matrix
     dissims = np.ones(similarity_matrix.shape) - similarity_matrix
 
     # compute the MDS
     mds = manifold.MDS(n_components=2, dissimilarity='precomputed', eps=1e-16,
-                       max_iter=1000, n_init=100, random_state=0, normalized_stress=False)
+                       max_iter=1000, n_init=100, random_state=0, metric=metric,
+                       normalized_stress=False)
     mds.fit_transform(dissims)
     coords = mds.embedding_
 
@@ -1036,28 +1067,29 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
 
     """ADDING THE ARROWS"""
     # add in the first axis
-    for i in range(len(u1)):
-        s = s1[i] if s1[i] != 0 else 1
-        qv1 = plt.quiver(mean_coords[i, 0], mean_coords[i, 1], u1[i], v1[i], 
-                        scale=s, headwidth=1, headlength=0, 
-                        scale_units='x', units='dots', width=varwidth, 
-                        color=varcols[0],
-                        label='', zorder=10000)
-        plt.quiver(mean_coords[i, 0], mean_coords[i, 1], -u1[i], -v1[i], 
-                    scale=s, headwidth=1, headlength=0,
-                    scale_units='x', units='dots', width=varwidth, 
-                    color=varcols[0], zorder=10000)
-    # second axis
-    for i in range(len(u2)):
-        s = s2[i] if s2[i] != 0 else 1
-        qv2 = plt.quiver(mean_coords[i, 0], mean_coords[i, 1], u2[i], v2[i], 
+    if plot_info is not None:
+        for i in range(len(u1)):
+            s = s1[i] if s1[i] != 0 else 1
+            qv1 = plt.quiver(mean_coords[i, 0], mean_coords[i, 1], u1[i], v1[i], 
+                            scale=s, headwidth=1, headlength=0, 
+                            scale_units='x', units='dots', width=varwidth, 
+                            color=varcols[0],
+                            label='', zorder=10000)
+            plt.quiver(mean_coords[i, 0], mean_coords[i, 1], -u1[i], -v1[i], 
                         scale=s, headwidth=1, headlength=0,
                         scale_units='x', units='dots', width=varwidth, 
-                        color=varcols[1], label='', zorder=10000)
-        plt.quiver(mean_coords[i, 0], mean_coords[i, 1], -u2[i], -v2[i], 
-                        scale=s, headwidth=1, headlength=0,
-                        scale_units='x', units='dots', width=varwidth, 
-                        color=varcols[1], zorder=10000)
+                        color=varcols[0], zorder=10000)
+        # second axis
+        for i in range(len(u2)):
+            s = s2[i] if s2[i] != 0 else 1
+            qv2 = plt.quiver(mean_coords[i, 0], mean_coords[i, 1], u2[i], v2[i], 
+                            scale=s, headwidth=1, headlength=0,
+                            scale_units='x', units='dots', width=varwidth, 
+                            color=varcols[1], label='', zorder=10000)
+            plt.quiver(mean_coords[i, 0], mean_coords[i, 1], -u2[i], -v2[i], 
+                            scale=s, headwidth=1, headlength=0,
+                            scale_units='x', units='dots', width=varwidth, 
+                            color=varcols[1], zorder=10000)
 
     # setting the colorbar
     if (accuracies or color_traj) and colorbar:

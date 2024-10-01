@@ -78,6 +78,7 @@ class network_comparison:
         :param layers: the layers at which to calculate the alignment matrices
         :return: none
         """
+        # print(f'computing alignments for layers {layers}')
         start = time.time()
         if 0 in layers:
             raise Exception('0 is not a valid layer index for comparison')
@@ -91,6 +92,8 @@ class network_comparison:
                                                    self.models[1].model)
 
         align_dict = dict(zip(layers, align_list))
+        # print(f'TEST: ALIGNMENT DICTIONARY')
+        # print(align_dict)
         #print(f'Alignment: {(time.time()-start):.4f} s')
         #r2_dict = dict(zip(layers, r2s))
 
@@ -294,7 +297,8 @@ class network_comparison:
 
         return
 
-    def network_distance(self, w_clip=None, a_clip=None, sim=False, return_quantities=False):
+    def network_distance(self, w_clip=None, a_clip=None, layers=None,
+                         sim=False, return_quantities=False, align=True):
         """
 
         :param w_clip: the rank at which to clip the weight covariances. Default: None (full rank for each)
@@ -305,13 +309,14 @@ class network_comparison:
         :return: list of distances (or similarities) between the two networks. The ith entry of the list corresponds to
                  the (i+1)th layer of the networks.
         """
+        layers = self.layers if layers is None else layers # 240917 MO 
         weights = []
         activations = []
 
         quantities = {'activations': [], 'weights': []}
 
         # for each layer
-        for layer in self.layers:
+        for layer in layers:
             # getting the vectors and values for each cov matrix
             ## for the weights
             w_vecs1 = self.weight_eigenvectors[0][layer]
@@ -330,11 +335,17 @@ class network_comparison:
             # getting the alignment matrices
             w_align = self.alignments[layer-1] if layer != 1 else None
             a_align = self.alignments[layer]
+            # print(f'aligning weights with layer {layer-1} matrix')
+            # print(f'aligning activas with layer {layer} matrix')
 
             # calculating the aligned eigenvectors for matrix 2
             ## weights
-            w_vecs2_aligned = w_vecs2 @ w_align.T if w_align is not None else torch.clone(w_vecs2)
-            a_vecs2_aligned = a_vecs2 @ a_align.T
+            if align:
+                w_vecs2_aligned = w_vecs2 @ w_align.T if w_align is not None else torch.clone(w_vecs2)
+                a_vecs2_aligned = a_vecs2 @ a_align.T
+            else:
+                w_vecs2_aligned = w_vecs2
+                a_vecs2_aligned = a_vecs2
 
             if sim:
                 q = 'sim'

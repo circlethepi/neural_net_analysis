@@ -1,14 +1,18 @@
 # Neural Net Analysis
 
+This is an ongoing project to anlayze the weight matrices of neural networks.
+
+
+
 All models should be stored in a directory named for the model. The files inside the directory hold the saved models with `.pt` extensions, and should be named as the epoch after which the save file was created. 
 > [!example] Example Save Configuration
 > ``` 
 > root
->  |- saved_models
->  		|- ModelName
-> 			|- 0.pt
-> 			|- 5.pt
-> 			|- 10.pt
+>	|- saved_models
+>		|- ModelName
+>			|- 0.pt
+>			|- 5.pt
+>			|- 10.pt
 >			|- 50.pt
 > ```
 
