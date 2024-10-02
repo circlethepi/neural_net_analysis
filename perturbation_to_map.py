@@ -116,11 +116,11 @@ def compute_pairwise_sims(model_set, dataloader=None, layer=1, w_clip=30, a_clip
             # get the alignments
             #set_seed(COMMON_SEED)
             #simobj.compute_alignments(model1.train_loader, [layer])
-            if align:
-                if layer == 1:
-                    simobj.compute_alignments(dataloader, [layer])
-                else:
-                    simobj.compute_alignments(dataloader, [layer-1, layer])
+            #if align:
+            if layer == 1:
+                simobj.compute_alignments(dataloader, [layer])
+            else:
+                simobj.compute_alignments(dataloader, [layer-1, layer])
             #simobj.compute_cossim()
 
             # get the metrics
@@ -624,7 +624,7 @@ def get_variance_axes(coordinates):
         vals, vecs = np.linalg.eigh(cov)
         vals, vecs = np.flip(vals), np.flip(vecs, axis=1)
 
-        print('eigenvalues : ', vals)
+        # print('eigenvalues : ', vals)
         # print('SD          : ', np.sqrt(vals))
 
         # append to the correct list
@@ -1189,3 +1189,16 @@ class VariancePlotEvo:
         plt.show()
 
         return
+    
+
+"""Some Helper Functions"""
+def split_indices(n_checkpoints, n_trials):
+    """
+    converts the indices for splitting in a similarity matrix plot
+    """
+    checks = [n_trials] * n_checkpoints
+    splits = []
+    for i in range(len(checks)-1):
+        splits.append(np.sum(checks[:i+1]))
+
+    return splits

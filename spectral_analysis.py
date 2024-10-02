@@ -49,29 +49,44 @@ class spectrum_analysis:
         """
         # create the associated model
         arch = [f'fc{k}' for k in n_neurons]
-        # set the seed
-        if seed is not None:
-            set_seed(seed)
-        if not load:
-            self.model = nn_mod.Neural_Network(n_neurons, num_classes=n_class, 
-                                            input_size=input_size)
-            # set the experiment name and path
-            self.save_dir = f'{rel_path}{path}/{exp_name}-{"".join(arch)}'
-            if save:
-                os.mkdir(self.save_dir)
-        else:
-            assert path is not None and epoch is not None, \
-                "Invalid model loading parameters; you must specify a path and epoch"
-            self.load_from_saved(path, epoch)
-            self.save_dir = path
-        
-        self.model.to(device)
 
+        # set model attributes
         self.n_neurons = n_neurons
         self.n_layers = len(n_neurons)
         self.n_class = n_class
         self.input_size = input_size
         self.layer_dims = list(zip([input_size] + n_neurons, n_neurons + [n_class]))
+
+        self.model = nn_mod.Neural_Network(n_neurons, num_classes=n_class, 
+                                            input_size=input_size)
+        
+        # set the seed
+        if seed is not None:
+            set_seed(seed)
+        if not load:
+            # set the experiment name and path
+            self.save_dir = f'{rel_path}{path}/{exp_name}-{"".join(arch)}'
+            if save:
+                os.mkdir(self.save_dir)
+            
+            # set features set during training
+            # that ARE set when loading
+            self.n_epochs = None
+            self.epoch_history = None
+            self.weights = None
+            self.spectrum_history = None
+
+        else:
+            assert path is not None and epoch is not None, \
+                "Invalid model loading parameters; you must specify a path and epoch"
+            self.load_from_saved(path, epoch)
+            self.save_dir = path
+            self.epoch_history = [epoch]
+            self.n_epochs = extract_epoch_name(epoch)
+            self.spectrum_history = [self.weight_spectrum]
+            
+        
+        self.model.to(device)
 
         # if the variance is set, we initialize a neural network with that variance
         if vary:
@@ -82,14 +97,9 @@ class spectrum_analysis:
             self.var = np.divide(np.ones(len(n_neurons)), [i**2 for i in n_neurons])
 
         # all the rest of the features
-        # set during training
-        self.n_epochs = None
-        self.epoch_history = None
+        # set during training that ARE NOT set if loading
         self.val_history = None
         self.train_history = None
-        self.spectrum_history = None
-        self.weights = None
-
         self.train_loader = None
 
         # set with effective dimensions
@@ -110,6 +120,9 @@ class spectrum_analysis:
     def load_from_saved(self, path, epoch):
         filename = f'{path}/{epoch}.pt'
         self.model = torch.load(filename)
+        self.get_weight_spectrum()
+        self.spectrum_history = self.get_spectrum()
+        # print(self.spectrum_history)
         print(f'Model successfully loaded')
         return
     
@@ -129,6 +142,11 @@ class spectrum_analysis:
         vvh = []
         cvh = []
         spectrum_history, _, _ = train_network.update_spectrum(self.model, shh, vvh, cvh)
+        spectra_lay = []
+        for i in range(len(self.n_neurons)):
+            layer = [hist[i] for hist in spectrum_history]
+            spectra_lay.append(layer)
+
         return spectrum_history
 
     def get_weights(self):
@@ -211,6 +229,11 @@ class spectrum_analysis:
         :param checkpoints :    dict[epoch : int] -> list(batches : int)   
                                 the checkpoints during training to take / save 
                                 / calculate the spectrum 
+        
+        Spectrum history is nested lists (I know, shoot me) 
+        - list of lists, one for each layer
+        - each layer has a list of spectra, each associated in order with the 
+        model spectrum at the corresponding epoch in the epoch history
         """
         self.train_loader = train_loader
         e_list, val_hist, train_hist, spec_hist = train_network.train_model(self.model, train_loader, val_loader,
