@@ -71,7 +71,7 @@ def compute_activation_covariances(loader, layers, model1, model2=None):
 
     # Version of get_activations which treats spatial dimensions as additional batch dimensions.
     get_acts = lambda *args: [space_to_batch(act) for act in get_activations(*args)]
-    print(f'getting activations for layers {layers}')
+    # print(f'getting activations for layers {layers}')
 
     for x, _ in loader:
         x = x.to(device)

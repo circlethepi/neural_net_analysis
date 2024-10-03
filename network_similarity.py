@@ -82,7 +82,7 @@ class NetworkComparison:
         #align_list, r2s = align.compute_alignments(dataloader, layers,
         # print(f'Computing alignments with provided ALIGNMENT LOADER\n\
         #     ALIGN LOADER : {id(dataloader)}')
-        print(f'computing alignments for {layers}')
+        # print(f'computing alignments for {layers}')
         align_list = align.compute_alignments(dataloader, layers, 
                                                    self.models[0].model, 
                                                    self.models[1].model)
@@ -109,7 +109,7 @@ class NetworkComparison:
         start = time.time()
         i = 0
         for net in self.models:
-            print(f'Model {self.names[i]}')
+            # print(f'Model {self.names[i]}')
             _ = net.get_activation_spectrum() # this uses the train loader of the model
             # weight spectrum already calcualted at init
             i += 1
@@ -290,18 +290,18 @@ class NetworkComparison:
         for layer in layers:
             # getting the vectors and values for each cov matrix
             ## for the weights
-            w_vecs1 = self.weight_eigenvectors[0][layer]
-            w_spec1 = self.weight_spectrum[0][layer]
+            w_vecs1 = self.weight_eigenvectors[self.names[0]][layer]
+            w_spec1 = self.weight_spectrum[self.names[0]][layer]
 
-            w_vecs2 = self.weight_eigenvectors[1][layer]
-            w_spec2 = self.weight_spectrum[1][layer]
+            w_vecs2 = self.weight_eigenvectors[self.names[1]][layer]
+            w_spec2 = self.weight_spectrum[self.names[1]][layer]
 
             ## for the activations
-            a_vecs1 = self.activation_eigenvectors[0][layer]
-            a_spec1 = self.activation_spectrum[0][layer]
+            a_vecs1 = self.activation_eigenvectors[self.names[0]][layer]
+            a_spec1 = self.activation_spectrum[self.names[0]][layer]
 
-            a_vecs2 = self.activation_eigenvectors[1][layer]
-            a_spec2 = self.activation_spectrum[1][layer]
+            a_vecs2 = self.activation_eigenvectors[self.names[1]][layer]
+            a_spec2 = self.activation_spectrum[self.names[1]][layer]
 
             # getting the alignment matrices
             w_align = self.alignments[layer-1] if layer != 1 else None
