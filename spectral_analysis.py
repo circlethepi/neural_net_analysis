@@ -29,7 +29,7 @@ from utils import *
 device = set_torch_device()
 
 
-class spectrum_analysis:
+class SpectrumAnalysis:
     """
     Holds, saves, trains linear Neural Network for analysis
     """
@@ -56,9 +56,6 @@ class spectrum_analysis:
         self.n_class = n_class
         self.input_size = input_size
         self.layer_dims = list(zip([input_size] + n_neurons, n_neurons + [n_class]))
-
-        self.model = nn_mod.Neural_Network(n_neurons, num_classes=n_class, 
-                                            input_size=input_size)
         
         # set the seed
         if seed is not None:
@@ -68,6 +65,9 @@ class spectrum_analysis:
             self.save_dir = f'{rel_path}{path}/{exp_name}-{"".join(arch)}'
             if save:
                 os.mkdir(self.save_dir)
+            
+            self.model = nn_mod.Neural_Network(n_neurons, num_classes=n_class, 
+                                            input_size=input_size)
             
             # set features set during training
             # that ARE set when loading
@@ -114,6 +114,7 @@ class spectrum_analysis:
 
         # weights
         self.weight_covs = None
+        self.weight_eigenvectors = None
         self.weight_spectrum = None
 
     
@@ -152,33 +153,54 @@ class spectrum_analysis:
     def get_weights(self):
         weight_list = []
         for layer in self.model.layers:
-            weight_list.append(layer.weight.numpy(force=True))
+            weight_list.append(layer.weight)
 
-        self.weights = weight_list
+        self.weights = dict(zip(range(len(self.model.layers)), weight_list))
         return weight_list
 
-    def get_weight_covs(self):
-        _ = self.get_weights()
+    # def get_weight_covs(self):
+    #     _ = self.get_weights()
 
-        cov_layers = []
-        for i in range(len(self.weights)-1):
-            # print(i)
-            lay_weights = self.weights[i]
-            lay_neur = self.n_neurons[i]
-            cov = lay_weights @ lay_weights.transpose() * (1/lay_neur)
-            cov_layers.append(torch.from_numpy(cov))
+    #     cov_layers = {}
+    #     #for i in range(len(self.weights)-1):
+    #     for lay, lay_weights in self.weights.items():
+    #         # print(i)
+    #         u, s, vh = torch.linalg.svd(lay_weights, full_matrices=False)
+    #         spec = s ** 2 / lay_weights.shape[0]
+    #         cov = vh.T @ torch.diag(spec) @ vh
 
-        self.weight_covs = cov_layers
-        return cov_layers
+    #         print(cov.shape)
+
+    #         cov_layers[lay] = cov
+    #         # lay_neur = self.n_neurons[lay]
+    #         # cov = lay_weights @ lay_weights.transpose() * (1/lay_neur)
+    #         # cov_layers.append(torch.from_numpy(cov))
+
+    #     self.weight_covs = cov_layers
+    #     return cov_layers
 
     def get_weight_spectrum(self):
-        self.get_weight_covs()
-        weight_spec = []
-        for cov in self.weight_covs:
-            vals, vecs = torch.linalg.eigh(cov)
-            vals, vecs = vals.flip(-1), vecs.flip(-1)
-            weight_spec.append(vals)
+        """
+        Also gets the eigenvectors
+        """
+        # self.get_weight_covs()
+        # weight_spec = []
+        # for cov in self.weight_covs:
+        #     vals, vecs = torch.linalg.eigh(cov)
+        #     vals, vecs = vals.flip(-1), vecs.flip(-1)
+        #     weight_spec.append(vals)
+        _ = self.get_weights()
+        weight_spec = {}
+        weight_vectors = {}
+        for lay, lay_weights in self.weights.items():
+            # print(i)
+            u, s, vh = torch.linalg.svd(lay_weights, full_matrices=False)
+            spec = s ** 2 / lay_weights.shape[0]
+            weight_spec[lay] = spec
+            weight_vectors[lay] = vh
+
         self.weight_spectrum = weight_spec
+        self.weight_eigenvectors = weight_vectors
         return
 
     def get_activations(self, dataloader, layers):
@@ -195,33 +217,42 @@ class spectrum_analysis:
         return acts
 
     def get_activation_covs(self, dataloader, layers):
-        act_cov_layers = align.compute_activation_covariances(dataloader, layers, self.model)
+        act_covs = align.compute_activation_covariances(dataloader, layers, self.model)
         #act_cov_layers = [cov.detach().numpy() for cov in act_cov_layers]
-        self.activation_covs = act_cov_layers.copy()
-        return act_cov_layers
+        act_covs = dict(zip(layers, act_covs))
+
+        self.activation_covs = act_covs
+        return act_covs
 
     def get_activation_spectrum(self):#, dataloader=None):
-        if self.activation_covs is None:
-            #dataloader = dataloader if dataloader is not None else self.train_loader
-            # print(f'Calculating activations from assigned TRAIN LOADER\n \
-            #         TRAIN LOADER : {id(self.train_loader)}')
-            self.get_activation_covs(self.train_loader, range(1, self.n_layers+1))
+        #if self.activation_covs is None:
+        self.get_activation_covs(self.train_loader, list(range(1, self.n_layers+1)))
 
-        act_spectra = []
-        act_bases = []
-        for cov in self.activation_covs:
+        # act_spectra = []
+        # act_bases = []
+        # for cov in self.activation_covs:
+        #     vals, vecs = torch.linalg.eigh(cov)
+        #     # reverse and transpose
+        #     #vals, vecs = np.flip(vals), np.flip(vecs)
+        #     vals, vecs = vals.flip(-1), vecs.flip(-1)
+        #     # vecs = vecs.T
+        #     act_spectra.append(vals)
+        #     # act_bases.append(vecs)
+        act_spectra = {}
+        act_vectors = {}
+        for lay, cov in self.activation_covs.items():
             vals, vecs = torch.linalg.eigh(cov)
             # reverse and transpose
-            #vals, vecs = np.flip(vals), np.flip(vecs)
             vals, vecs = vals.flip(-1), vecs.flip(-1)
-            # vecs = vecs.T
-            act_spectra.append(vals)
-            act_bases.append(vecs)
+            vecs = vecs.T
+            act_spectra[lay] = vals
+            act_vectors[lay] = vecs
 
         self.activation_spectrum = act_spectra
-        self.activation_basis = [basis.T for basis in act_bases]
+        self.activation_eigenvectors = act_vectors
+        # self.activation_basis = [basis.T for basis in act_bases]
 
-        return act_spectra
+        return act_spectra, act_vectors
 
     def train(self, train_loader, val_loader, n_epochs, grain=5, ep_grain=2, 
               save=False, checkpoints=None):

@@ -35,11 +35,12 @@ class Neural_Network(nn.Module):
 
         # creating the model
         self.layers = nn.ModuleList()
-        # first layer
+        # first layer / input layer
         self.layers.append(nn.Linear(input_size, n_neurons[0]))
         # the hidden layers
         for k in range(len(n_neurons)-1):
             self.layers.append(nn.Linear(n_neurons[k], n_neurons[k+1]))
+
         # output layer
         self.layers.append(nn.Linear(n_neurons[-1], num_classes))
 
@@ -53,9 +54,9 @@ class Neural_Network(nn.Module):
         i = 0
         for layer in self.layers:
             x = layer(x)
-            if i < len(self.n_neurons) - 2:
+            if i < len(self.n_neurons):
                 x = torch.relu(x)
-        i += 1
+            i += 1
         return x
 
 

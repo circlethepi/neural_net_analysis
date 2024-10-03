@@ -20,14 +20,14 @@ Network similarity object
 """
 
 
-class network_comparison:
+class NetworkComparison:
 
-    def __init__(self, net1: spec.spectrum_analysis, 
-                 net2: spec.spectrum_analysis, names = None):
+    def __init__(self, net1: spec.SpectrumAnalysis, 
+                 net2: spec.SpectrumAnalysis, names = None):
         """
 
-        :param net1: spectral_analysis.spectrum_analysis object that has been trained already
-        :param net2: spectral_analysis.spectrum_analysis object that has been trained already
+        :param net1: spectral_analysis.SpectrumAnalysis object that has been trained already
+        :param net2: spectral_analysis.SpectrumAnalysis object that has been trained already
 
         OR they can be the weights of a network 
         """
@@ -35,19 +35,14 @@ class network_comparison:
         if names:
             self.names = names
         else:
-            self.names = ['Network 1', 'Network 2']
+            self.names = ['model0', 'model1']
 
         # print the network informationes
         i = 1
         for net in (net1, net2):
-            # print(f'Network {i}\n=============================')
-            # print(f'Architecture\n{net.model}')
-            # print(f'Trained:\t\t{net.epoch_history[-1]} epochs')
-            # print(f'Trained on:\t\t{net.train_loader}\n======\n=====\n=====')
-
             # getting the weight spectrum if not set
-            if not net.weight_spectrum:
-                net.get_weight_spectrum()
+            # if not net.weight_spectrum:
+            net.get_weight_spectrum()
             i += 1
 
         # Attributes set by alignment
@@ -58,8 +53,9 @@ class network_comparison:
         self.r2s = None
 
         # covariances
-        self.weight_covs = None
-        self.activation_covs = None
+        # self.weight_covs = {}
+        self.activation_covs = {}
+
         # eigenvectors
         self.weight_eigenvectors = None
         self.activation_eigenvectors = None
@@ -70,6 +66,7 @@ class network_comparison:
         #
         self.cossim = None
 
+
     def compute_alignments(self, dataloader, layers):
         """
         Computes the alignment matrices for each layer between the models and sets the appropriate attributes for futher comparison. Note that the weight_eigenvectors and activation_eigenvectors are the transposed versions
@@ -78,8 +75,6 @@ class network_comparison:
         :param layers: the layers at which to calculate the alignment matrices
         :return: none
         """
-        # print(f'computing alignments for layers {layers}')
-        start = time.time()
         if 0 in layers:
             raise Exception('0 is not a valid layer index for comparison')
         
@@ -87,92 +82,66 @@ class network_comparison:
         #align_list, r2s = align.compute_alignments(dataloader, layers,
         # print(f'Computing alignments with provided ALIGNMENT LOADER\n\
         #     ALIGN LOADER : {id(dataloader)}')
+        print(f'computing alignments for {layers}')
         align_list = align.compute_alignments(dataloader, layers, 
                                                    self.models[0].model, 
                                                    self.models[1].model)
 
         align_dict = dict(zip(layers, align_list))
-        # print(f'TEST: ALIGNMENT DICTIONARY')
-        # print(align_dict)
-        #print(f'Alignment: {(time.time()-start):.4f} s')
+
         #r2_dict = dict(zip(layers, r2s))
 
         # set the attributes
         self.alignments = align_dict.copy()
         self.dataloader = dataloader
-        self.layers = layers.copy()
+        self.layers = layers
         #self.r2s = r2_dict.copy()
 
+        self.decompose_covariances(self.layers, set_features=True)
+        return
+
+    def decompose_covariances(self, layers, set_features=False):
+        """
+        Getting decomposed model activation covariances and weights
+        """
         # get the alignment covariances and vectors wrt the dataloader 
         # for comparison
         start = time.time()
-        for net in self.models:
-            #net.set_train_loader(dataloader)
-            # print(f'NET TRAIN LOAD : {id(net.train_loader)}')
-            _ = net.get_activation_spectrum() # this uses the train loader of the model
-
-        #print(f'Act Spect: {(time.time()-start):.4f} s')
-
-        # get the eigenvectors for the weights
-        # 0 is the 0th model, 1 is the 1st model. The weights are then 
-        # stored in a dictionary with a key corresponding to each layer 
-        # of the model
-        start = time.time()
-        weight_vec_dict = {0: None, 1: None}
-        act_vec_dict = {0: None, 1: None}
-        weight_spec_dict = {0: None, 1: None}
-        act_spec_dict = {0: None, 1: None}
         i = 0
         for net in self.models:
-            # first, get the weight eigenvectors
-            # 2024-08-06 MO
-            ## This needs to be calculated separately! Due to numerical 
-            ## issues or the way that I calculate the weight covariance
-            weight_vectors = []
-            for layer in layers:
-                weight_list = torch.from_numpy(net.weights[layer - 1])
-                u, s, vh = torch.linalg.svd(weight_list, full_matrices=False)
-                weight_vectors.append(vh)
-            # #also get the weight covariances for when we might want 
-            # #the distances
-            weight_covlist = [net.weight_covs[k - 1] for k in layers]
-            self.weight_covs = dict(zip(self.layers, weight_covlist.copy()))
-            w_spec = []
-           # w_vecs = []
-            for wcov in weight_covlist:
-                vals, vecs = torch.linalg.eigh(wcov)
-                vals, vecs = vals.flip(-1), vecs.flip(-1)
-                w_spec.append(vals)
-              #  w_vecs.append(vecs)
+            print(f'Model {self.names[i]}')
+            _ = net.get_activation_spectrum() # this uses the train loader of the model
+            # weight spectrum already calcualted at init
+            i += 1
 
-            # get the activations eigenvectors for each model
-            cov_list = [net.activation_covs[k-1] for k in layers]
-            vectors = []
-            values = []
-            for cov in cov_list:
-                vals, vecs = torch.linalg.eigh(cov)
-                vals, vecs = vals.flip(-1), vecs.flip(-1)
-                vecs = vecs.T
+        weight_vec_dict = {}
+        act_vec_dict = {}
+        weight_spec_dict = {}
+        act_spec_dict = {}
+        i = 0
+        for net in self.models:
+            key = self.names[i]
+            weight_vectors = [net.weight_eigenvectors[lay-1] for lay in layers]
+            weight_vec_dict[key] = dict(zip(layers, weight_vectors))
 
-                vectors.append(vecs)
-                values.append(vals)
+            weight_spectrum = [net.weight_spectrum[lay-1] for lay in layers]
+            weight_spec_dict[key] = dict(zip(layers, weight_spectrum))
 
-            # setting the appropriate quantities
-            act_vec_dict[i] = dict(zip(layers, vectors.copy()))
-            act_spec_dict[i] = dict(zip(layers, values.copy()))
+            activation_vectors = [net.activation_eigenvectors[lay] for lay in layers]
+            act_vec_dict[key] = dict(zip(layers, activation_vectors))
 
-            #weight_vec_dict[i] = dict(zip(layers, w_vecs.copy()))
-            weight_vec_dict[i] = dict(zip(layers, weight_vectors.copy()))
-            weight_spec_dict[i] = dict(zip(layers, w_spec.copy()))
+            activation_spectrum = [net.activation_spectrum[lay] for lay in layers]
+            act_spec_dict[key] = dict(zip(layers, activation_spectrum))
 
             i += 1
-        #print(f'AlignVecs: {(time.time()-start):.4f} s')
+
         ### SET THE FEATURES
-        self.weight_eigenvectors = weight_vec_dict.copy()
-        self.activation_eigenvectors = act_vec_dict.copy()
-        self.activation_spectrum = act_spec_dict.copy()
-        self.weight_spectrum = weight_spec_dict.copy()
-        return
+        if set_features:
+            self.weight_eigenvectors = weight_vec_dict.copy()
+            self.activation_eigenvectors = act_vec_dict.copy()
+            self.activation_spectrum = act_spec_dict.copy()
+            self.weight_spectrum = weight_spec_dict.copy()
+        return weight_vec_dict, weight_spec_dict, act_vec_dict, act_spec_dict
 
     def compute_cossim(self):
         """
@@ -188,15 +157,16 @@ class network_comparison:
         sim_mats = {}
 
         for layer in self.layers:
-            a_eigs1 = self.activation_eigenvectors[0][layer]
-            a_eigs2 = self.activation_eigenvectors[1][layer]
+            a_eigs1 = self.activation_eigenvectors[self.names[0]][layer]
+            a_eigs2 = self.activation_eigenvectors[self.names[1]][layer]
 
-            w_eigs1 = self.weight_eigenvectors[0][layer]
-            w_eigs2 = self.weight_eigenvectors[1][layer]
+            w_eigs1 = self.weight_eigenvectors[self.names[0]][layer]
+            w_eigs2 = self.weight_eigenvectors[self.names[1]][layer]
 
             a_align = self.alignments[layer]
             if layer != 1:
-                w_align = self.alignments[layer-1]
+                w_align = self.alignments[layer-1] ## TESTING
+
 
             for aligned in [False, True]:
                 # get the activation similarity
@@ -210,6 +180,7 @@ class network_comparison:
 
                 # get the weights similarity
                 if aligned and layer != 1:
+                    # w_sim = torch.abs(w_eigs1 @ w_align @ w_eigs2.T)
                     w_sim = torch.abs(w_eigs1 @ w_align @ w_eigs2.T)
                 else:
                     w_sim = torch.abs(w_eigs1 @ w_eigs2.T)
@@ -281,7 +252,7 @@ class network_comparison:
                         plt.plot(xs1, ys1, color='b', label='dist clip')
                         plt.plot(xs2, ys2, color='b')
 
-                    if plot_clip or quantity == 'weights':
+                    if plot_clip or (quantity == 'weights' and ed_plot):
                         plt.legend()
 
                     plt.title(title, fontsize=20)
@@ -468,551 +439,551 @@ def bw_dist_covs(vecs1, vals1, vecs2, vals2, truncate=None, quant='dist', return
         return distance
 
 
-class NetworkComparisonCollection:
-    """
-    A class for comparing multiple networks/experiments
-    Weights and Activations
-    """
+# class NetworkComparisonCollection:
+#     """
+#     A class for comparing multiple networks/experiments
+#     Weights and Activations
+#     """
 
-    def __init__(self, *args, layers=[1], dataloader=None, align_to=None, 
-                names=None):
-        """
-        args is a list of networks to compare. these should be spec.spectrum_analysis objects
-        align_to is a spec.spectrum_analysis
-        align bool whether to align the networks
-        """
+#     def __init__(self, *args, layers=[1], dataloader=None, align_to=None, 
+#                 names=None):
+#         """
+#         args is a list of networks to compare. these should be spec.SpectrumAnalysis objects
+#         align_to is a spec.SpectrumAnalysis
+#         align bool whether to align the networks
+#         """
 
-        self.models = args
-        self.reference = align_to if align_to else args[0]
-        dataloader = dataloader if dataloader else self.reference.train_loader
+#         self.models = args
+#         self.reference = align_to if align_to else args[0]
+#         dataloader = dataloader if dataloader else self.reference.train_loader
 
-        if names:
-            self.names = names
-        else: 
-            self.names = [f'Network {k}' for k in range(1, len(args))]
+#         if names:
+#             self.names = names
+#         else: 
+#             self.names = [f'Network {k}' for k in range(1, len(args))]
         
-        # getting the weight spectra if not set
-        for mod in self.models:
-            if not mod.weight_spectrum:
-                mod.get_weight_spectrum()
-        if not self.reference.weight_spectrum:
-            self.reference.get_weight_spectrum()
+#         # getting the weight spectra if not set
+#         for mod in self.models:
+#             if not mod.weight_spectrum:
+#                 mod.get_weight_spectrum()
+#         if not self.reference.weight_spectrum:
+#             self.reference.get_weight_spectrum()
         
-        w_vecs, w_vals, a_vecs, a_vals = \
-            compute_eigenvector_spectrum_list(self.models, dataloader, layers)
+#         w_vecs, w_vals, a_vecs, a_vals = \
+#             compute_eigenvector_spectrum_list(self.models, dataloader, layers)
         
-        # attributes set by alignment
-        self.activation_covs = None # dict []
-        self.layers = layers # list(int)
-        self.alignments = None # dict
-        self.dataloader = dataloader # torch.dataloader()
-        self.r2s = None # dict
+#         # attributes set by alignment
+#         self.activation_covs = None # dict []
+#         self.layers = layers # list(int)
+#         self.alignments = None # dict
+#         self.dataloader = dataloader # torch.dataloader()
+#         self.r2s = None # dict
 
-        # covariances
-        self.weight_covs = None
-        self.activation_covs = None
+#         # covariances
+#         self.weight_covs = None
+#         self.activation_covs = None
 
-        # eigenvectors
-        self.weight_eigenvectors = w_vecs
-        self.activation_eigenvectors = a_vecs
+#         # eigenvectors
+#         self.weight_eigenvectors = w_vecs
+#         self.activation_eigenvectors = a_vecs
 
-        # eigenvalues
-        self.weight_spectrum = w_vals
-        self.activation_spectrum = a_vals
+#         # eigenvalues
+#         self.weight_spectrum = w_vals
+#         self.activation_spectrum = a_vals
 
-        # aligned eigenvectors
-        self.weight_aligned_vectors = None
-        self.activation_aligned_vectors = None
+#         # aligned eigenvectors
+#         self.weight_aligned_vectors = None
+#         self.activation_aligned_vectors = None
 
-        self.cossim = None
+#         self.cossim = None
 
-        self.weight_metric_mat = None
-        self.activation_metric_mat = None
+#         self.weight_metric_mat = None
+#         self.activation_metric_mat = None
 
-        return
+#         return
     
-    # unused ATM - too clunky
-    def compute_alignments(self, dataloader=None):
-        """
-        Gets the alignments, r2 values, eigenvectors/spectra for each of the 
-        models and set the appropriate features
+#     # unused ATM - too clunky
+#     def compute_alignments(self, dataloader=None):
+#         """
+#         Gets the alignments, r2 values, eigenvectors/spectra for each of the 
+#         models and set the appropriate features
         
-        """
-        dataloader = dataloader if dataloader else self.dataloader
+#         """
+#         dataloader = dataloader if dataloader else self.dataloader
 
-        # first, compute alignments
-        align_dict, r2_dict = compute_alignment_list(self.reference, self.models,
-                                                     dataloader, self.layers)
-            # [model index] -> [layer] -> alignment matrix (or r2 value)
-        self.alignments = align_dict.copy()
-        #self.r2s = r2_dict.copy()
+#         # first, compute alignments
+#         align_dict, r2_dict = compute_alignment_list(self.reference, self.models,
+#                                                      dataloader, self.layers)
+#             # [model index] -> [layer] -> alignment matrix (or r2 value)
+#         self.alignments = align_dict.copy()
+#         #self.r2s = r2_dict.copy()
 
-        w_vecs = self.weight_eigenvectors
-        w_vals = self.weight_spectrum
-        a_vecs = self.activation_eigenvectors
-        a_vals = self.activation_spectrum
-        layers = self.layers
-        # set the aligned vectors for each quanitity
-        # container for each model's aligned vectors
-        aligned_vectors_w = []
-        aligned_vectors_a = []
+#         w_vecs = self.weight_eigenvectors
+#         w_vals = self.weight_spectrum
+#         a_vecs = self.activation_eigenvectors
+#         a_vals = self.activation_spectrum
+#         layers = self.layers
+#         # set the aligned vectors for each quanitity
+#         # container for each model's aligned vectors
+#         aligned_vectors_w = []
+#         aligned_vectors_a = []
 
-        for i in tqdm(range(len(self.models)), desc='Calculating aligned eigenvectors'):
-            # get the collection of eigenvectors for each layer
-            w_vecs = self.weight_eigenvectors[i]
-            a_vecs = self.activation_eigenvectors[i]
+#         for i in tqdm(range(len(self.models)), desc='Calculating aligned eigenvectors'):
+#             # get the collection of eigenvectors for each layer
+#             w_vecs = self.weight_eigenvectors[i]
+#             a_vecs = self.activation_eigenvectors[i]
 
-            aligns = align_dict[i]
+#             aligns = align_dict[i]
 
-            # containers for the aligned vectors for the model
-            model_layers_aligned_acts = []
-            model_layers_aligned_ways = []
+#             # containers for the aligned vectors for the model
+#             model_layers_aligned_acts = []
+#             model_layers_aligned_ways = []
 
-            # calculate the alignment
-            for lay in layers:
-                # get the eigenvectors for the layer
-                w_lay_vecs = w_vecs[lay]
-                a_lay_vecs = a_vecs[lay]
+#             # calculate the alignment
+#             for lay in layers:
+#                 # get the eigenvectors for the layer
+#                 w_lay_vecs = w_vecs[lay]
+#                 a_lay_vecs = a_vecs[lay]
 
-                # get the alignment matrix
-                align_mat_a = aligns[lay]
-                align_mat_w = aligns[lay-1] if lay != 1 else None
+#                 # get the alignment matrix
+#                 align_mat_a = aligns[lay]
+#                 align_mat_w = aligns[lay-1] if lay != 1 else None
 
-                # align the vectors
-                if align_mat_w is not None:
-                    w_lay_vecs = w_lay_vecs @ align_mat_w.T
+#                 # align the vectors
+#                 if align_mat_w is not None:
+#                     w_lay_vecs = w_lay_vecs @ align_mat_w.T
                 
-                a_lay_vecs = a_lay_vecs @ align_mat_a.T
+#                 a_lay_vecs = a_lay_vecs @ align_mat_a.T
 
-                model_layers_aligned_acts.append(a_lay_vecs)
-                model_layers_aligned_ways.append(w_lay_vecs)
+#                 model_layers_aligned_acts.append(a_lay_vecs)
+#                 model_layers_aligned_ways.append(w_lay_vecs)
             
-            aligned_vectors_w.append(dict(zip(layers, model_layers_aligned_ways)))
-            aligned_vectors_a.append(dict(zip(layers, model_layers_aligned_acts)))
+#             aligned_vectors_w.append(dict(zip(layers, model_layers_aligned_ways)))
+#             aligned_vectors_a.append(dict(zip(layers, model_layers_aligned_acts)))
 
         
-        model_inds = list(range(len(self.models)))
-        aligned_eigen_weights = dict(zip(model_inds, aligned_vectors_w))
-        aligned_eigen_activations = dict(zip(model_inds, aligned_vectors_a))
-        # dict:
-        # [model ind] -> [layer] -> aligned vectors
+#         model_inds = list(range(len(self.models)))
+#         aligned_eigen_weights = dict(zip(model_inds, aligned_vectors_w))
+#         aligned_eigen_activations = dict(zip(model_inds, aligned_vectors_a))
+#         # dict:
+#         # [model ind] -> [layer] -> aligned vectors
 
-        # set the features
-        self.weight_aligned_vectors = aligned_eigen_weights
-        self.activation_aligned_vectors = aligned_eigen_activations
+#         # set the features
+#         self.weight_aligned_vectors = aligned_eigen_weights
+#         self.activation_aligned_vectors = aligned_eigen_activations
         
-        return
+#         return
 
-    # this is the one
-    def compute_aligned_vectors(self, dataloader=None):
-        """
-        Gets the eigenvectors aligned to reference for each model and stores 
-        them in the object as
-        [model index] -> [layer] -> aligned vectors
-        """
-        dataloader = dataloader if dataloader else self.dataloader
+#     # this is the one
+#     def compute_aligned_vectors(self, dataloader=None):
+#         """
+#         Gets the eigenvectors aligned to reference for each model and stores 
+#         them in the object as
+#         [model index] -> [layer] -> aligned vectors
+#         """
+#         dataloader = dataloader if dataloader else self.dataloader
 
-        aligned_weights, aligned_activations = \
-            compute_aligned_vectors(self.reference, self.models, dataloader,
-                                    self.layers, self.weight_eigenvectors,
-                                    self.activation_eigenvectors)
-        self.weight_aligned_vectors = aligned_weights
-        self.activation_aligned_vectors = aligned_activations
-        #self.r2s = r2s
+#         aligned_weights, aligned_activations = \
+#             compute_aligned_vectors(self.reference, self.models, dataloader,
+#                                     self.layers, self.weight_eigenvectors,
+#                                     self.activation_eigenvectors)
+#         self.weight_aligned_vectors = aligned_weights
+#         self.activation_aligned_vectors = aligned_activations
+#         #self.r2s = r2s
         
-        # 2024-07-31
-        # attempting to orient to standard basis in all cases
-        # in this case the alignment for the weights does not depend on the activations
-        # aligned_vectors = []
-        # for vector_dict in (self.weight_eigenvectors, self.activation_eigenvectors):
-        #     # [model index] -> [layer] -> eigenvectors
-        #     # the other function above gives output of the same shape
-        #     model_keys = list(vector_dict.keys())
-        #     quantity_dict = {}
-        #     for k in model_keys:
-        #         model_dict = vector_dict[k]
-        #         #print(model_dict)
-        #         layer_keys = list(model_dict.keys())
+#         # 2024-07-31
+#         # attempting to orient to standard basis in all cases
+#         # in this case the alignment for the weights does not depend on the activations
+#         # aligned_vectors = []
+#         # for vector_dict in (self.weight_eigenvectors, self.activation_eigenvectors):
+#         #     # [model index] -> [layer] -> eigenvectors
+#         #     # the other function above gives output of the same shape
+#         #     model_keys = list(vector_dict.keys())
+#         #     quantity_dict = {}
+#         #     for k in model_keys:
+#         #         model_dict = vector_dict[k]
+#         #         #print(model_dict)
+#         #         layer_keys = list(model_dict.keys())
 
-        #         model_dict_new = {}
-        #         for ell in layer_keys:
-        #             vectors = model_dict[ell]
-        #             layer_align = vectors.T
+#         #         model_dict_new = {}
+#         #         for ell in layer_keys:
+#         #             vectors = model_dict[ell]
+#         #             layer_align = vectors.T
 
-        #             model_dict_new[ell] = vectors @ layer_align 
-        #         quantity_dict[k] = model_dict_new
-        #     aligned_vectors.append(quantity_dict)
+#         #             model_dict_new[ell] = vectors @ layer_align 
+#         #         quantity_dict[k] = model_dict_new
+#         #     aligned_vectors.append(quantity_dict)
         
-        # self.weight_aligned_vectors = aligned_vectors[0]
-        # self.activation_aligned_vectors = aligned_vectors[1]
+#         # self.weight_aligned_vectors = aligned_vectors[0]
+#         # self.activation_aligned_vectors = aligned_vectors[1]
 
-        self.clear_unaligned_vectors()
-        clear_memory()
+#         self.clear_unaligned_vectors()
+#         clear_memory()
 
-        return
+#         return
     
-    def clear_unaligned_vectors(self):
-        self.weight_eigenvectors = None
-        self.activation_eigenvectors = None
-        return
+#     def clear_unaligned_vectors(self):
+#         self.weight_eigenvectors = None
+#         self.activation_eigenvectors = None
+#         return
 
-    def compute_cossims_vecs(self):
-        """
-        compute the cosine similarities between the reference and the models 
-        for the aligned and unaligned activations and weights
-        """
-        error_message = "No alignment matrices have been calculated. Run \
-        .compute_alignments with the desired dataloader and layer list first"
-        assert self.alignments is not None, error_message
+#     def compute_cossims_vecs(self):
+#         """
+#         compute the cosine similarities between the reference and the models 
+#         for the aligned and unaligned activations and weights
+#         """
+#         error_message = "No alignment matrices have been calculated. Run \
+#         .compute_alignments with the desired dataloader and layer list first"
+#         assert self.alignments is not None, error_message
 
-        # fill this in later
+#         # fill this in later
         
-        return
+#         return
 
-    def get_pairwise_matrix(self, inds_1=None, inds_2=None, 
-                            w_clip=30, a_clip=64, sim=True):
-        """
-        Gives back the metric matrices as a dictionary:
-        [layer] -> similarity matrix
-        for each of weights and activations (returned in that order)
+#     def get_pairwise_matrix(self, inds_1=None, inds_2=None, 
+#                             w_clip=30, a_clip=64, sim=True):
+#         """
+#         Gives back the metric matrices as a dictionary:
+#         [layer] -> similarity matrix
+#         for each of weights and activations (returned in that order)
 
-        inds_1 and inds_2 should be the indices of the models in model_list. 
-        This gives us the "sides" of the similarity matrix
-        """
-        weights = []
-        activations = []
-        model_set1 = self.models[inds_1[0]:inds_1[1]] if inds_1 else self.models
-        model_set2 = self.models[inds_2[0]:inds_2[1]] if inds_2 else self.models
+#         inds_1 and inds_2 should be the indices of the models in model_list. 
+#         This gives us the "sides" of the similarity matrix
+#         """
+#         weights = []
+#         activations = []
+#         model_set1 = self.models[inds_1[0]:inds_1[1]] if inds_1 else self.models
+#         model_set2 = self.models[inds_2[0]:inds_2[1]] if inds_2 else self.models
 
-        #quants = {'activations' : [], 'weights' : []}
+#         #quants = {'activations' : [], 'weights' : []}
 
-        quantity = 'sim' if sim else 'dist'
+#         quantity = 'sim' if sim else 'dist'
 
-        for layer in self.layers:
-            layer_sims_acts = []
-            layer_sims_ways = []
+#         for layer in self.layers:
+#             layer_sims_acts = []
+#             layer_sims_ways = []
 
-            for ind in range(len(model_set1)):
-                i_acts = []
-                i_ways = []
-                second_loop = range(ind+1, len(model_set1)) \
-                    if model_set1 == model_set2 else (range(len(model_set2)))
-                for jnd in tqdm(second_loop, desc=f'Computing {ind} pairwise'):
-                    #print(f'Layer: {layer}\nind:  {ind}\njnd:  {jnd}')
-                    # activation info
-                    act_vecs1 = self.activation_aligned_vectors[ind][layer]
-                    act_vals1 = self.activation_spectrum[ind][layer]
+#             for ind in range(len(model_set1)):
+#                 i_acts = []
+#                 i_ways = []
+#                 second_loop = range(ind+1, len(model_set1)) \
+#                     if model_set1 == model_set2 else (range(len(model_set2)))
+#                 for jnd in tqdm(second_loop, desc=f'Computing {ind} pairwise'):
+#                     #print(f'Layer: {layer}\nind:  {ind}\njnd:  {jnd}')
+#                     # activation info
+#                     act_vecs1 = self.activation_aligned_vectors[ind][layer]
+#                     act_vals1 = self.activation_spectrum[ind][layer]
 
-                    act_vecs2 = self.activation_aligned_vectors[jnd][layer]
-                    act_vals2 = self.activation_spectrum[jnd][layer]
+#                     act_vecs2 = self.activation_aligned_vectors[jnd][layer]
+#                     act_vals2 = self.activation_spectrum[jnd][layer]
 
-                    # weight info
-                    way_vecs1 = self.weight_aligned_vectors[ind][layer]
-                    way_vals1 = self.weight_spectrum[ind][layer]
+#                     # weight info
+#                     way_vecs1 = self.weight_aligned_vectors[ind][layer]
+#                     way_vals1 = self.weight_spectrum[ind][layer]
 
-                    way_vecs2 = self.weight_aligned_vectors[jnd][layer]
-                    way_vals2 = self.weight_spectrum[jnd][layer]
+#                     way_vecs2 = self.weight_aligned_vectors[jnd][layer]
+#                     way_vals2 = self.weight_spectrum[jnd][layer]
 
-                    act_bw = bw_dist_covs(act_vecs1, act_vals1, 
-                                          act_vecs2, act_vals2,
-                                          truncate=a_clip, quant=quantity,
-                                          return_quantities=False)
+#                     act_bw = bw_dist_covs(act_vecs1, act_vals1, 
+#                                           act_vecs2, act_vals2,
+#                                           truncate=a_clip, quant=quantity,
+#                                           return_quantities=False)
                     
-                    way_bw = bw_dist_covs(way_vecs1, way_vals1, 
-                                          way_vecs2, way_vals2,
-                                          truncate=w_clip, quant=quantity,
-                                          return_quantities=False)
+#                     way_bw = bw_dist_covs(way_vecs1, way_vals1, 
+#                                           way_vecs2, way_vals2,
+#                                           truncate=w_clip, quant=quantity,
+#                                           return_quantities=False)
 
 
-                    #sims for the model
-                    i_acts.append(act_bw)
-                    i_ways.append(way_bw)
-                # sims for the layer
-                layer_sims_acts.append(i_acts)
-                layer_sims_ways.append(i_ways)
+#                     #sims for the model
+#                     i_acts.append(act_bw)
+#                     i_ways.append(way_bw)
+#                 # sims for the layer
+#                 layer_sims_acts.append(i_acts)
+#                 layer_sims_ways.append(i_ways)
             
-            # sims for the layer add to all
-            #print(layer_sims_acts)
-            if model_set1 == model_set2: # if symmetric, turn into sim mat
-                weights.append(similarity_matrix_from_lists(layer_sims_ways))
-                activations.append(similarity_matrix_from_lists(layer_sims_acts))
-            else:       # otherwise, convert into matrix
-                weights.append(np.array(layer_sims_ways))
-                activations.append(np.array(layer_sims_acts))
+#             # sims for the layer add to all
+#             #print(layer_sims_acts)
+#             if model_set1 == model_set2: # if symmetric, turn into sim mat
+#                 weights.append(similarity_matrix_from_lists(layer_sims_ways))
+#                 activations.append(similarity_matrix_from_lists(layer_sims_acts))
+#             else:       # otherwise, convert into matrix
+#                 weights.append(np.array(layer_sims_ways))
+#                 activations.append(np.array(layer_sims_acts))
         
-        weight_matrix_dict = dict(zip(self.layers, weights))
-        activation_matrix_dict = dict(zip(self.layers, activations))
+#         weight_matrix_dict = dict(zip(self.layers, weights))
+#         activation_matrix_dict = dict(zip(self.layers, activations))
 
-        # set the appropriate features
-        self.weight_metric_mat = weight_matrix_dict
-        self.activation_metric_mat = activation_matrix_dict
+#         # set the appropriate features
+#         self.weight_metric_mat = weight_matrix_dict
+#         self.activation_metric_mat = activation_matrix_dict
 
-        return weight_matrix_dict, activation_matrix_dict
+#         return weight_matrix_dict, activation_matrix_dict
 
-# unused right now
-def compute_alignment_list(reference, models_to_align, dataloader, layers, 
-                           batch_size=9):
-    """
-    Compute alignments for multiple models wrt a given reference
+# # # unused right now
+# # def compute_alignment_list(reference, models_to_align, dataloader, layers, 
+# #                            batch_size=9):
+# #     """
+# #     Compute alignments for multiple models wrt a given reference
 
-    reference : spec.spectrum_analysis
-    models_to_align : list(spec.spectrum_analysis)
-    dataloader : torch.dataloader
-    layers : list(int)
+# #     reference : spec.SpectrumAnalysis
+# #     models_to_align : list(spec.SpectrumAnalysis)
+# #     dataloader : torch.dataloader
+# #     layers : list(int)
 
-    returns dict of alignments for the given layers for the models to the ref
-    indexes the models with integers in order as keys
+# #     returns dict of alignments for the given layers for the models to the ref
+# #     indexes the models with integers in order as keys
 
-    return is 
-    dict: [model index] -> [layer] -> alignment matrix (or r2 value)
-    (reference model has index 0)
+# #     return is 
+# #     dict: [model index] -> [layer] -> alignment matrix (or r2 value)
+# #     (reference model has index 0)
     
-    """
-    # check that layer selection is valid
-    assert 0 not in layers, '0 is not a valid layer index for comparison'
+# #     """
+# #     # check that layer selection is valid
+# #     assert 0 not in layers, '0 is not a valid layer index for comparison'
 
-    # align_lists = []
-    # r2_list = []
-    # for model in tqdm(models_to_align, desc='Aligning Models'):
-    #     align_li, r2 = align.compute_alignments(dataloader, layers, reference.model, 
-    #                                          model.model)
+# #     # align_lists = []
+# #     # r2_list = []
+# #     # for model in tqdm(models_to_align, desc='Aligning Models'):
+# #     #     align_li, r2 = align.compute_alignments(dataloader, layers, reference.model, 
+# #     #                                          model.model)
         
-    #     model_align_dict = dict(zip(layers, align_li))
-    #     model_r2_dict = dict(zip(layers, r2))
+# #     #     model_align_dict = dict(zip(layers, align_li))
+# #     #     model_r2_dict = dict(zip(layers, r2))
         
-    #     align_lists.append(model_align_dict)
-    #     r2_list.append(model_r2_dict)
+# #     #     align_lists.append(model_align_dict)
+# #     #     r2_list.append(model_r2_dict)
 
-    #     del model, model_align_dict, model_r2_dict
-    #     clear_memory()
+# #     #     del model, model_align_dict, model_r2_dict
+# #     #     clear_memory()
 
-    # # create dictionary to return
-    # model_inds = list(range(len(models_to_align)))
-    # align_dict = dict(zip(model_inds, align_lists))
-    # r2_dict = dict(zip(model_inds, r2_list))
+# #     # # create dictionary to return
+# #     # model_inds = list(range(len(models_to_align)))
+# #     # align_dict = dict(zip(model_inds, align_lists))
+# #     # r2_dict = dict(zip(model_inds, r2_list))
 
-    # return align_dict, r2_dict
-    align_dict = {}
-    r2_dict = {}
+# #     # return align_dict, r2_dict
+# #     align_dict = {}
+# #     r2_dict = {}
     
-    num_models = len(models_to_align)
+# #     num_models = len(models_to_align)
     
-    for i in tqdm(range(0, num_models, batch_size), desc='Aligning Models'):
-        end_ind = min(i+batch_size, num_models)
-        batch_models = models_to_align[i:end_ind]
-        align_lists = []
-        r2_list = []
+# #     for i in tqdm(range(0, num_models, batch_size), desc='Aligning Models'):
+# #         end_ind = min(i+batch_size, num_models)
+# #         batch_models = models_to_align[i:end_ind]
+# #         align_lists = []
+# #         r2_list = []
 
-        for model in batch_models:
-            align_li, r2 = align.compute_alignments(dataloader, layers, reference.model, model.model)
+# #         for model in batch_models:
+# #             align_li, r2 = align.compute_alignments(dataloader, layers, reference.model, model.model)
             
-            model_align_dict = dict(zip(layers, align_li))
-            model_r2_dict = dict(zip(layers, r2))
+# #             model_align_dict = dict(zip(layers, align_li))
+# #             model_r2_dict = dict(zip(layers, r2))
             
-            align_lists.append(model_align_dict)
-            r2_list.append(model_r2_dict)
+# #             align_lists.append(model_align_dict)
+# #             r2_list.append(model_r2_dict)
 
-            del model, model_align_dict, model_r2_dict
-            clear_memory()
+# #             del model, model_align_dict, model_r2_dict
+# #             clear_memory()
 
-        batch_indices = list(range(i, min(i + batch_size, num_models)))
-        align_dict.update(dict(zip(batch_indices, align_lists)))
-        r2_dict.update(dict(zip(batch_indices, r2_list)))
+# #         batch_indices = list(range(i, min(i + batch_size, num_models)))
+# #         align_dict.update(dict(zip(batch_indices, align_lists)))
+# #         r2_dict.update(dict(zip(batch_indices, r2_list)))
         
-        # Clear memory after each batch
-        clear_memory()
+# #         # Clear memory after each batch
+# #         clear_memory()
 
-    return align_dict, r2_dict
+# #     return align_dict, r2_dict
 
         
-def compute_eigenvector_spectrum_list(models_list, dataloader, layers):
-    """
-    models_list :   list(spec.spectrum_analysis)    the list of models to do 
-                                                    the calculation for
+# # def compute_eigenvector_spectrum_list(models_list, dataloader, layers):
+# #     """
+# #     models_list :   list(spec.SpectrumAnalysis)    the list of models to do 
+# #                                                     the calculation for
     
-    returns activation and weights eigenvectors and spectra as 
-    dict: [model index] -> [layer] -> eigen vectors (or values)
+# #     returns activation and weights eigenvectors and spectra as 
+# #     dict: [model index] -> [layer] -> eigen vectors (or values)
 
-    model indices are set as the index of the model in the input list
-    """
+# #     model indices are set as the index of the model in the input list
+# #     """
 
-    w_vec_dicts = []
-    w_val_dicts = []
-    a_vec_dicts = []
-    a_val_dicts = []
+# #     w_vec_dicts = []
+# #     w_val_dicts = []
+# #     a_vec_dicts = []
+# #     a_val_dicts = []
 
-    for model in tqdm(models_list, desc="Getting Eigenvectors"):
-        # make sure weights and activations are there
-        set_seed(1234)
-        #_ = model.get_activation_covs(dataloader, layers)
-        _ = model.get_activation_spectrum()
+# #     for model in tqdm(models_list, desc="Getting Eigenvectors"):
+# #         # make sure weights and activations are there
+# #         set_seed(1234)
+# #         #_ = model.get_activation_covs(dataloader, layers)
+# #         _ = model.get_activation_spectrum()
 
-        if not model.weight_spectrum:
-            model.get_weight_spectrum()
+# #         if not model.weight_spectrum:
+# #             model.get_weight_spectrum()
 
-        # do for the weights
-        weight_covlist = [model.weight_covs[i-1] for i in layers]
-        w_vecs = []
-        w_vals = []
-        for wcov in weight_covlist:
-            vals, vecs = torch.linalg.eigh(wcov)
-            vals, vecs = vals.flip(-1), vecs.flip(-1)
-            w_vals.append(vals)
-            w_vecs.append(vecs)
-        # setting the appropriate dictionaries
-        w_vec_dicts.append(dict(zip(layers, w_vecs.copy())))
-        w_val_dicts.append(dict(zip(layers, w_vals.copy())))
+# #         # do for the weights
+# #         weight_covlist = [model.weight_covs[i-1] for i in layers]
+# #         w_vecs = []
+# #         w_vals = []
+# #         for wcov in weight_covlist:
+# #             vals, vecs = torch.linalg.eigh(wcov)
+# #             vals, vecs = vals.flip(-1), vecs.flip(-1)
+# #             w_vals.append(vals)
+# #             w_vecs.append(vecs)
+# #         # setting the appropriate dictionaries
+# #         w_vec_dicts.append(dict(zip(layers, w_vecs.copy())))
+# #         w_val_dicts.append(dict(zip(layers, w_vals.copy())))
         
         
-        # do for the activations
-        activation_covlist = [model.activation_covs[i-1] for i in layers]
-        a_vecs = []
-        a_vals = []
-        for acov in activation_covlist:
-            vals, vecs = torch.linalg.eigh(acov)
-            vals, vecs = vals.flip(-1), vecs.flip(-1)
-            a_vals.append(vals)
-            a_vecs.append(vecs)
-        # setting the appropriate dictionaries
-        a_vec_dicts.append(dict(zip(layers, a_vecs.copy())))
-        a_val_dicts.append(dict(zip(layers, a_vals.copy())))
+# #         # do for the activations
+# #         activation_covlist = [model.activation_covs[i-1] for i in layers]
+# #         a_vecs = []
+# #         a_vals = []
+# #         for acov in activation_covlist:
+# #             vals, vecs = torch.linalg.eigh(acov)
+# #             vals, vecs = vals.flip(-1), vecs.flip(-1)
+# #             a_vals.append(vals)
+# #             a_vecs.append(vecs)
+# #         # setting the appropriate dictionaries
+# #         a_vec_dicts.append(dict(zip(layers, a_vecs.copy())))
+# #         a_val_dicts.append(dict(zip(layers, a_vals.copy())))
         
-    model_inds = list(range(len(models_list)))
+# #     model_inds = list(range(len(models_list)))
 
-    w_vec_return = dict(zip(model_inds, w_vec_dicts))
-    w_val_return = dict(zip(model_inds, w_val_dicts))
-    a_vec_return = dict(zip(model_inds, a_vec_dicts))
-    a_val_return = dict(zip(model_inds, a_val_dicts))
+# #     w_vec_return = dict(zip(model_inds, w_vec_dicts))
+# #     w_val_return = dict(zip(model_inds, w_val_dicts))
+# #     a_vec_return = dict(zip(model_inds, a_vec_dicts))
+# #     a_val_return = dict(zip(model_inds, a_val_dicts))
     
-    return w_vec_return, w_val_return, a_vec_return, a_val_return
+# #     return w_vec_return, w_val_return, a_vec_return, a_val_return
 
 
-def compute_metric_2_networks(vecs1, vals1, vecs2, vals2, align=None, 
-                                quantity='dist', truncate=None, return_q=False):
-    """
-    quantity is 'sim' or 'dist'
-    vecs and vals for each of 2 matrices ; alignment matrix to align matrix 2 
-    to matrix 1
-    """
-    if align is not None:
-        vecs2 = vecs2 @ align.T 
+# # def compute_metric_2_networks(vecs1, vals1, vecs2, vals2, align=None, 
+# #                                 quantity='dist', truncate=None, return_q=False):
+# #     """
+# #     quantity is 'sim' or 'dist'
+# #     vecs and vals for each of 2 matrices ; alignment matrix to align matrix 2 
+# #     to matrix 1
+# #     """
+# #     if align is not None:
+# #         vecs2 = vecs2 @ align.T 
 
-    metric = bw_dist_covs(vecs1, vals1, vecs2, vals2, truncate=truncate, 
-                            quant=quantity, return_quantities=return_q)
+# #     metric = bw_dist_covs(vecs1, vals1, vecs2, vals2, truncate=truncate, 
+# #                             quant=quantity, return_quantities=return_q)
 
-    return metric
+# #     return metric
 
 
-def similarity_matrix_from_lists(lists):
-    # also in perturbation_to_map, but this would cause a circular dependency :)
-    """
-    Computes a similarity matrix from lists of similarities of decreasing 
-    length corresponding to the upper diagonal of a similarity matrix 
+# # def similarity_matrix_from_lists(lists):
+# #     # also in perturbation_to_map, but this would cause a circular dependency :)
+# #     """
+# #     Computes a similarity matrix from lists of similarities of decreasing 
+# #     length corresponding to the upper diagonal of a similarity matrix 
 
-    :param lists:   list(list(float))   :   to create an nxn similarity matrix,
-                                            this should be a list of n-1 lists
-                                            decreasing in length from n-1 to 1
-    """
-    new_lists = []
-    for l in lists:
-        number_add = len(lists) - len(list(l))
-        l_new = list(0 for _ in range(number_add)) + list(l)
-        new_lists.append(l_new)
+# #     :param lists:   list(list(float))   :   to create an nxn similarity matrix,
+# #                                             this should be a list of n-1 lists
+# #                                             decreasing in length from n-1 to 1
+# #     """
+# #     new_lists = []
+# #     for l in lists:
+# #         number_add = len(lists) - len(list(l))
+# #         l_new = list(0 for _ in range(number_add)) + list(l)
+# #         new_lists.append(l_new)
     
-    similarity_matrix = np.array(new_lists) + np.eye(len(new_lists)) + \
-                        np.array(new_lists).transpose()
+# #     similarity_matrix = np.array(new_lists) + np.eye(len(new_lists)) + \
+# #                         np.array(new_lists).transpose()
 
-    return similarity_matrix
+# #     return similarity_matrix
 
 
-def compute_aligned_vectors(reference, models_to_align, dataloader, layers, 
-                           model_weight_eigenvectors, model_activation_eigenvectors,
-                           batch_size=9):
-    """
-    Compute alignments for multiple models wrt a given reference
+# # def compute_aligned_vectors(reference, models_to_align, dataloader, layers, 
+# #                            model_weight_eigenvectors, model_activation_eigenvectors,
+# #                            batch_size=9):
+# #     """
+# #     Compute alignments for multiple models wrt a given reference
 
-    reference : spec.spectrum_analysis
-    models_to_align : list(spec.spectrum_analysis)
-    dataloader : torch.dataloader
-    layers : list(int)
+# #     reference : spec.SpectrumAnalysis
+# #     models_to_align : list(spec.SpectrumAnalysis)
+# #     dataloader : torch.dataloader
+# #     layers : list(int)
 
-    returns dict of alignments for the given layers for the models to the ref
-    indexes the models with integers in order as keys
+# #     returns dict of alignments for the given layers for the models to the ref
+# #     indexes the models with integers in order as keys
 
-    return is 
-    dict: [model index] -> [layer] -> alignment matrix (or r2 value)
-    (reference model has index 0)
+# #     return is 
+# #     dict: [model index] -> [layer] -> alignment matrix (or r2 value)
+# #     (reference model has index 0)
     
-    """
-    # check that layer selection is valid
-    assert 0 not in layers, '0 is not a valid layer index for comparison'
-    #align_dict = {}
-    #r2_dict = {}
+# #     """
+# #     # check that layer selection is valid
+# #     assert 0 not in layers, '0 is not a valid layer index for comparison'
+# #     #align_dict = {}
+# #     #r2_dict = {}
 
-    aligned_weights_dict = {}
-    aligned_activations_dict = {}
-    #r2_dict = {}
+# #     aligned_weights_dict = {}
+# #     aligned_activations_dict = {}
+# #     #r2_dict = {}
     
-    num_models = len(models_to_align)
+# #     num_models = len(models_to_align)
     
-    for i in tqdm(range(0, num_models, batch_size), desc='Aligning Models'):
-        end_ind = min(i+batch_size, num_models)
-        batch_models = models_to_align[i:end_ind]
-        #align_lists = []
-        align_way_list = []
-        align_act_list = []
-        #r2_list = []
+# #     for i in tqdm(range(0, num_models, batch_size), desc='Aligning Models'):
+# #         end_ind = min(i+batch_size, num_models)
+# #         batch_models = models_to_align[i:end_ind]
+# #         #align_lists = []
+# #         align_way_list = []
+# #         align_act_list = []
+# #         #r2_list = []
 
-        j = 0 # index of model in batch
+# #         j = 0 # index of model in batch
         
-        for model in batch_models:
-            align_li = align.compute_alignments(dataloader, layers, 
-                                                    reference.model, model.model)
+# #         for model in batch_models:
+# #             align_li = align.compute_alignments(dataloader, layers, 
+# #                                                     reference.model, model.model)
             
-            # align the matrices
-            k = 0 # layer index
-            aligned_act_vecs = []
-            aligned_way_vecs = []
-            for lay in layers:
-                w_vecs = model_weight_eigenvectors[i+j][lay]
-                a_vecs = model_activation_eigenvectors[i+j][lay]
+# #             # align the matrices
+# #             k = 0 # layer index
+# #             aligned_act_vecs = []
+# #             aligned_way_vecs = []
+# #             for lay in layers:
+# #                 w_vecs = model_weight_eigenvectors[i+j][lay]
+# #                 a_vecs = model_activation_eigenvectors[i+j][lay]
 
-                # get the alignment matrices
-                align_w = align_li[k-1] if k != 0 else None
-                align_a = align_li[k]
+# #                 # get the alignment matrices
+# #                 align_w = align_li[k-1] if k != 0 else None
+# #                 align_a = align_li[k]
 
-                # doing the alignments
-                if align_w is not None:
-                    w_vecs = w_vecs @ align_w.T
-                a_vecs = a_vecs @ align_a.T
+# #                 # doing the alignments
+# #                 if align_w is not None:
+# #                     w_vecs = w_vecs @ align_w.T
+# #                 a_vecs = a_vecs @ align_a.T
 
-                aligned_act_vecs.append(a_vecs)
-                aligned_way_vecs.append(w_vecs)
+# #                 aligned_act_vecs.append(a_vecs)
+# #                 aligned_way_vecs.append(w_vecs)
 
-                k += 1
-            # make into dicts
-            aligned_activations = dict(zip(layers, aligned_act_vecs))
-            aligned_weights = dict(zip(layers, aligned_way_vecs))
-            #model_align_dict = dict(zip(layers, align_li))
-            #model_r2_dict = dict(zip(layers, r2s))
+# #                 k += 1
+# #             # make into dicts
+# #             aligned_activations = dict(zip(layers, aligned_act_vecs))
+# #             aligned_weights = dict(zip(layers, aligned_way_vecs))
+# #             #model_align_dict = dict(zip(layers, align_li))
+# #             #model_r2_dict = dict(zip(layers, r2s))
             
-            align_way_list.append(aligned_weights)
-            align_act_list.append(aligned_activations)
-            #align_lists.append(model_align_dict)
-            #r2_list.append(model_r2_dict)
+# #             align_way_list.append(aligned_weights)
+# #             align_act_list.append(aligned_activations)
+# #             #align_lists.append(model_align_dict)
+# #             #r2_list.append(model_r2_dict)
 
-            del model, align_li, aligned_activations, aligned_weights#,\model_align_dict, model_r2_dict
-            clear_memory()
+# #             del model, align_li, aligned_activations, aligned_weights#,\model_align_dict, model_r2_dict
+# #             clear_memory()
 
-            j += 1
+# #             j += 1
 
-        batch_indices = list(range(i, min(i + batch_size, num_models)))
-        #align_dict.update(dict(zip(batch_indices, align_lists)))
-        #r2_dict.update(dict(zip(batch_indices, r2_list)))
-        aligned_weights_dict.update(dict(zip(batch_indices, align_way_list)))
-        aligned_activations_dict.update(dict(zip(batch_indices, align_act_list)))
+# #         batch_indices = list(range(i, min(i + batch_size, num_models)))
+# #         #align_dict.update(dict(zip(batch_indices, align_lists)))
+# #         #r2_dict.update(dict(zip(batch_indices, r2_list)))
+# #         aligned_weights_dict.update(dict(zip(batch_indices, align_way_list)))
+# #         aligned_activations_dict.update(dict(zip(batch_indices, align_act_list)))
         
-        # Clear memory after each batch
-        clear_memory()
+# #         # Clear memory after each batch
+# #         clear_memory()
 
-    return aligned_weights_dict, aligned_activations_dict, #r2_dict #align_dict, r2_dict
+# #     return aligned_weights_dict, aligned_activations_dict, #r2_dict #align_dict, r2_dict
