@@ -32,21 +32,21 @@ device = set_torch_device()
 COMMON_SEED = 1234
 
 
-class SinglePerturbationResultsConverter:
-    """
-    Converts the results from a single perturbation run into a 
-    similaritiy matrix
+# class SinglePerturbationResultsConverter:
+#     """
+#     Converts the results from a single perturbation run into a 
+#     similaritiy matrix
 
-    NOT USED - mostly use compute_pairwise_sims
-    """
-    def __init__(self, resultObj : pert.PerturbationResults, clipped=True):
-        self.similarities_1 = resultObj.similarities_clipped if clipped\
-              else resultObj.similarities
-        self.clipped = clipped
+#     NOT USED - mostly use compute_pairwise_sims
+#     """
+#     def __init__(self, resultObj : pert.PerturbationResults, clipped=True):
+#         self.similarities_1 = resultObj.similarities_clipped if clipped\
+#               else resultObj.similarities
+#         self.clipped = clipped
 
-        self.models = resultObj.models
+#         self.models = resultObj.models
 
-        return
+#         return
     
 
 

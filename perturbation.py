@@ -28,17 +28,17 @@ from torchvision import transforms
 # load in the baseline identical measurements
 #
 # with open('/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/pickle_vars/baseline_identical.pkl', 'rb') as f:
-with open('../pickle_vars/baseline_identical.pkl', 'rb') as f:
-    id_baseline = pickle.load(f)
-way_id_sim = id_baseline['way_sim']
-act_id_sim = id_baseline['act_sim']
-way_id_dist = id_baseline['way_dist']
-act_id_dist = id_baseline['act_dist']
+# with open('../pickle_vars/baseline_identical.pkl', 'rb') as f:
+#     id_baseline = pickle.load(f)
+# way_id_sim = id_baseline['way_sim']
+# act_id_sim = id_baseline['act_sim']
+# way_id_dist = id_baseline['way_dist']
+# act_id_dist = id_baseline['act_dist']
 
-# load in the quantity baselines
-# with open('/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/pickle_vars/baseline_quantiles.pkl', 'rb') as f:
-with open('../pickle_vars/baseline_quantiles.pkl', 'rb') as f:
-    quantities = pickle.load(f)
+# # load in the quantity baselines
+# # with open('/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/pickle_vars/baseline_quantiles.pkl', 'rb') as f:
+# with open('../pickle_vars/baseline_quantiles.pkl', 'rb') as f:
+#     quantities = pickle.load(f)
 
 # class names
 class_names = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 
@@ -161,118 +161,118 @@ class PerturbationSettings:
 default_perturbation_settings = PerturbationSettings()
 
 
-class PerturbationResults:
-    """
-    holds and plots perturbation experiment results. These should be reshaped to be indexed by layer!
-    """
-    # def __init__(self, *initial_data, **kwargs):
-    #     for dictionary in initial_data:
-    #         for key in dictionary:
-    #             setattr(self, key, dictionary[key])
-    #     for key in kwargs:
-    #         setattr(self, key, kwargs[key])
+# class PerturbationResults:
+#     """
+#     holds and plots perturbation experiment results. These should be reshaped to be indexed by layer!
+#     """
+#     # def __init__(self, *initial_data, **kwargs):
+#     #     for dictionary in initial_data:
+#     #         for key in dictionary:
+#     #             setattr(self, key, dictionary[key])
+#     #     for key in kwargs:
+#     #         setattr(self, key, kwargs[key])
 
-    def __init__(self, results_dict):
-        """
+#     def __init__(self, results_dict):
+#         """
 
-        :param results_dict:
-        """
-        self.similarities = results_dict['sims_u']
-        self.similarities_clipped = results_dict['sims_c']
+#         :param results_dict:
+#         """
+#         self.similarities = results_dict['sims_u']
+#         self.similarities_clipped = results_dict['sims_c']
 
-        self.distances = results_dict['dist_u']
-        self.distances_clipped = results_dict['dist_c']
+#         self.distances = results_dict['dist_u']
+#         self.distances_clipped = results_dict['dist_c']
 
-        self.accuracy = results_dict['acc']
-        self.accuracy_baseline = results_dict['acc_base']
-        self.dimensions_trials = results_dict['effdims']
+#         self.accuracy = results_dict['acc']
+#         self.accuracy_baseline = results_dict['acc_base']
+#         self.dimensions_trials = results_dict['effdims']
 
-        self.dimensions_baseline = results_dict['base_dims']
+#         self.dimensions_baseline = results_dict['base_dims']
 
-        self.baseline_trace = results_dict['base_tr_u']
-        self.baseline_trace_clipped = results_dict['base_tr_c']
+#         self.baseline_trace = results_dict['base_tr_u']
+#         self.baseline_trace_clipped = results_dict['base_tr_c']
 
-        self.experiment_trace = results_dict['exp_tr_u']
-        self.experiment_trace_clipped = results_dict['exp_tr_c']
+#         self.experiment_trace = results_dict['exp_tr_u']
+#         self.experiment_trace_clipped = results_dict['exp_tr_c']
 
-        self.nuclear_norm = results_dict['nnorm_u']
-        self.nuclear_norm_clipped = results_dict['nnorm_c']
+#         self.nuclear_norm = results_dict['nnorm_u']
+#         self.nuclear_norm_clipped = results_dict['nnorm_c']
 
-        self.description = results_dict['README']
+#         self.description = results_dict['README']
 
-        self.models = results_dict['models']
+#         self.models = results_dict['models']
 
-        self.ticks = None
+#         self.ticks = None
 
-    def set_ticks(self, ticklist):
-        setattr(self, 'ticks', ticklist)
-        print('Successfully set the ticks for the model')
-        return
+#     def set_ticks(self, ticklist):
+#         setattr(self, 'ticks', ticklist)
+#         print('Successfully set the ticks for the model')
+#         return
 
-    def plot_trajectories(self, layer=1, ticks=None, ylog=True, xlog=False,
-                          xlabadd='', plot_baselines=True, ylims=None):
-        ticks = self.ticks if self.ticks else ticks
-        if not ticks:
-            os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
-            raise Exception('Need to set ticks before plotting')
+#     def plot_trajectories(self, layer=1, ticks=None, ylog=True, xlog=False,
+#                           xlabadd='', plot_baselines=True, ylims=None):
+#         ticks = self.ticks if self.ticks else ticks
+#         if not ticks:
+#             os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
+#             raise Exception('Need to set ticks before plotting')
 
-        plot_result_trajectories(self.similarities[layer], 
-                                 self.similarities_clipped[layer],
-                                 self.distances[layer], 
-                                 self.distances_clipped[layer],
-                                 xticks=ticks, ylog=ylog, xlog=xlog, 
-                                 xlabadd=xlabadd, plot_baselines=plot_baselines,
-                                 title=f'Layer {layer}', ylims=ylims)
-        return
+#         plot_result_trajectories(self.similarities[layer], 
+#                                  self.similarities_clipped[layer],
+#                                  self.distances[layer], 
+#                                  self.distances_clipped[layer],
+#                                  xticks=ticks, ylog=ylog, xlog=xlog, 
+#                                  xlabadd=xlabadd, plot_baselines=plot_baselines,
+#                                  title=f'Layer {layer}', ylims=ylims)
+#         return
 
-    def plot_trace_nnorms(self, ticks=None, quantity='weights', layer=1, clipped=True,
-                          titleadd='', xlabel='Perturbation Level', upper_legend_loc='best', lower_legend_loc='best',
-                          yrange_weights=None, yrange_activations=None,
-                          xlog=False, hline_lims=None, ylog=True):
-        ticks = self.ticks if self.ticks else ticks
-        if ticks is None:
-            os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
-            raise Exception('Need to set ticks before plotting')
+#     def plot_trace_nnorms(self, ticks=None, quantity='weights', layer=1, clipped=True,
+#                           titleadd='', xlabel='Perturbation Level', upper_legend_loc='best', lower_legend_loc='best',
+#                           yrange_weights=None, yrange_activations=None,
+#                           xlog=False, hline_lims=None, ylog=True):
+#         ticks = self.ticks if self.ticks else ticks
+#         if ticks is None:
+#             os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
+#             raise Exception('Need to set ticks before plotting')
 
-        plot_trace_nnorms(self, ticks, layer=layer, clipped=clipped, xlabel=xlabel, yrange_weights=yrange_weights, yrange_activations=yrange_activations,
-                          xlog=xlog, ylog=ylog, hline_lims=hline_lims)
+#         plot_trace_nnorms(self, ticks, layer=layer, clipped=clipped, xlabel=xlabel, yrange_weights=yrange_weights, yrange_activations=yrange_activations,
+#                           xlog=xlog, ylog=ylog, hline_lims=hline_lims)
 
-        return
+#         return
 
-    def plot_accuracy(self, type='test', ticks=None, titleadd='', 
-                      legend_loc='lower left', xlabel='Perturbation',
-                      ymin=0, ymax=1, xscale='log', yscale='linear', 
-                      chance_classes=10, hline_lims=None):
-        ticks = self.ticks if self.ticks else ticks
-        if not ticks:
-            os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
-            raise Exception('Need to set ticks before plotting')
-        plot_accuracy_trajectory(self.accuracy[type], 
-                                 self.accuracy_baseline[type], xticks=ticks,
-                                 legend_loc=legend_loc, 
-                                 titleadd=f'{type} {titleadd}', 
-                                 ymin=ymin, ymax=ymax,
-                                 xscale=xscale, yscale=yscale, 
-                                 n_classes=chance_classes, 
-                                 hline_lims=hline_lims, xlabel=xlabel)
-        return
+#     def plot_accuracy(self, type='test', ticks=None, titleadd='', 
+#                       legend_loc='lower left', xlabel='Perturbation',
+#                       ymin=0, ymax=1, xscale='log', yscale='linear', 
+#                       chance_classes=10, hline_lims=None):
+#         ticks = self.ticks if self.ticks else ticks
+#         if not ticks:
+#             os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
+#             raise Exception('Need to set ticks before plotting')
+#         plot_accuracy_trajectory(self.accuracy[type], 
+#                                  self.accuracy_baseline[type], xticks=ticks,
+#                                  legend_loc=legend_loc, 
+#                                  titleadd=f'{type} {titleadd}', 
+#                                  ymin=ymin, ymax=ymax,
+#                                  xscale=xscale, yscale=yscale, 
+#                                  n_classes=chance_classes, 
+#                                  hline_lims=hline_lims, xlabel=xlabel)
+#         return
 
 
-    def plot_effective_dimensions(self, layer=1, ticks=None, xlabel='', 
-                                  titleadd='', legend_loc='lower right',
-                                  xlog=False, ylog=True, 
-                                  hline_lims = None, ylims=None):
-        ticks = self.ticks if self.ticks else ticks
-        if not ticks:
-            os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
-            raise Exception('Need to set ticks before plotting')
+#     def plot_effective_dimensions(self, layer=1, ticks=None, xlabel='', 
+#                                   titleadd='', legend_loc='lower right',
+#                                   xlog=False, ylog=True, 
+#                                   hline_lims = None, ylims=None):
+#         ticks = self.ticks if self.ticks else ticks
+#         if not ticks:
+#             os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
+#             raise Exception('Need to set ticks before plotting')
 
-        plot_effective_dimensions(self, ticks, xlabel, layer=layer, 
-                                  titleadd=titleadd, legend_loc=legend_loc, 
-                                  xlog=xlog, ylog=ylog, 
-                                  hline_lims=hline_lims, ylims=ylims)
+#         plot_effective_dimensions(self, ticks, xlabel, layer=layer, 
+#                                   titleadd=titleadd, legend_loc=legend_loc, 
+#                                   xlog=xlog, ylog=ylog, 
+#                                   hline_lims=hline_lims, ylims=ylims)
 
-        return
+#         return
 
 
 class Perturbation:
@@ -593,53 +593,53 @@ class Perturbation:
         print('Reshaped results for multilayer format')
         return
 
-    def plot_trajectories(self, layers=None,
-                          wsim_order=(2, 4, 3, 1, 0),
-                          asim_order=(2, 3, 0, 1),
-                          wdist_order=(3, 0, 1, 4, 2),
-                          adist_order=(0, 1, 3, 2),
-                          ws_loc='upper left',
-                          as_loc='upper left',
-                          wd_loc='lower right',
-                          ad_loc='upper left',
-                          xticks =None,
-                          xlabadd =None,
-                          ylabadd =None,
-                          titleadd ='',
-                          ylog=True):
-        """
+    # def plot_trajectories(self, layers=None,
+    #                       wsim_order=(2, 4, 3, 1, 0),
+    #                       asim_order=(2, 3, 0, 1),
+    #                       wdist_order=(3, 0, 1, 4, 2),
+    #                       adist_order=(0, 1, 3, 2),
+    #                       ws_loc='upper left',
+    #                       as_loc='upper left',
+    #                       wd_loc='lower right',
+    #                       ad_loc='upper left',
+    #                       xticks =None,
+    #                       xlabadd =None,
+    #                       ylabadd =None,
+    #                       titleadd ='',
+    #                       ylog=True):
+    #     """
 
-        :param layers: list(int)    : the layers to plot the trajectories for
-        :param wsim_order:
-        :param asim_order:
-        :param wdist_order:
-        :param adist_order:
-        :param ws_loc:
-        :param as_loc:
-        :param wd_loc:
-        :param ad_loc:
-        :param xticks:
-        :param xlabadd:
-        :param ylabadd:
-        :param titleadd:
-        :param ylog:
-        :return:
-        """
-        layers = layers if layers else self.layers
+    #     :param layers: list(int)    : the layers to plot the trajectories for
+    #     :param wsim_order:
+    #     :param asim_order:
+    #     :param wdist_order:
+    #     :param adist_order:
+    #     :param ws_loc:
+    #     :param as_loc:
+    #     :param wd_loc:
+    #     :param ad_loc:
+    #     :param xticks:
+    #     :param xlabadd:
+    #     :param ylabadd:
+    #     :param titleadd:
+    #     :param ylog:
+    #     :return:
+    #     """
+    #     layers = layers if layers else self.layers
 
-        for layer in layers:
-            print(f'Plotting results for layer {layer}')
-            plot_result_trajectories(self.similarities[layer],
-                                     self.similarities_clipped[layer],
-                                     self.distances[layer],
-                                     self.distances_clipped[layer],
-                                     wsim_order=wsim_order, asim_order=asim_order,
-                                     wdist_order=wdist_order, adist_order=adist_order,
-                                     ws_loc=ws_loc, as_loc=as_loc, wd_loc=wd_loc, ad_loc=ad_loc,
-                                     xticks=xticks, xlabadd=xlabadd, ylabadd=ylabadd,
-                                     titleadd = f'{titleadd} - Layer {layer}',
-                                     ylog=ylog)
-        return
+    #     for layer in layers:
+    #         print(f'Plotting results for layer {layer}')
+    #         plot_result_trajectories(self.similarities[layer],
+    #                                  self.similarities_clipped[layer],
+    #                                  self.distances[layer],
+    #                                  self.distances_clipped[layer],
+    #                                  wsim_order=wsim_order, asim_order=asim_order,
+    #                                  wdist_order=wdist_order, adist_order=adist_order,
+    #                                  ws_loc=ws_loc, as_loc=as_loc, wd_loc=wd_loc, ad_loc=ad_loc,
+    #                                  xticks=xticks, xlabadd=xlabadd, ylabadd=ylabadd,
+    #                                  titleadd = f'{titleadd} - Layer {layer}',
+    #                                  ylog=ylog)
+    #     return
 
     def plot_accuracy(self, xticks=None, legend_loc = 'lower left', titleadd=''):
         plot_accuracy_trajectory(self.accuracy_trials, self.accuracy_baseline, xticks=xticks,
@@ -1102,101 +1102,101 @@ def get_random_pixel_indices(img_shape, total_pix):
 
 ################################################################# Plotting Results
 # Plotting Functions
-def plot_result_trajectories(similarities, similarities_clipped, distances, distances_clipped,
-                                    xticks=None,
-                                    xlabadd=None,
-                                    ylog=True, xlog=False, plot_baselines=True,
-                                    title=None, ylims=None):
-    xlabadd = xlabadd if xlabadd else 'Perturbation'
+# def plot_result_trajectories(similarities, similarities_clipped, distances, distances_clipped,
+#                                     xticks=None,
+#                                     xlabadd=None,
+#                                     ylog=True, xlog=False, plot_baselines=True,
+#                                     title=None, ylims=None):
+#     xlabadd = xlabadd if xlabadd else 'Perturbation'
 
-    # create the figure
-    fig, axs = plt.subplots(2, 2, sharex='col', figsize=(15, 8))
-    quant = {0: 'activations', 1: 'weights'}
-    y_labels = {0: 'absolute cosine\nsimilarity', 1: 'distance'}
-    metric = {0: (similarities, similarities_clipped), 1: (distances, distances_clipped)}
+#     # create the figure
+#     fig, axs = plt.subplots(2, 2, sharex='col', figsize=(15, 8))
+#     quant = {0: 'activations', 1: 'weights'}
+#     y_labels = {0: 'absolute cosine\nsimilarity', 1: 'distance'}
+#     metric = {0: (similarities, similarities_clipped), 1: (distances, distances_clipped)}
 
-    baselines = {'weights' : {'absolute cosine\nsimilarity': (way_id_sim, 'wsu', 'wsc'),
-                              'distance' : (way_id_dist, 'wdu', 'wdc')},
-                    'activations' : {'absolute cosine\nsimilarity' : (act_id_sim, 'as'),
-                                     'distance' : (act_id_dist, 'ad')}}
-
-
-    for i in (0, 1):
-        for j in (0, 1):
-            ax = axs[i, j]
-
-            # quant is j, metric is i
-            # ( i is rows, j is column )
-            if ylims and i == 1:
-                if ylims[quant[j]]:
-                    limits = ylims[quant[j]]
-                    ax.set_ylim(limits[0], limits[1])
-
-            #### setting labels and scales
-            if j == 0:
-                ax.set_ylabel(y_labels[i], fontsize=axis_fontsize)
-            if i == 1:
-                ax.set_xlabel(xlabadd, fontsize=axis_fontsize)
-                if j == 0 and ylog:
-                    ax.set_yscale('log')
-
-            if i == 0:
-                ax.set_ylim(0, 1.05)
-
-                if j == 0:
-                    ax.set_title('Activations', fontsize=axis_fontsize)
-                else:
-                    ax.set_title('Weights', fontsize=axis_fontsize)
+#     baselines = {'weights' : {'absolute cosine\nsimilarity': (way_id_sim, 'wsu', 'wsc'),
+#                               'distance' : (way_id_dist, 'wdu', 'wdc')},
+#                     'activations' : {'absolute cosine\nsimilarity' : (act_id_sim, 'as'),
+#                                      'distance' : (act_id_dist, 'ad')}}
 
 
-            # actually plotting
-            xu = np.array(metric[i][0][quant[j]])
-            tick_places = np.array(range(len(xu))) if not xticks else np.array(xticks)
-            if plot_baselines:
-                # get all the baselines
-                bases = baselines[quant[j]][y_labels[i]]
-                # identical first (2)
-                ax.hlines(bases[0], min(tick_places), max(tick_places), colors='orange', linestyles=':',
-                           label='identical init')
-                # then unclipped (3)
-                ax.hlines(np.mean(quantities[bases[1]][2]), min(tick_places), max(tick_places), colors='r',
-                           linestyles=':', label='random init (unclipped)')
-                # then if the clipped exists (4)
-                if len(bases) == 3:
-                    ax.hlines(np.mean(quantities[bases[2]][2]), min(tick_places), max(tick_places), colors='b',
-                               linestyles=':', label='random init (clipped)')
+#     for i in (0, 1):
+#         for j in (0, 1):
+#             ax = axs[i, j]
 
-            # unclipped first (0)
-            xu = np.array(metric[i][0][quant[j]])
-            tick_places = np.array(range(len(xu))) if not xticks else np.array(xticks)
-            mask = np.isfinite(xu)
-            ax.scatter(tick_places[mask], xu[mask], marker='o', color='r', label='unclipped')
+#             # quant is j, metric is i
+#             # ( i is rows, j is column )
+#             if ylims and i == 1:
+#                 if ylims[quant[j]]:
+#                     limits = ylims[quant[j]]
+#                     ax.set_ylim(limits[0], limits[1])
 
-            # clipped (1)
-            xc = np.array(metric[i][1][quant[j]])
-            mask = np.isfinite(xc)
-            ax.scatter(tick_places[mask], xc[mask], marker='o', color='b', label='clipped')
-            ax.scatter(tick_places[mask], xc[mask], color=colors.to_rgba('white', 0), label= '')
+#             #### setting labels and scales
+#             if j == 0:
+#                 ax.set_ylabel(y_labels[i], fontsize=axis_fontsize)
+#             if i == 1:
+#                 ax.set_xlabel(xlabadd, fontsize=axis_fontsize)
+#                 if j == 0 and ylog:
+#                     ax.set_yscale('log')
 
-            # do the custom legend order
-            if i == 0 and j == 1:
-                # (lines, labels) = plt.gca().get_legend_handles_labels()
-                # lines.insert(1, plt.Line2D(tick_places, xc[mask], linestyle='none', marker='none'))
-                # labels.insert(1, '')
-                # make the legend when everything is there
-                ax.legend(loc='upper center', bbox_to_anchor=(0, -1.25), fontsize=axis_fontsize, numpoints=1, ncol=2)
+#             if i == 0:
+#                 ax.set_ylim(0, 1.05)
 
-            if xlog:
-                ax.set_xscale('log')
+#                 if j == 0:
+#                     ax.set_title('Activations', fontsize=axis_fontsize)
+#                 else:
+#                     ax.set_title('Weights', fontsize=axis_fontsize)
 
-            ax.tick_params(axis='both', which='both', labelsize=axis_fontsize)
 
-    plt.subplots_adjust(hspace=0, wspace=0.1)
-    if title:
-        plt.suptitle(title, fontsize=title_fontsize)
-    #plt.tight_layout()
-    plt.show()
-    return
+#             # actually plotting
+#             xu = np.array(metric[i][0][quant[j]])
+#             tick_places = np.array(range(len(xu))) if not xticks else np.array(xticks)
+#             if plot_baselines:
+#                 # get all the baselines
+#                 bases = baselines[quant[j]][y_labels[i]]
+#                 # identical first (2)
+#                 ax.hlines(bases[0], min(tick_places), max(tick_places), colors='orange', linestyles=':',
+#                            label='identical init')
+#                 # then unclipped (3)
+#                 ax.hlines(np.mean(quantities[bases[1]][2]), min(tick_places), max(tick_places), colors='r',
+#                            linestyles=':', label='random init (unclipped)')
+#                 # then if the clipped exists (4)
+#                 if len(bases) == 3:
+#                     ax.hlines(np.mean(quantities[bases[2]][2]), min(tick_places), max(tick_places), colors='b',
+#                                linestyles=':', label='random init (clipped)')
+
+#             # unclipped first (0)
+#             xu = np.array(metric[i][0][quant[j]])
+#             tick_places = np.array(range(len(xu))) if not xticks else np.array(xticks)
+#             mask = np.isfinite(xu)
+#             ax.scatter(tick_places[mask], xu[mask], marker='o', color='r', label='unclipped')
+
+#             # clipped (1)
+#             xc = np.array(metric[i][1][quant[j]])
+#             mask = np.isfinite(xc)
+#             ax.scatter(tick_places[mask], xc[mask], marker='o', color='b', label='clipped')
+#             ax.scatter(tick_places[mask], xc[mask], color=colors.to_rgba('white', 0), label= '')
+
+#             # do the custom legend order
+#             if i == 0 and j == 1:
+#                 # (lines, labels) = plt.gca().get_legend_handles_labels()
+#                 # lines.insert(1, plt.Line2D(tick_places, xc[mask], linestyle='none', marker='none'))
+#                 # labels.insert(1, '')
+#                 # make the legend when everything is there
+#                 ax.legend(loc='upper center', bbox_to_anchor=(0, -1.25), fontsize=axis_fontsize, numpoints=1, ncol=2)
+
+#             if xlog:
+#                 ax.set_xscale('log')
+
+#             ax.tick_params(axis='both', which='both', labelsize=axis_fontsize)
+
+#     plt.subplots_adjust(hspace=0, wspace=0.1)
+#     if title:
+#         plt.suptitle(title, fontsize=title_fontsize)
+#     #plt.tight_layout()
+#     plt.show()
+#     return
 
 
 def plot_accuracy_trajectory(accuracies, acc_baseline, xticks=None, legend_loc='lower left', titleadd='', 
@@ -1582,318 +1582,318 @@ def reshape_repeated_trials_attributes(results_list):
     return reshaped
 
 
-class RepeatedTrialsResults:
-    """
-    Object that handles the results from repeated trials with the same configuration.
-    """
-
-    def __init__(self, results_list, experiment_name='Experiment', xlabel='Perturbation Level', ticks=None):
-        """
-
-        :param results_list :   list or tuple(PerturbationResults)   : the results objects to process
-        """
-        self.results = results_list
-        self.layers = tuple(results_list[0].similarities.keys())
-
-        # setting the ticks
-        ticks = ticks if ticks else check_if_ticks_are_set_already(results_list)
-        if not ticks:
-            print('Default integer ticks set. Please set experiment ticks before plotting for accurate figures.')
-            ticks = tuple(range(len(results_list[0].similarities[self.layers[0]])))
-
-        # descriptors of the experiment
-        self.name = experiment_name
-        self.xlabel = xlabel
-        self.ticks = ticks
-        self.descriptions = tuple(set([res.description for res in results_list]))
-        ## Measurements taken
-        ### Reshaped with reshaping function
-        (self.accuracy,
-         self.dimensions_exp, self.dimensions_baseline,
-         self.similarities, self.similarities_clipped, self.distances, self.distances_clipped,
-         self.trace_baseline, self.trace_baseline_clipped, self.trace_exp, self.trace_exp_clipped,
-         self.nuclear_norm, self.nuclear_norm_clipped) = (reshape_repeated_trials_attributes(results_list))
-
-        return
-
-    def set_name(self, name):
-        self.name = name
-        return f'Successfully set experiment name to {name}'
-    def set_ticks(self, ticks):
-        self.ticks = ticks
-        return 'Successfully set ticks'
-
-    def plot_effective_dimensions(self, layers=tuple([1]), percent_interval=90, legend_loc='best', xlog=False, ylog=False):
-        plot_effective_dimensions_repeated(self.dimensions_exp, self.dimensions_baseline, ticks=self.ticks, results_list=self.results, layers=layers, percent_interval=percent_interval, experiment_name=self.name, xlabel=self.xlabel, legend_loc=legend_loc, xlog=xlog, ylog=ylog)
-        return
-
-    def plot_trajectories(self, metric='similarity', layers=tuple([1]), quantity='weights', percent_interval=90, legend_loc='best', xlog=False, ylog=True, ylim=None):
-        for layer in layers:
-            plot_trajectories_repeated(self, metric=metric, layer=layer, quantity=quantity, percent_interval=percent_interval, experiment_name=self.name, xlabel=self.xlabel, legend_loc=legend_loc, xlog=xlog, ylog=ylog, ylim=ylim)
-        return
-
-    def plot_metric_component_quantities(self, quantity='weights', layers=tuple([1]), clipped=True, legend_loc='best', yrange=None, xlog=False, ylog=True, percent_interval=90):
-        for layer in layers:
-            plot_component_quantity_trajectory_repeated(self, percent_interval=percent_interval, ticks=self.ticks, quantity=quantity, layer=layer, clipped=clipped, legend_loc=legend_loc, yrange=yrange, xlog=xlog, ylog=ylog, xlabel=self.xlabel, experiment_name=self.name)
-        return
-
-
-
-def avg_and_range_single(trial_list, lo_val=0.05, hi_val=0.95, percent_interval=None):
-    if percent_interval:
-        lo_val, hi_val = 50 - (percent_interval / 2), 50 + (percent_interval / 2)
-
-    qlo = np.percentile(trial_list, lo_val)
-    qhi = np.percentile(trial_list, hi_val)
-    avg = np.mean(trial_list)
-
-    return avg, (qlo, qhi)
-
-
-def avg_and_errors(plot_list, lo_val=0.05, hi_val=0.95, percent_interval=None):
-    """
-
-    :param plot_list:   list(tuple(numerical))  : the list of repeated observations at each level of an experiment
-    :param lo_val:      float                   : the quantile of the lower error bound
-    :param hi_val:      float                   : the quantile of the higher error bound
-    :return: avg:       tuple(float)            : the average of the observations at each level
-    :return: (qlo, qhi):(tuple(float), tuple(float) : the lower and higher error of observations at each level, ready to
-                                                      be entered into matplotlib.pyplot.errorbar
-    """
-    if percent_interval:
-        lo_val, hi_val = 50 - (percent_interval / 2), 50 + (percent_interval / 2)
-
-    qlo = [np.percentile(level, lo_val) for level in plot_list]
-    qhi = [np.percentile(level, hi_val) for level in plot_list]
-    avg = tuple([np.mean(level) for level in plot_list])
-
-    qlo = tuple([avg[i] - qlo[i] for i in range(len(avg))])
-    #qhi = tuple([qhi[i] - avg[i] for i in range(len(avg))])
-    qhi = tuple([qhi[i] - avg[i] for i in range(len(avg))])
-
-    return avg, (qlo, qhi)
-
-
-def plot_effective_dimensions_repeated(dimensions_exp, dimensions_baseline, ticks=None, results_list=None,
-                                       layers=tuple([1]), percent_interval=90,
-                                       experiment_name='', xlabel=None, legend_loc='best', xlog=False, ylog=False):
-    ticks = ticks if ticks else tuple(range(len(dimensions_exp)))
-    xlabel = xlabel if xlabel else 'Perturbation Amount'
-    q_lo, q_hi = 50-(percent_interval/2),  50+(percent_interval/2)
-
-    for layer in layers: # for each layer,
-        # get the averages to plot and the errors
-        y_plot, errors = avg_and_errors(dimensions_exp[layer], lo_val=q_lo, hi_val=q_hi)
-        #print(errors)
-
-        y_base, base_range = avg_and_range_single(dimensions_baseline[layer], lo_val=q_lo, hi_val=q_hi)
-        print(base_range[0], base_range[1])
-
-        fig = plt.figure(figsize=(10, 5)) # create the figure
-
-        # plot the averages with the error bars
-        plt.errorbar(ticks, y_plot, yerr=errors, fmt='m-o', capsize=3, ecolor=colors.to_rgba('m', 0.5),
-                     label=f'effective dimensions ({percent_interval}% interval)')
-
-        # plot the baseline region
-        plt.hlines(y_base, min(ticks), max(ticks), color='green', linestyles=':', linewidth=1)
-        plt.fill_between(x=(float(min(ticks)),float(max(ticks))), y1=base_range[0], y2=base_range[1], color='green', alpha=0.25, label=f'baseline dimensions ({percent_interval}% interval)')
-
-        # plot the individual results if included
-        if results_list:
-            for res in results_list:
-                plt.plot(ticks, res.dimensions_trials[layer], color=colors.to_rgba('m', 0.1))
-
-        plt.title(f'{experiment_name} Effective Dimensionality\n(Layer {layer})', fontsize=title_fontsize)
-        plt.ylabel('Effective Dimensions', fontsize=axis_fontsize)
-        plt.xlabel(f'{xlabel}', fontsize=axis_fontsize)
-
-        if xlog:
-            plt.xscale('log')
-        if ylog:
-            plt.yscale('log')
-
-        plt.legend(loc=legend_loc, fontsize=axis_fontsize)
-        plt.show()
-    return
-
-
-def plot_trajectories_repeated(repeated_results_object, metric='similarity', layer=1, quantity='weights', percent_interval=0.9, experiment_name='', xlabel='Perturbation Level', legend_loc='best', xlog=False, ylog=True, ylim=None):
-    # set the ticks
-    ticks = repeated_results_object.ticks
-
-    # get all the metric measurements
-    if metric == 'similarity':
-        unclipped = getattr(repeated_results_object, 'similarities')
-        clipped = getattr(repeated_results_object, 'similarities_clipped')
-
-        unclipped_individual = tuple([res.similarities[layer][quantity] for res in repeated_results_object.results])
-        clipped_individual = tuple([res.similarities_clipped[layer][quantity] for res in repeated_results_object.results])
-
-        if quantity == 'weights':
-            id_baseline = way_id_sim
-            unclipped_baseline_key = 'wsu'
-        else:
-            id_baseline = act_id_sim
-            unclipped_baseline_key = 'as'
-
-    elif metric == 'distance':
-        unclipped = getattr(repeated_results_object, 'distances')
-        clipped = getattr(repeated_results_object, 'distances_clipped')
-        unclipped_individual = tuple([res.distances[layer][quantity] for res in repeated_results_object.results])
-        clipped_individual = tuple(
-            [res.distances_clipped[layer][quantity] for res in repeated_results_object.results])
-
-        if quantity == 'weights':
-            id_baseline = way_id_dist
-            unclipped_baseline_key = 'wdu'
-        else:
-            id_baseline = act_id_dist
-            unclipped_baseline_key = 'ad'
-    else:
-        os.system('say "You absolute bufoon, you didn\'t select a valid metric"')
-        raise Exception('Invalid metric selection. Please select either similarity or distance')
-
-    # get the correct layer and quantity
-    unclipped = unclipped[layer][quantity]
-    clipped = clipped[layer][quantity]
-
-    # get the error bar range
-    # get the averages and error bars
-    y_unclipped, errors_unclipped = avg_and_errors(unclipped, percent_interval=percent_interval)
-    #print(errors_unclipped)
-    y_clipped, errors_clipped = avg_and_errors(clipped, percent_interval=percent_interval)
-    #print(errors_clipped)
-
-    # Making the Figure
-    fig = plt.figure(figsize=(10,5))
-
-    # Plotting the aggregate trajectories
-    plt.errorbar(ticks, y_unclipped, yerr=errors_unclipped, fmt='ro', ecolor=colors.to_rgba('red', 0.5), label=f'unclipped ({percent_interval}% interval)', markersize=5, capsize=3)
-    plt.errorbar(ticks, y_clipped, yerr=errors_clipped, fmt='bo', ecolor=colors.to_rgba('blue', 0.5), label=f'clipped ({percent_interval}% interval)', markersize=5, capsize=3)
-
-    # Plotting individual trajectories
-    for k in range(len(repeated_results_object.results)):
-        plt.plot(ticks, clipped_individual[k], color=colors.to_rgba('blue', 0.075))
-        plt.plot(ticks, unclipped_individual[k], color=colors.to_rgba('red', 0.075))
-
-    # baselines
-    ## identical weights baseline
-    plt.hlines(id_baseline, min(ticks), max(ticks), colors='orange', linestyles=':', label='identical weights')
-    plt.hlines(np.mean(quantities[unclipped_baseline_key][2]), min(ticks), max(ticks), colors='red', linestyles=':', label='unclipped random init')
-
-    plt.title(f'{experiment_name} {quantity} {metric} trajectories\nLayer {layer}', fontsize=title_fontsize)
-    plt.xlabel(xlabel, fontsize=axis_fontsize)
-    plt.ylabel(f'{metric}', fontsize=axis_fontsize)
-
-    if ylim:
-        plt.ylim(ylim)
-
-    if xlog:
-        plt.xscale('log')
-    if ylog:
-        plt.yscale('log')
-
-    plt.legend(loc=legend_loc, fontsize=axis_fontsize)
-    plt.show()
-    return
-
-
-def plot_component_quantity_trajectory_repeated(repeated_results_object : RepeatedTrialsResults, percent_interval=90, ticks=None, quantity='weights', layer=1, clipped=True, experiment_name='', xlabel='Perturbation Level', legend_loc='best', yrange=None, xlog=False, ylog=True):
-    yrange = yrange if yrange else default_ranges[quantity][0]
-    ticks = ticks if ticks else repeated_results_object.ticks
-
-    if len(yrange) != 2:
-        os.system('say "Hey dingus, I cant set an axis limit with only one value! Idiot"')
-        raise Exception('Please ensure there are exactly two values for each of the axis limit settings. This can be'
-                        'as either a list or as a tuple.')
-
-    # Get each of the quantities
-    distance = repeated_results_object.distances_clipped[layer][quantity] if clipped else repeated_results_object.distances[layer][quantity]
-    exp_trace = repeated_results_object.trace_exp_clipped[layer][quantity] if clipped else repeated_results_object.trace_exp[layer][quantity]
-    base_trace = repeated_results_object.trace_baseline_clipped[layer][quantity][0] if clipped else repeated_results_object.trace_baseline[layer][quantity][
-        0]
-    nuc_norm = repeated_results_object.nuclear_norm_clipped[layer][quantity] if clipped else repeated_results_object.nuclear_norm[layer][quantity]
-
-    # calculate the ranges for each of the bois
-    y_dist, err_dist = avg_and_errors(distance, percent_interval=percent_interval)
-    y_exp_trace, err_exp_trace = avg_and_errors(exp_trace, percent_interval=percent_interval)
-    y_norm, err_norm = avg_and_errors(nuc_norm, percent_interval=percent_interval)
-    # baseline region
-    base_trace_line, base_trace_region = avg_and_range_single(base_trace, percent_interval=percent_interval)
-
-    # set the color of the plotting
-    meas_c = 'b' if clipped else 'r'
-
-    # create the figure
-    fig = plt.figure(figsize=(10, 5)) #({percent_interval}% interval)
-
-    # plot the error bars quantities
-    ## distance
-    plt.errorbar(ticks, y_dist, yerr=err_dist, fmt=f'{meas_c}-o', ecolor=colors.to_rgba(meas_c, 0.5), capsize=3, label=f'distance ({percent_interval}% interval)')
-
-    ## trace exp
-    plt.errorbar(ticks, y_exp_trace, yerr=err_exp_trace, fmt=f'm:^', ecolor=colors.to_rgba('m', 0.5), capsize=3, label=(r'$Tr(C_{exp})$'+f'({percent_interval}% interval)'))
-
-    ## base trace h lines fill between region
-    plt.hlines(base_trace_line, min(ticks), max(ticks), colors='orange', linestyles=':', label=(r'$Tr(C_{ref})$'+f'({percent_interval}% interval)'))
-    plt.fill_between((float(min(ticks)), float(max(ticks))), base_trace_region[0], base_trace_region[1], color='orange', alpha=0.25)
-
-    ## nuc norm
-    plt.errorbar(ticks, y_norm, yerr=err_norm, fmt='g:^', ecolor=colors.to_rgba('g', 0.5), capsize=3, label=(r'$||C_{ref}^{1/2} C_{exp}^{1/2}||_{nuc}$'+f'({percent_interval}% interval)'))
-
-    # plot the individual trajectories
-    for res in repeated_results_object.results:
-        if clipped:
-            plt.plot(ticks, res.distances_clipped[layer][quantity], color='b', alpha=0.075)
-            plt.plot(ticks, res.experiment_trace_clipped[layer][quantity], color='m', alpha=0.075)
-            plt.plot(ticks, res.nuclear_norm_clipped[layer][quantity], color='green', alpha=0.075)
-        else:
-            plt.plot(ticks, res.distances[layer][quantity], color='b', alpha=0.075)
-            plt.plot(ticks, res.experiment_trace[layer][quantity], color='m', alpha=0.075)
-            plt.plot(ticks, res.nuclear_norm[layer][quantity], color='green', alpha=0.075)
-
-    # labelling etc
-    clip_title = 'clipped' if clipped else ''
-    plt.title(f'{experiment_name} {clip_title} {quantity} metric component trajectories', fontsize=title_fontsize)
-    plt.ylabel(f'Total Variation/Distance', fontsize=axis_fontsize)
-    plt.xlabel(xlabel, fontsize=axis_fontsize)
-
-    if xlog:
-        plt.xscale('log')
-    if ylog:
-        plt.yscale('log')
-
-    plt.ylim(yrange)
-
-    plt.legend(fontsize=axis_fontsize)
-    plt.show()
-
-    return
-
-
-def plot_metric_vs_accuracy_repeated(repeated_results_object, metric='similarity', layer=1, quantity='weights', experiment_name='', legend_loc='best', xlog=False, ylog=False):
-    # check metric
-    if metric == 'similarity':
-        clipped_key = 'similarities_clipped'
-        unclipped_key = 'similarities'
-    elif metric == 'distance':
-        clipped_key = 'distances_clipped'
-        unclipped_key = 'distances'
-    else:
-        os.system('say "You absolute bufoon, you didn\'t select a valid metric"')
-        raise Exception('Invalid metric selection. Please select either similarity or distance')
-
-    fig = plt.figure(figsize=(10, 5))
-    for res in repeated_results_object.results:
-        clipped = getattr(res, clipped_key)[layer][quantity]
-        unclipped = getattr(res, unclipped_key)[layer][quantity]
-        accuracies = getattr(res, 'accuracy')['test']
-
-        plt.scatter(accuracies, clipped, color='b')
-        plt.scatter(accuracies, unclipped, color='r')
-
-    plt.show()
-
-    return
+# class RepeatedTrialsResults:
+#     """
+#     Object that handles the results from repeated trials with the same configuration.
+#     """
+
+#     def __init__(self, results_list, experiment_name='Experiment', xlabel='Perturbation Level', ticks=None):
+#         """
+
+#         :param results_list :   list or tuple(PerturbationResults)   : the results objects to process
+#         """
+#         self.results = results_list
+#         self.layers = tuple(results_list[0].similarities.keys())
+
+#         # setting the ticks
+#         ticks = ticks if ticks else check_if_ticks_are_set_already(results_list)
+#         if not ticks:
+#             print('Default integer ticks set. Please set experiment ticks before plotting for accurate figures.')
+#             ticks = tuple(range(len(results_list[0].similarities[self.layers[0]])))
+
+#         # descriptors of the experiment
+#         self.name = experiment_name
+#         self.xlabel = xlabel
+#         self.ticks = ticks
+#         self.descriptions = tuple(set([res.description for res in results_list]))
+#         ## Measurements taken
+#         ### Reshaped with reshaping function
+#         (self.accuracy,
+#          self.dimensions_exp, self.dimensions_baseline,
+#          self.similarities, self.similarities_clipped, self.distances, self.distances_clipped,
+#          self.trace_baseline, self.trace_baseline_clipped, self.trace_exp, self.trace_exp_clipped,
+#          self.nuclear_norm, self.nuclear_norm_clipped) = (reshape_repeated_trials_attributes(results_list))
+
+#         return
+
+#     def set_name(self, name):
+#         self.name = name
+#         return f'Successfully set experiment name to {name}'
+#     def set_ticks(self, ticks):
+#         self.ticks = ticks
+#         return 'Successfully set ticks'
+
+#     def plot_effective_dimensions(self, layers=tuple([1]), percent_interval=90, legend_loc='best', xlog=False, ylog=False):
+#         plot_effective_dimensions_repeated(self.dimensions_exp, self.dimensions_baseline, ticks=self.ticks, results_list=self.results, layers=layers, percent_interval=percent_interval, experiment_name=self.name, xlabel=self.xlabel, legend_loc=legend_loc, xlog=xlog, ylog=ylog)
+#         return
+
+#     def plot_trajectories(self, metric='similarity', layers=tuple([1]), quantity='weights', percent_interval=90, legend_loc='best', xlog=False, ylog=True, ylim=None):
+#         for layer in layers:
+#             plot_trajectories_repeated(self, metric=metric, layer=layer, quantity=quantity, percent_interval=percent_interval, experiment_name=self.name, xlabel=self.xlabel, legend_loc=legend_loc, xlog=xlog, ylog=ylog, ylim=ylim)
+#         return
+
+#     def plot_metric_component_quantities(self, quantity='weights', layers=tuple([1]), clipped=True, legend_loc='best', yrange=None, xlog=False, ylog=True, percent_interval=90):
+#         for layer in layers:
+#             plot_component_quantity_trajectory_repeated(self, percent_interval=percent_interval, ticks=self.ticks, quantity=quantity, layer=layer, clipped=clipped, legend_loc=legend_loc, yrange=yrange, xlog=xlog, ylog=ylog, xlabel=self.xlabel, experiment_name=self.name)
+#         return
+
+
+
+# def avg_and_range_single(trial_list, lo_val=0.05, hi_val=0.95, percent_interval=None):
+#     if percent_interval:
+#         lo_val, hi_val = 50 - (percent_interval / 2), 50 + (percent_interval / 2)
+
+#     qlo = np.percentile(trial_list, lo_val)
+#     qhi = np.percentile(trial_list, hi_val)
+#     avg = np.mean(trial_list)
+
+#     return avg, (qlo, qhi)
+
+
+# def avg_and_errors(plot_list, lo_val=0.05, hi_val=0.95, percent_interval=None):
+#     """
+
+#     :param plot_list:   list(tuple(numerical))  : the list of repeated observations at each level of an experiment
+#     :param lo_val:      float                   : the quantile of the lower error bound
+#     :param hi_val:      float                   : the quantile of the higher error bound
+#     :return: avg:       tuple(float)            : the average of the observations at each level
+#     :return: (qlo, qhi):(tuple(float), tuple(float) : the lower and higher error of observations at each level, ready to
+#                                                       be entered into matplotlib.pyplot.errorbar
+#     """
+#     if percent_interval:
+#         lo_val, hi_val = 50 - (percent_interval / 2), 50 + (percent_interval / 2)
+
+#     qlo = [np.percentile(level, lo_val) for level in plot_list]
+#     qhi = [np.percentile(level, hi_val) for level in plot_list]
+#     avg = tuple([np.mean(level) for level in plot_list])
+
+#     qlo = tuple([avg[i] - qlo[i] for i in range(len(avg))])
+#     #qhi = tuple([qhi[i] - avg[i] for i in range(len(avg))])
+#     qhi = tuple([qhi[i] - avg[i] for i in range(len(avg))])
+
+#     return avg, (qlo, qhi)
+
+
+# def plot_effective_dimensions_repeated(dimensions_exp, dimensions_baseline, ticks=None, results_list=None,
+#                                        layers=tuple([1]), percent_interval=90,
+#                                        experiment_name='', xlabel=None, legend_loc='best', xlog=False, ylog=False):
+#     ticks = ticks if ticks else tuple(range(len(dimensions_exp)))
+#     xlabel = xlabel if xlabel else 'Perturbation Amount'
+#     q_lo, q_hi = 50-(percent_interval/2),  50+(percent_interval/2)
+
+#     for layer in layers: # for each layer,
+#         # get the averages to plot and the errors
+#         y_plot, errors = avg_and_errors(dimensions_exp[layer], lo_val=q_lo, hi_val=q_hi)
+#         #print(errors)
+
+#         y_base, base_range = avg_and_range_single(dimensions_baseline[layer], lo_val=q_lo, hi_val=q_hi)
+#         print(base_range[0], base_range[1])
+
+#         fig = plt.figure(figsize=(10, 5)) # create the figure
+
+#         # plot the averages with the error bars
+#         plt.errorbar(ticks, y_plot, yerr=errors, fmt='m-o', capsize=3, ecolor=colors.to_rgba('m', 0.5),
+#                      label=f'effective dimensions ({percent_interval}% interval)')
+
+#         # plot the baseline region
+#         plt.hlines(y_base, min(ticks), max(ticks), color='green', linestyles=':', linewidth=1)
+#         plt.fill_between(x=(float(min(ticks)),float(max(ticks))), y1=base_range[0], y2=base_range[1], color='green', alpha=0.25, label=f'baseline dimensions ({percent_interval}% interval)')
+
+#         # plot the individual results if included
+#         if results_list:
+#             for res in results_list:
+#                 plt.plot(ticks, res.dimensions_trials[layer], color=colors.to_rgba('m', 0.1))
+
+#         plt.title(f'{experiment_name} Effective Dimensionality\n(Layer {layer})', fontsize=title_fontsize)
+#         plt.ylabel('Effective Dimensions', fontsize=axis_fontsize)
+#         plt.xlabel(f'{xlabel}', fontsize=axis_fontsize)
+
+#         if xlog:
+#             plt.xscale('log')
+#         if ylog:
+#             plt.yscale('log')
+
+#         plt.legend(loc=legend_loc, fontsize=axis_fontsize)
+#         plt.show()
+#     return
+
+
+# def plot_trajectories_repeated(repeated_results_object, metric='similarity', layer=1, quantity='weights', percent_interval=0.9, experiment_name='', xlabel='Perturbation Level', legend_loc='best', xlog=False, ylog=True, ylim=None):
+#     # set the ticks
+#     ticks = repeated_results_object.ticks
+
+#     # get all the metric measurements
+#     if metric == 'similarity':
+#         unclipped = getattr(repeated_results_object, 'similarities')
+#         clipped = getattr(repeated_results_object, 'similarities_clipped')
+
+#         unclipped_individual = tuple([res.similarities[layer][quantity] for res in repeated_results_object.results])
+#         clipped_individual = tuple([res.similarities_clipped[layer][quantity] for res in repeated_results_object.results])
+
+#         if quantity == 'weights':
+#             id_baseline = way_id_sim
+#             unclipped_baseline_key = 'wsu'
+#         else:
+#             id_baseline = act_id_sim
+#             unclipped_baseline_key = 'as'
+
+#     elif metric == 'distance':
+#         unclipped = getattr(repeated_results_object, 'distances')
+#         clipped = getattr(repeated_results_object, 'distances_clipped')
+#         unclipped_individual = tuple([res.distances[layer][quantity] for res in repeated_results_object.results])
+#         clipped_individual = tuple(
+#             [res.distances_clipped[layer][quantity] for res in repeated_results_object.results])
+
+#         if quantity == 'weights':
+#             id_baseline = way_id_dist
+#             unclipped_baseline_key = 'wdu'
+#         else:
+#             id_baseline = act_id_dist
+#             unclipped_baseline_key = 'ad'
+#     else:
+#         os.system('say "You absolute bufoon, you didn\'t select a valid metric"')
+#         raise Exception('Invalid metric selection. Please select either similarity or distance')
+
+#     # get the correct layer and quantity
+#     unclipped = unclipped[layer][quantity]
+#     clipped = clipped[layer][quantity]
+
+#     # get the error bar range
+#     # get the averages and error bars
+#     y_unclipped, errors_unclipped = avg_and_errors(unclipped, percent_interval=percent_interval)
+#     #print(errors_unclipped)
+#     y_clipped, errors_clipped = avg_and_errors(clipped, percent_interval=percent_interval)
+#     #print(errors_clipped)
+
+#     # Making the Figure
+#     fig = plt.figure(figsize=(10,5))
+
+#     # Plotting the aggregate trajectories
+#     plt.errorbar(ticks, y_unclipped, yerr=errors_unclipped, fmt='ro', ecolor=colors.to_rgba('red', 0.5), label=f'unclipped ({percent_interval}% interval)', markersize=5, capsize=3)
+#     plt.errorbar(ticks, y_clipped, yerr=errors_clipped, fmt='bo', ecolor=colors.to_rgba('blue', 0.5), label=f'clipped ({percent_interval}% interval)', markersize=5, capsize=3)
+
+#     # Plotting individual trajectories
+#     for k in range(len(repeated_results_object.results)):
+#         plt.plot(ticks, clipped_individual[k], color=colors.to_rgba('blue', 0.075))
+#         plt.plot(ticks, unclipped_individual[k], color=colors.to_rgba('red', 0.075))
+
+#     # baselines
+#     ## identical weights baseline
+#     plt.hlines(id_baseline, min(ticks), max(ticks), colors='orange', linestyles=':', label='identical weights')
+#     plt.hlines(np.mean(quantities[unclipped_baseline_key][2]), min(ticks), max(ticks), colors='red', linestyles=':', label='unclipped random init')
+
+#     plt.title(f'{experiment_name} {quantity} {metric} trajectories\nLayer {layer}', fontsize=title_fontsize)
+#     plt.xlabel(xlabel, fontsize=axis_fontsize)
+#     plt.ylabel(f'{metric}', fontsize=axis_fontsize)
+
+#     if ylim:
+#         plt.ylim(ylim)
+
+#     if xlog:
+#         plt.xscale('log')
+#     if ylog:
+#         plt.yscale('log')
+
+#     plt.legend(loc=legend_loc, fontsize=axis_fontsize)
+#     plt.show()
+#     return
+
+
+# def plot_component_quantity_trajectory_repeated(repeated_results_object : RepeatedTrialsResults, percent_interval=90, ticks=None, quantity='weights', layer=1, clipped=True, experiment_name='', xlabel='Perturbation Level', legend_loc='best', yrange=None, xlog=False, ylog=True):
+#     yrange = yrange if yrange else default_ranges[quantity][0]
+#     ticks = ticks if ticks else repeated_results_object.ticks
+
+#     if len(yrange) != 2:
+#         os.system('say "Hey dingus, I cant set an axis limit with only one value! Idiot"')
+#         raise Exception('Please ensure there are exactly two values for each of the axis limit settings. This can be'
+#                         'as either a list or as a tuple.')
+
+#     # Get each of the quantities
+#     distance = repeated_results_object.distances_clipped[layer][quantity] if clipped else repeated_results_object.distances[layer][quantity]
+#     exp_trace = repeated_results_object.trace_exp_clipped[layer][quantity] if clipped else repeated_results_object.trace_exp[layer][quantity]
+#     base_trace = repeated_results_object.trace_baseline_clipped[layer][quantity][0] if clipped else repeated_results_object.trace_baseline[layer][quantity][
+#         0]
+#     nuc_norm = repeated_results_object.nuclear_norm_clipped[layer][quantity] if clipped else repeated_results_object.nuclear_norm[layer][quantity]
+
+#     # calculate the ranges for each of the bois
+#     y_dist, err_dist = avg_and_errors(distance, percent_interval=percent_interval)
+#     y_exp_trace, err_exp_trace = avg_and_errors(exp_trace, percent_interval=percent_interval)
+#     y_norm, err_norm = avg_and_errors(nuc_norm, percent_interval=percent_interval)
+#     # baseline region
+#     base_trace_line, base_trace_region = avg_and_range_single(base_trace, percent_interval=percent_interval)
+
+#     # set the color of the plotting
+#     meas_c = 'b' if clipped else 'r'
+
+#     # create the figure
+#     fig = plt.figure(figsize=(10, 5)) #({percent_interval}% interval)
+
+#     # plot the error bars quantities
+#     ## distance
+#     plt.errorbar(ticks, y_dist, yerr=err_dist, fmt=f'{meas_c}-o', ecolor=colors.to_rgba(meas_c, 0.5), capsize=3, label=f'distance ({percent_interval}% interval)')
+
+#     ## trace exp
+#     plt.errorbar(ticks, y_exp_trace, yerr=err_exp_trace, fmt=f'm:^', ecolor=colors.to_rgba('m', 0.5), capsize=3, label=(r'$Tr(C_{exp})$'+f'({percent_interval}% interval)'))
+
+#     ## base trace h lines fill between region
+#     plt.hlines(base_trace_line, min(ticks), max(ticks), colors='orange', linestyles=':', label=(r'$Tr(C_{ref})$'+f'({percent_interval}% interval)'))
+#     plt.fill_between((float(min(ticks)), float(max(ticks))), base_trace_region[0], base_trace_region[1], color='orange', alpha=0.25)
+
+#     ## nuc norm
+#     plt.errorbar(ticks, y_norm, yerr=err_norm, fmt='g:^', ecolor=colors.to_rgba('g', 0.5), capsize=3, label=(r'$||C_{ref}^{1/2} C_{exp}^{1/2}||_{nuc}$'+f'({percent_interval}% interval)'))
+
+#     # plot the individual trajectories
+#     for res in repeated_results_object.results:
+#         if clipped:
+#             plt.plot(ticks, res.distances_clipped[layer][quantity], color='b', alpha=0.075)
+#             plt.plot(ticks, res.experiment_trace_clipped[layer][quantity], color='m', alpha=0.075)
+#             plt.plot(ticks, res.nuclear_norm_clipped[layer][quantity], color='green', alpha=0.075)
+#         else:
+#             plt.plot(ticks, res.distances[layer][quantity], color='b', alpha=0.075)
+#             plt.plot(ticks, res.experiment_trace[layer][quantity], color='m', alpha=0.075)
+#             plt.plot(ticks, res.nuclear_norm[layer][quantity], color='green', alpha=0.075)
+
+#     # labelling etc
+#     clip_title = 'clipped' if clipped else ''
+#     plt.title(f'{experiment_name} {clip_title} {quantity} metric component trajectories', fontsize=title_fontsize)
+#     plt.ylabel(f'Total Variation/Distance', fontsize=axis_fontsize)
+#     plt.xlabel(xlabel, fontsize=axis_fontsize)
+
+#     if xlog:
+#         plt.xscale('log')
+#     if ylog:
+#         plt.yscale('log')
+
+#     plt.ylim(yrange)
+
+#     plt.legend(fontsize=axis_fontsize)
+#     plt.show()
+
+#     return
+
+
+# def plot_metric_vs_accuracy_repeated(repeated_results_object, metric='similarity', layer=1, quantity='weights', experiment_name='', legend_loc='best', xlog=False, ylog=False):
+#     # check metric
+#     if metric == 'similarity':
+#         clipped_key = 'similarities_clipped'
+#         unclipped_key = 'similarities'
+#     elif metric == 'distance':
+#         clipped_key = 'distances_clipped'
+#         unclipped_key = 'distances'
+#     else:
+#         os.system('say "You absolute bufoon, you didn\'t select a valid metric"')
+#         raise Exception('Invalid metric selection. Please select either similarity or distance')
+
+#     fig = plt.figure(figsize=(10, 5))
+#     for res in repeated_results_object.results:
+#         clipped = getattr(res, clipped_key)[layer][quantity]
+#         unclipped = getattr(res, unclipped_key)[layer][quantity]
+#         accuracies = getattr(res, 'accuracy')['test']
+
+#         plt.scatter(accuracies, clipped, color='b')
+#         plt.scatter(accuracies, unclipped, color='r')
+
+#     plt.show()
+
+#     return
 
