@@ -52,11 +52,17 @@ def clear_memory():
 """Loading in Models from Model Library"""
 def extract_epoch_name(filename):
     name_part = os.path.splitext(filename)[0]  # Remove the file extension
-    if '-' in name_part:
-        numerator, denominator = map(int, name_part.split('-'))
-        return numerator / denominator
+    return parse_frac_string(name_part)
+
+def parse_frac_string(frac_string):
+    if '-' in frac_string:
+        numerator, denominator = map(int, frac_string.split('-'))
+        num = numerator / denominator
     else:
-        return int(name_part)
+        num = int(frac_string)
+    return num
+    
+    
 
 def get_sorted_epoch_names(dirname):
     all_files = os.listdir(dirname)
