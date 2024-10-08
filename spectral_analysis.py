@@ -29,6 +29,8 @@ from utils import *
 device = set_torch_device()
 
 
+model_savedir = f'../../../datascope/menard/group/mohata1/model_library'
+
 class SpectrumAnalysis:
     """
     Holds, saves, trains linear Neural Network for analysis
@@ -36,8 +38,8 @@ class SpectrumAnalysis:
 
     def __init__(self, n_neurons, vary=None, n_class=10, input_size=32*32*3, 
                  seed=1234, save=False, exp_name=None, 
-                 load=False, path='model_library', epoch=None,
-                 rel_path='../'):
+                 load=False, path=f'{model_savedir}', epoch=None,
+                 rel_path=''):
         """
         Initializes model and associated quantitties
 
@@ -134,7 +136,7 @@ class SpectrumAnalysis:
             print(f'warning: train loader will be overwritten. reenter command with overwrite=True if this is intended')
 
     def evaluate_model(self, test_loader):
-        acc = train_network.evaluate_model(test_loader)
+        acc = train_network.evaluate_model(self.model, test_loader)
 
         return acc
 

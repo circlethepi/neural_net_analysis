@@ -2,6 +2,8 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
+image_saveloc = f'image_hold'
+
 
 def plot_relative_spectrum_history_eds(model, scale='log', save_fig=True, xmax=1000, saveadd=""):
     begin = 1
@@ -59,10 +61,10 @@ def plot_relative_spectrum_history_eds(model, scale='log', save_fig=True, xmax=1
         plt.ylim(np.max([np.min(rel_spec), 10**(-5)]), np.max(rel_spec))
         # plt.ylim(np.min(rel_spec), np.max([np.max(rel_spec), model.var]))
 
-        plt.legend(reverse=True, loc='upper right')
+        plt.legend(reverse=True, loc='upper right', fontsize=16)
 
         if save_fig:
-            plt.savefig(f'/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/image_hold/ED_rel_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}{saveadd}.png')
+            plt.savefig(f'{image_saveloc}/ED_rel_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}{saveadd}.png')
                 # files.download(f'ED_rel_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}.png')
 
         plt.show()
@@ -98,13 +100,16 @@ def plot_spectrum(model, scale='log', save_fig=True, saveadd=""):
       # add the baseline variance
     #plt.hlines(model.var, 1, len(ys), colors='k', linestyles = "dashed")#, label = f"init var = {model.var}")
 
-    plt.title(f'Spectrum evolution over epochs\n{model.n_neurons} neurons, Layer {j+1} of {model.n_layers}')
+    plt.title(f'Spectrum evolution over epochs
+              {model.n_neurons} neurons, Layer {j+1} of {model.n_layers}',
+              fontsize=16)
     # setting the scale
     plt.xscale(scale)
     plt.yscale(scale)
 
-    plt.xlabel('Rank')
-    plt.ylabel('eigenvalue')
+    plt.xlabel('Rank', fontsize=16)
+    plt.ylabel('eigenvalue', fontsize=16)
+    plt.tick_params(axis='both', which='both', labelsize=16)
 
     #plt.xlim(min([min(spec_hist), min() 1]), len(spec_hist[0]))
     plt.ylim(np.max([np.min(spec_hist), 10**(-5)]), np.max(spec_hist))
@@ -115,7 +120,7 @@ def plot_spectrum(model, scale='log', save_fig=True, saveadd=""):
     plt.legend(reverse=True)
 
     if save_fig:
-      plt.savefig(f'/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/image_hold/spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}{saveadd}.png')
+      plt.savefig(f'{image_saveloc}/spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}{saveadd}.png')
       #files.download(f'spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}.png')
 
     plt.show()
@@ -139,12 +144,13 @@ def plot_spectrum_single(model, quantity, layer_ind, scale='log', save_fig=False
     if quantity =='weights':
         plt.plot(x_vals, y_init, label='init')
         plt.legend()
-    plt.title(f'{quantity} spectrum, layer {layer_ind + 1}')
+    plt.title(f'{quantity} spectrum, layer {layer_ind + 1}', fontsize=16)
     plt.xscale(scale)
     plt.yscale(scale)
 
-    plt.xlabel('Rank')
-    plt.ylabel('eigenvalue')
+    plt.xlabel('Rank', fontsize=16)
+    plt.ylabel('eigenvalue', fontsize=16)
+    plt.tick_params(axis='both', which='both', labelsize=16)
     plt.show()
 
     return
@@ -198,18 +204,22 @@ def plot_spectrum_normed(model, scale='log', save_fig = True, xmax = 1000, savea
     plt.plot(effdims[begin:], ed_ys, 'k--', label = 'Eff. Dim.')
 
     # colormaps: spring, coolwarm, Greys
-    plt.scatter(effdims[begin:], ed_ys, c=test_accuracies, cmap = plt.cm.spring, s=20, edgecolors= "black", label = 'Val Accuracy', zorder=10)
+    plt.scatter(effdims[begin:], ed_ys, c=test_accuracies, cmap = plt.cm.spring, 
+                s=20, edgecolors= "black", label = 'Val Accuracy', zorder=10)
     plt.colorbar()
 
     # add the baseline variance
     #plt.hlines(model.var, 1, len(ys), colors='k', linestyles = "dashed", label = f"init var = {model.var}")
 
-    plt.title(f'Rescaled Init and Unnormalized Spectra\nNetwork with {model.n_neurons} neurons, Layer {j+1} of {model.n_layers}')
+    plt.title(f'Rescaled Init and Unnormalized Spectra
+              Network with {model.n_neurons} neurons, Layer {j+1} of {model.n_layers}',
+              fontsize=16)
     plt.xscale(scale)
     plt.yscale(scale)
 
-    plt.xlabel('Rank')
-    plt.ylabel('eigenvalue')
+    plt.xlabel('Rank', fontsize=16)
+    plt.ylabel('eigenvalue', fontsize=16)
+    plt.tick_params(axis='both', which='both', labelsize=16)
 
 
     if xmax:
@@ -225,7 +235,7 @@ def plot_spectrum_normed(model, scale='log', save_fig = True, xmax = 1000, savea
     #plt.legend(reverse=True)
 
     if save_fig:
-      plt.savefig(f'/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/image_hold/ED_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}{saveadd}.png')
+      plt.savefig(f'{image_saveloc}/ED_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}{saveadd}.png')
       # files.download(f'ED_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}.png')
 
     plt.show()
@@ -239,16 +249,18 @@ def plot_accuracy(model, save_fig=False, saveadd=''):
     plt.plot(xs, model.val_history, label=f'val')
     plt.plot(xs, model.train_history, label=f'train')
 
-    plt.xlabel("epoch")
-    plt.ylabel("accuracy")
+    plt.xlabel("epoch", fontsize=16)
+    plt.ylabel("accuracy", fontsize=16)
 
     plt.xscale("log")
     plt.xlim(-0.1, xs[-1]*1.1)
 
-    plt.title(f"{model.n_neurons} neurons, {model.n_layers} layers performance ")
+    plt.title(f"{model.n_neurons} neurons, {model.n_layers} layers performance",
+              fontsize=16)
+    plt.tick_params(axis='both', which='both', labelsize=16)
 
     if save_fig:
-      plt.savefig(f'fig_hold/accuracy_{model.n_neurons}_{model.n_epochs}{saveadd}.png')
+      plt.savefig(f'{image_saveloc}/accuracy_{model.n_neurons}_{model.n_epochs}{saveadd}.png')
 
     plt.legend()
     plt.show()
@@ -258,6 +270,9 @@ def plot_accuracy(model, save_fig=False, saveadd=''):
 
 
 def plot_accuracy_compare(model_list, save_fig=False, saveadd=''):
+    """
+    model_list :  list(tuple(SpectralAnalysis, str))  model object and name
+    """
     # setting up the figure
     fig = plt.figure(figsize=(10, 5))
     colors = plt.cm.viridis(np.linspace(0, 1, len(model_list) + 1))
@@ -271,16 +286,17 @@ def plot_accuracy_compare(model_list, save_fig=False, saveadd=''):
         plt.plot(xs, model.train_history, color=colors[i], linestyle=":", label=f'{name} train')
         i += 1
 
-    plt.xlabel("epoch")
-    plt.ylabel("accuracy")
+    plt.xlabel("epoch", fontsize=16)
+    plt.ylabel("accuracy", fontsize=16)
 
     plt.xscale("log")
     plt.xlim(-0.1, xs[-1] * 1.1)
 
-    plt.title(f"comparing model performance ")
+    plt.title(f"comparing model performance", fontsize=16)
+    plt.tick_params(axis='both', which='both', labelsize=16)
 
     if save_fig:
-        plt.savefig(f'/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/image_hold/accuracy_{len(model_list)}_compare{saveadd}.png')
+        plt.savefig(f'{image_saveloc}/accuracy_{len(model_list)}_compare{saveadd}.png')
 
     plt.legend()
     plt.show()
