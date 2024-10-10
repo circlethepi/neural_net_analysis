@@ -123,10 +123,10 @@ class SpectrumAnalysis:
     def load_from_saved(self, path, epoch):
         filename = f'{path}/{epoch}.pt'
         self.model = torch.load(filename)
-        self.get_weight_spectrum()
+        self.decompose_weight_covs()
         self.spectrum_history = self.get_spectrum()
         # print(self.spectrum_history)
-        print(f'Model successfully loaded')
+        # print(f'Model successfully loaded')
         return
     
     def set_train_loader(self, loader, overwrite=False):
@@ -174,14 +174,11 @@ class SpectrumAnalysis:
     #         print(cov.shape)
 
     #         cov_layers[lay] = cov
-    #         # lay_neur = self.n_neurons[lay]
-    #         # cov = lay_weights @ lay_weights.transpose() * (1/lay_neur)
-    #         # cov_layers.append(torch.from_numpy(cov))
 
     #     self.weight_covs = cov_layers
     #     return cov_layers
 
-    def get_weight_spectrum(self):
+    def decompose_weight_covs(self):
         """
         Also gets the eigenvectors
         """
@@ -194,15 +191,18 @@ class SpectrumAnalysis:
         _ = self.get_weights()
         weight_spec = {}
         weight_vectors = {}
+        cov_layers = {}
         for lay, lay_weights in self.weights.items():
             # print(i)
             u, s, vh = torch.linalg.svd(lay_weights, full_matrices=False)
             spec = s ** 2 / lay_weights.shape[0]
             weight_spec[lay] = spec
             weight_vectors[lay] = vh
+            cov_layers[lay] = vh.T @ torch.diag(spec) @ vh
 
         self.weight_spectrum = weight_spec
         self.weight_eigenvectors = weight_vectors
+        self.weight_covs = cov_layers
         return
 
     def get_activations(self, dataloader, layers):

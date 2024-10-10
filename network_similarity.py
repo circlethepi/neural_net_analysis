@@ -42,7 +42,7 @@ class NetworkComparison:
         for net in (net1, net2):
             # getting the weight spectrum if not set
             # if not net.weight_spectrum:
-            net.get_weight_spectrum()
+            net.decompose_weight_covs()
             i += 1
 
         # Attributes set by alignment
@@ -190,14 +190,11 @@ class NetworkComparison:
         self.cossim = sim_mats.copy()
         return
 
-    def plot_sims(self, clips=None,
-                  layers=None,
+    def plot_sims(self, clips=None, layers=None,
                   quantities=('activations', 'weights'),
-                  alignments=[True],
-                  plot_clip=None,
-                  filename_append=None,
-                  ed_plot=False,
-                  explained_variance=False, save=False):
+                  alignments=[True], plot_clip=None, filename_append=None,
+                  ed_plot=False, explained_variance=False, save=False,
+                  saveloc = 'image_hold/', savename=None, do_title=False):
         if not layers:
             layers = self.layers
         if not clips:
@@ -255,13 +252,15 @@ class NetworkComparison:
                     if plot_clip or (quantity == 'weights' and ed_plot):
                         plt.legend()
 
-                    plt.title(title, fontsize=20)
+                    if do_title:
+                        plt.title(title, fontsize=20)
 
                     # saving the figure
                     if save:
-                        path = '/Users/mnzk/Documents/40-49. Research/42. Nets/42.97. Library/image_hold/'
+                        path = saveloc if saveloc is not None else 'image_hold/'
                         filename = (f'{self.names}_{quantity}_{aligned}_{layer}'
-                                    f'{"_"+filename_append if filename_append else ""}')
+                                    f'{"_"+filename_append if filename_append else ""}') 
+                        filename = filename if savename is None else savename
 
                         plt.savefig(path + filename)
                     plt.show()

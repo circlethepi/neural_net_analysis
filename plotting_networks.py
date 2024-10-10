@@ -100,7 +100,7 @@ def plot_spectrum(model, scale='log', save_fig=True, saveadd=""):
       # add the baseline variance
     #plt.hlines(model.var, 1, len(ys), colors='k', linestyles = "dashed")#, label = f"init var = {model.var}")
 
-    plt.title(f'Spectrum evolution over epochs
+    plt.title(f'Spectrum evolution over epochs \
               {model.n_neurons} neurons, Layer {j+1} of {model.n_layers}',
               fontsize=16)
     # setting the scale
@@ -211,7 +211,7 @@ def plot_spectrum_normed(model, scale='log', save_fig = True, xmax = 1000, savea
     # add the baseline variance
     #plt.hlines(model.var, 1, len(ys), colors='k', linestyles = "dashed", label = f"init var = {model.var}")
 
-    plt.title(f'Rescaled Init and Unnormalized Spectra
+    plt.title(f'Rescaled Init and Unnormalized Spectra \
               Network with {model.n_neurons} neurons, Layer {j+1} of {model.n_layers}',
               fontsize=16)
     plt.xscale(scale)
