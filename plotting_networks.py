@@ -48,18 +48,19 @@ def plot_relative_spectrum_history_eds(model, scale='log', save_fig=True, xmax=1
         # add the baseline variance
         #plt.hlines(model.var, 1, len(ys), colors='k', linestyles="dashed", label=f"init var = {model.var}")
 
-        plt.title(f'Spectrum evolution over epochs\n{model.n_neurons} neurons, Layer {j+1} of {model.n_layers}')
+        plt.title(f'Spectrum evolution over epochs\n{model.n_neurons} neurons, Layer {j+1} of {model.n_layers}', fontsize=16)
         # setting the scale
         plt.xscale(scale)
         plt.yscale(scale)
 
-        plt.xlabel('Rank')
-        plt.ylabel('eigenvalue')
+        plt.xlabel('Rank', fontsize=16)
+        plt.ylabel('eigenvalue', fontsize=16)
 
         #plt.xlim(1, xmax)
         #plt.xlim(min([min(rel_spec), min(eff_dim), 1]), xmax)
         plt.ylim(np.max([np.min(rel_spec), 10**(-5)]), np.max(rel_spec))
         # plt.ylim(np.min(rel_spec), np.max([np.max(rel_spec), model.var]))
+        plt.tick_params(axis='both', which='both', labelsize=16)
 
         plt.legend(reverse=True, loc='upper right', fontsize=16)
 

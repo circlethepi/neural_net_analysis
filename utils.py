@@ -60,9 +60,7 @@ def parse_frac_string(frac_string):
         num = numerator / denominator
     else:
         num = int(frac_string)
-    return num
-    
-    
+    return num 
 
 def get_sorted_epoch_names(dirname):
     all_files = os.listdir(dirname)

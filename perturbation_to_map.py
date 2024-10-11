@@ -762,7 +762,7 @@ class VariancePlot:
     def plot_ellipse_error(self, title='', sd_mult=1,
                           ticks=None, ticklabs=None, xlab=None, xlog=False,
                           ylog=False, save=False, savename='img', xrot=0,
-                          plot=True, ylim=None):
+                          plot=True, ylim=None, xlim=None):
         """
         Plot the area of the ellipse over the course of the trajectory
         """
@@ -783,8 +783,14 @@ class VariancePlot:
 
             if ticks is None:
                 ticks = list(range(len(sd1)))
+            if ticklabs is None:
+                ticklabs = ticks
 
-            plt.plot(ticks, areas, label='PC1', marker='o', linewidth=0.5)
+            if xlog and 0 in ticks:
+                ticks = ticks[1:]
+                areas = areas[1:]
+                ticklabs = ticklabs[1:]
+            plt.plot(ticks, areas, label='error', marker='o', linewidth=0.5)
 
             title += f' $\\pm${sd_mult}$\\sigma$'
             if xlab is None:
@@ -802,11 +808,10 @@ class VariancePlot:
             
             if ylim is not None:
                 plt.ylim(ylim[0], ylim[1])
+            if xlim is not None:
+                plt.xlim(xlim[0], xlim[1])
             plt.tick_params(axis='both', which='both', labelsize=16)
 
-
-            if ticklabs is None:
-                ticklabs = ticks
             plt.xticks(ticks, ticklabs)
 
             plt.legend(fontsize=16)
