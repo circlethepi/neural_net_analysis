@@ -1,6 +1,10 @@
 # basics
 import numpy as np
 from matplotlib import pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib as mpl
+import utils
+
 
 image_saveloc = f'image_hold'
 
@@ -8,6 +12,9 @@ image_saveloc = f'image_hold'
 def plot_relative_spectrum_history_eds(model, scale='log', save_fig=True, xmax=1000, saveadd=""):
     begin = 1
     epochs = model.epoch_history
+    # print([k if isinstance(k, str) else "" for k in epochs])
+    epochs = np.array([k if isinstance(k, int) else float(k) for k in epochs])
+    # print(epochs)
 
     if not xmax:
         xmax = model.n_neurons
@@ -17,17 +24,18 @@ def plot_relative_spectrum_history_eds(model, scale='log', save_fig=True, xmax=1
         eff_dim = model.effective_dimensions[j]
 
         print(len(epochs), len(model.normed_spectra))
-        colors = plt.cm.Spectral(np.linspace(0, 1, len(epochs) + 1))
+        colors = plt.cm.Spectral(np.linspace(0, 1, len(epochs)))
         # colors = plt.cm.viridis(np.linspace(0, 1, len(epochs) +1))
 
-        fig = plt.figure(figsize=(10, 5))
+        fig, ax = plt.subplots(figsize=(10, 5))
 
         ed_ys = []
 
         for i in range(begin, len(epochs)):
             xs = list(range(1, len(rel_spec[i-1]) + 1))
             ys = rel_spec[i-1]
-            plt.plot(xs, ys, label=f'epoch {epochs[i]}', color=colors[i])
+            # plt.plot(xs, ys, label=f'epoch {epochs[i]}', color=colors[i])
+            plt.plot(xs, ys, color=colors[i])
 
             # get the intersection of the relative spectrum and the effective dimensionality
             # if i < len(epochs):
@@ -40,29 +48,54 @@ def plot_relative_spectrum_history_eds(model, scale='log', save_fig=True, xmax=1
             # acc_colors = plt.cm.Greys(np.linspace(0,1,100))
         plt.plot(eff_dim[begin:], ed_ys, 'k--', label='Eff. Dim.')
 
+        plt.tick_params(axis='both', which='both', labelsize=16)
+
             # colormaps: spring, coolwarm, Greys
-        plt.scatter(eff_dim[begin:], ed_ys, c=test_accuracies, cmap=plt.cm.spring, s=20, edgecolors="black",
+        acc = ax.scatter(eff_dim[begin:], ed_ys, c=test_accuracies, cmap=plt.cm.spring, s=20, edgecolors="black",
                         label='Val Accuracy', zorder=10)
-        plt.colorbar()
+        
+        # double colorbar
+        divider = make_axes_locatable(ax)
 
-        # add the baseline variance
-        #plt.hlines(model.var, 1, len(ys), colors='k', linestyles="dashed", label=f"init var = {model.var}")
+        # accurcaies
+        cax1 = divider.new_horizontal(size="5%", pad=0.2)
+        fig.add_axes(cax1)
+        cbar1 = fig.colorbar(acc, cax=cax1)
+        cbar1.ax.tick_params(labelsize=16)
+        cbar1.set_label('accuracy', fontsize=16)
 
-        plt.title(f'Spectrum evolution over epochs\n{model.n_neurons} neurons, Layer {j+1} of {model.n_layers}', fontsize=16)
+        # epochs
+        cax2= divider.new_horizontal(size="5%", pad=1.2, pack_start=True)
+        fig.add_axes(cax2)
+        epoch_colormap = mpl.colors.ListedColormap(colors[1:])
+        bounds = np.linspace(0, 1, len(epochs))
+        # norm = mpl.colors.LogNorm(vmin=min(epochs[epochs>0]), vmax=max(epochs))
+        norm = mpl.colors.BoundaryNorm(bounds, epoch_colormap.N)
+        cbar2 = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=epoch_colormap),
+                             cax=cax2)
+        cbar2.ax.tick_params(labelsize=16)
+        cbar2.ax.yaxis.set_ticks_position('left')
+        midpoints = 0.5 * (bounds[:-1] + bounds[1:])
+        cbar2.set_ticks(midpoints)
+        cbar2.set_ticklabels([int(k) if int(k)-k ==0 else f'{k:.2f}' for k in epochs[1:]])
+        cbar2.set_label('epoch', fontsize=16)
+        cbar2.ax.yaxis.set_label_position('left')
+
+        ax.set_title(f'Spectrum evolution over epochs\n{model.n_neurons} neurons, Layer {j+1} of {model.n_layers}', fontsize=16)
         # setting the scale
-        plt.xscale(scale)
-        plt.yscale(scale)
+        ax.set_xscale(scale)
+        ax.set_yscale(scale)
 
-        plt.xlabel('Rank', fontsize=16)
-        plt.ylabel('eigenvalue', fontsize=16)
+        ax.set_xlabel('Rank', fontsize=16)
+        ax.set_ylabel('eigenvalue', fontsize=16)
 
         #plt.xlim(1, xmax)
         #plt.xlim(min([min(rel_spec), min(eff_dim), 1]), xmax)
-        plt.ylim(np.max([np.min(rel_spec), 10**(-5)]), np.max(rel_spec))
+        ax.set_ylim(np.max([np.min(rel_spec), 10**(-5)]), np.max(rel_spec))
         # plt.ylim(np.min(rel_spec), np.max([np.max(rel_spec), model.var]))
         plt.tick_params(axis='both', which='both', labelsize=16)
 
-        plt.legend(reverse=True, loc='upper right', fontsize=16)
+        ax.legend(reverse=True, loc='upper right', fontsize=16)
 
         if save_fig:
             plt.savefig(f'{image_saveloc}/ED_rel_spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}{saveadd}.png')
