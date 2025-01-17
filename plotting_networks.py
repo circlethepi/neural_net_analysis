@@ -104,7 +104,7 @@ def plot_relative_spectrum_history_eds(model, scale='log', save_fig=True, xmax=1
         plt.show()
 
 
-def plot_spectrum(model, scale='log', save_fig=True, saveadd=""):
+def plot_spectrum(model, scale='log', save_fig=True, saveadd="", legend=True):
   epochs = model.epoch_history
 
   for j in range(len(model.spectrum_history)):
@@ -150,8 +150,8 @@ def plot_spectrum(model, scale='log', save_fig=True, saveadd=""):
     #plt.ylim(np.min(spec_hist), np.max([np.max(spec_hist), model.var]))
 
 
-
-    plt.legend(reverse=True)
+    if legend:
+      plt.legend(reverse=True)
 
     if save_fig:
       plt.savefig(f'{image_saveloc}/spec_hist_{model.n_neurons}_{model.n_epochs}_layer{j+1}{saveadd}.png')

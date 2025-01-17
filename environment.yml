@@ -13,10 +13,10 @@ dependencies:
   - ipywidgets
   - torchaudio
   - torchvision
-#  - torch
   - torchmetrics
   - markdown
   - scipy
 
 variables:
   PYTORCH_ENABLE_MPS_FALLBACK: '1'
+# for local macOS running

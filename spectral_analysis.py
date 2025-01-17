@@ -81,6 +81,8 @@ class SpectrumAnalysis:
         else:
             assert path is not None and epoch is not None, \
                 "Invalid model loading parameters; you must specify a path and epoch"
+            path = rel_path + path
+            path += f'/{exp_name}-{"".join(arch)}'
             self.load_from_saved(path, epoch)
             self.save_dir = path
             self.epoch_history = [epoch]
@@ -226,10 +228,13 @@ class SpectrumAnalysis:
         self.activation_covs = act_covs
         return act_covs
 
-    def get_activation_spectrum(self):#, dataloader=None):
+    def get_activation_spectrum(self, dataloader=None):#, dataloader=None):
         #if self.activation_covs is None:
-        self.get_activation_covs(self.train_loader, list(range(1, self.n_layers+1)))
+        if dataloader is None:
+            self.get_activation_covs(self.train_loader, list(range(1, self.n_layers+1)))
 
+        else:
+            self.get_activation_covs(dataloader, list(range(1, self.n_layers+1)))
         # act_spectra = []
         # act_bases = []
         # for cov in self.activation_covs:
@@ -323,7 +328,7 @@ class SpectrumAnalysis:
 
         print(f'Effective dimensions calculated')
 
-    def plot(self, plotlist=('rel'), scale='log', layer=None, quantity=None, save_fig=False, xmax=None,
+    def plot(self, plotlist=('rel'), scale='log', layer=None, quantity=None, save_fig=False, xmax=None, legend=False,
              saveadd=''):
         """
 
@@ -339,7 +344,7 @@ class SpectrumAnalysis:
             plotter.plot_relative_spectrum_history_eds(self, scale=scale, save_fig=save_fig, xmax=xmax, saveadd=saveadd)
 
         if 'spec' in plotlist:
-            plotter.plot_spectrum(self, scale=scale, save_fig=save_fig, saveadd=saveadd)
+            plotter.plot_spectrum(self, scale=scale, save_fig=save_fig, saveadd=saveadd, legend=legend)
 
         if 'rel' in plotlist:
             plotter.plot_spectrum_normed(self, scale=scale, save_fig=save_fig, xmax=xmax, saveadd=saveadd)
