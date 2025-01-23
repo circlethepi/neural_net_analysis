@@ -161,120 +161,6 @@ class PerturbationSettings:
 default_perturbation_settings = PerturbationSettings()
 
 
-# class PerturbationResults:
-#     """
-#     holds and plots perturbation experiment results. These should be reshaped to be indexed by layer!
-#     """
-#     # def __init__(self, *initial_data, **kwargs):
-#     #     for dictionary in initial_data:
-#     #         for key in dictionary:
-#     #             setattr(self, key, dictionary[key])
-#     #     for key in kwargs:
-#     #         setattr(self, key, kwargs[key])
-
-#     def __init__(self, results_dict):
-#         """
-
-#         :param results_dict:
-#         """
-#         self.similarities = results_dict['sims_u']
-#         self.similarities_clipped = results_dict['sims_c']
-
-#         self.distances = results_dict['dist_u']
-#         self.distances_clipped = results_dict['dist_c']
-
-#         self.accuracy = results_dict['acc']
-#         self.accuracy_baseline = results_dict['acc_base']
-#         self.dimensions_trials = results_dict['effdims']
-
-#         self.dimensions_baseline = results_dict['base_dims']
-
-#         self.baseline_trace = results_dict['base_tr_u']
-#         self.baseline_trace_clipped = results_dict['base_tr_c']
-
-#         self.experiment_trace = results_dict['exp_tr_u']
-#         self.experiment_trace_clipped = results_dict['exp_tr_c']
-
-#         self.nuclear_norm = results_dict['nnorm_u']
-#         self.nuclear_norm_clipped = results_dict['nnorm_c']
-
-#         self.description = results_dict['README']
-
-#         self.models = results_dict['models']
-
-#         self.ticks = None
-
-#     def set_ticks(self, ticklist):
-#         setattr(self, 'ticks', ticklist)
-#         print('Successfully set the ticks for the model')
-#         return
-
-#     def plot_trajectories(self, layer=1, ticks=None, ylog=True, xlog=False,
-#                           xlabadd='', plot_baselines=True, ylims=None):
-#         ticks = self.ticks if self.ticks else ticks
-#         if not ticks:
-#             os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
-#             raise Exception('Need to set ticks before plotting')
-
-#         plot_result_trajectories(self.similarities[layer], 
-#                                  self.similarities_clipped[layer],
-#                                  self.distances[layer], 
-#                                  self.distances_clipped[layer],
-#                                  xticks=ticks, ylog=ylog, xlog=xlog, 
-#                                  xlabadd=xlabadd, plot_baselines=plot_baselines,
-#                                  title=f'Layer {layer}', ylims=ylims)
-#         return
-
-#     def plot_trace_nnorms(self, ticks=None, quantity='weights', layer=1, clipped=True,
-#                           titleadd='', xlabel='Perturbation Level', upper_legend_loc='best', lower_legend_loc='best',
-#                           yrange_weights=None, yrange_activations=None,
-#                           xlog=False, hline_lims=None, ylog=True):
-#         ticks = self.ticks if self.ticks else ticks
-#         if ticks is None:
-#             os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
-#             raise Exception('Need to set ticks before plotting')
-
-#         plot_trace_nnorms(self, ticks, layer=layer, clipped=clipped, xlabel=xlabel, yrange_weights=yrange_weights, yrange_activations=yrange_activations,
-#                           xlog=xlog, ylog=ylog, hline_lims=hline_lims)
-
-#         return
-
-#     def plot_accuracy(self, type='test', ticks=None, titleadd='', 
-#                       legend_loc='lower left', xlabel='Perturbation',
-#                       ymin=0, ymax=1, xscale='log', yscale='linear', 
-#                       chance_classes=10, hline_lims=None):
-#         ticks = self.ticks if self.ticks else ticks
-#         if not ticks:
-#             os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
-#             raise Exception('Need to set ticks before plotting')
-#         plot_accuracy_trajectory(self.accuracy[type], 
-#                                  self.accuracy_baseline[type], xticks=ticks,
-#                                  legend_loc=legend_loc, 
-#                                  titleadd=f'{type} {titleadd}', 
-#                                  ymin=ymin, ymax=ymax,
-#                                  xscale=xscale, yscale=yscale, 
-#                                  n_classes=chance_classes, 
-#                                  hline_lims=hline_lims, xlabel=xlabel)
-#         return
-
-
-#     def plot_effective_dimensions(self, layer=1, ticks=None, xlabel='', 
-#                                   titleadd='', legend_loc='lower right',
-#                                   xlog=False, ylog=True, 
-#                                   hline_lims = None, ylims=None):
-#         ticks = self.ticks if self.ticks else ticks
-#         if not ticks:
-#             os.system('say "PLEASE SET THE TICKS YOU ABSOLUTE POTATO"')
-#             raise Exception('Need to set ticks before plotting')
-
-#         plot_effective_dimensions(self, ticks, xlabel, layer=layer, 
-#                                   titleadd=titleadd, legend_loc=legend_loc, 
-#                                   xlog=xlog, ylog=ylog, 
-#                                   hline_lims=hline_lims, ylims=ylims)
-
-#         return
-
-
 class Perturbation:
 
     def __init__(self,
@@ -893,7 +779,7 @@ def subset_class_loader(subset_settings : PerturbationSettings = default_perturb
 
 
             #m_train_sub, m_val_sub = swap_trainset_labels(swap, mod_ind, m_train_sub, m_val_sub)
-        transform_list = [dataset_perturbations(column_indices=columns,
+        transform_list = [DatasetPerturbationsTransforms(column_indices=columns,
                                                 row_indices=rows,
                                                 val=val,
                                                 intensity=intensity,
@@ -981,7 +867,7 @@ class MyDataset:
 
 
 # dataset purturbations class for the transformations
-class dataset_perturbations(object):
+class DatasetPerturbationsTransforms(object):
     def __init__(self, val=(1, 1, 1),
                  column_indices=None, row_indices=None,
                  intensity=False,

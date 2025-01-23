@@ -30,7 +30,7 @@ device = set_torch_device()
 ### GLOBAL VARIABLES ###
 ########################
 COMMON_SEED = 1234
-
+GLOBAL_COMPARISON_DICT = '../../../datascope/menard/group/mohata1/comparison_library'
 
 # Helper Functions
 def compute_pairwise_sims(model_set, dataloader=None, layer=1, w_clip=30, a_clip=64, 
@@ -1186,3 +1186,188 @@ def split_indices(n_checkpoints, n_trials):
         splits.append(np.sum(checks[:i+1]))
 
     return splits
+
+"""Multiple Network Comparison"""
+
+class MultiNetworkComparison:
+
+    def __init__(self, networks: dict, comparison_name=None, save_filename=None,
+                 rel_path=''):
+        """
+        :param networks:    [string] -> SpectrumAnalysis
+        """
+
+        # set the networks
+        self.networks = networks
+        self.keys = list(self.networks.keys())
+        self.models = list(self.networks.values())
+        self.n_models = len(self.keys)
+
+        # set the name of the comparison
+        if comparison_name is None:
+            name = f'{self.keys[0]}compare_x{len(self.keys)}'
+        else:
+            name = comparison_name
+        self.name = name
+
+        # set the save location
+        if save_filename is None:
+            save_filename = f'{self.name}_storage'
+            # assert list(self.networks.keys()) == self.get_disc_info('keys')
+        self.save_filename = save_filename
+            
+        self.rel_path = rel_path
+        # set the save filename
+        self.disc_location = f'{self.rel_path}{GLOBAL_COMPARISON_DICT}/{self.save_filename}.pkl'
+
+        # disc saving
+        if os.path.exists(self.disc_location):
+            self.disc_info = self.load_disc_info()
+        else:
+            self.disc_info = {'save_filename' : self.save_filename}
+            # self.disc_info['activation_loaders'] = []
+            self.disc_update()
+            
+
+        # weight matrices
+        self.weights = self.get_weight_matrices(save=True)
+
+        # activations
+        
+        return
+    
+
+    
+    def disc_update(self):
+        """Updates current info to disc"""
+        self.save_disc_info(self.disc_info)
+        return
+
+    def save_disc_info(self, disc_info):
+        """Saves info to disc"""
+        with open(self.disc_location, 'wb') as file:
+            pickle.dump(disc_info, file)
+        return
+    
+    def load_disc_info(self):
+        """Loads saved info from disc"""
+        with open(self.disc_location, 'rb') as file:
+            disc_info = pickle.load(file)
+
+        return disc_info
+
+    def in_disc_info(self, quantity):
+        """Checks to see if a given quantity has been calculated and saved"""
+        if quantity in self.disc_info.keys():
+            return True
+        else:
+            return False
+    
+    
+    def get_weight_matrices(self, save=False, load=True):
+        quantity = 'weights'
+
+        if self.in_disc_info(quantity) and load:
+            return self.disc_info['weights']
+        else:
+            weight_dict = {}
+            for key, net in self.networks.items():
+                for layer in range(1, net.n_layers+1):
+                    _ = net.get_weights()
+                    weights = net.weights[layer]
+                    weight_dict[key, layer] = weights.detach()
+
+            if save:
+                self.disc_info['weights'] = weight_dict
+                self.disc_update()
+
+            return weight_dict
+    
+    def get_weights(self, layer=1):
+        """
+        Get weights from a specific layer
+        """
+        return_dict = {}
+        for key in self.keys:
+            return_dict[key] = self.weights[key, layer]
+        
+        return return_dict
+
+    # def get_activations(self, activation_loader : torch.utils.data.DataLoader, loader_name : str, save=True):
+    
+    #     activation_dict = {}
+    #     for key, net in self.networks.items():
+    #         # net.set_train_loader(activation_loader)
+    #         for layer in range(1, net.n_layers + 1):
+    #             acts = net.get_activations(activation_loader, [layer])
+
+    #             activation_dict[key, layer] = acts
+
+    #     if save:
+    #         self.disc_info['activations', loader_name] = activation_dict
+    #         self.disc_info['activation_loaders'].append(loader_name)
+    #         self.disc_update()
+        
+    #     return activation_dict
+    
+    def calculate_alignments(self, dataloader, layers, save=True, load=True):
+        """
+        Calculate alignment matrices between each pair of models
+        """
+        quantity='alignments'
+
+        if self.in_disc_info(quantity) and load:
+            return self.disc_info[quantity]
+        else:
+            align_dict = {} # [key1, key2, layer] -> alignment_matrix
+            layers=[lay-1 for lay in layers]
+        
+            for i in range(self.n_models):
+                for j in range(i+1, self.n_models):
+                    key1, key2 = self.keys[i], self.keys[j]
+
+                    # get the cross covariance
+                    alignments = align.compute_alignments(dataloader, layers, 
+                                                        self.networks[key1], self.networks[key2])
+                    
+                    for k in range(len(layers)):
+                        lay_name = layers[k]+1
+                        align_dict[key1, key2, lay_name] = alignments[k]
+
+        return
+
+
+
+
+    
+
+"""
+Matrix Things
+"""
+
+# def get_backend(x):
+#     """ Returns the backend adapted to a given tensor or array. """
+#     if isinstance(x, torch.Tensor):
+#         return torch
+#     else:
+#         return np
+    
+# class DecomposedMatrix:
+#     """
+#     Class to handle matrix decomposition easily
+#     """
+
+#     def __init__(self, matrix=None, decomposition="eigh", rank=float("inf"),
+#                  eigenvalues=None, eigenvectors=None, dual_eigenvectors=None):
+        
+#         self._matrix = matrix  # (*, C, D)
+#         self.decomposition = decomposition
+#         self.rank: int = min(min(*matrix.shape[-2:]) if matrix is not None else float("inf"), eigenvalues.shape[-1] if eigenvalues is not None else float("inf"), rank)  # Never None.
+#         self._eigenvalues = eigenvalues  # (*, R), descending
+#         self._eigenvectors = eigenvectors  # (*, R, C)
+#         self._dual_eigenvectors = eigenvectors if dual_eigenvectors is None else dual_eigenvectors  # (*, R, D)
+
+
+#         self.backend = get_backend(self._matrix if self._matrix is not None else self._eigenvectors)
+
+#         return
