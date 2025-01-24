@@ -808,14 +808,15 @@ class VariancePlot:
 
 
 def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mult=2,
-                       n_models=None, labels=None, increments=None, 
+                       n_models=None, labels=None, increments=None, inc_ind=-1,
+                       inc_fontsize=None, fontsize=20,
                        text_locs=None, colors=None, legend_cols=2, 
                        legend_order=None, markers=None, markersize=5,
                        legend_loc='best',
 
                        accuracies=None, 
                        bar_range=(0,1), color_traj=None, steps=None, traj_a=1,
-                       cb_norm=None, colorbar=False, 
+                       cb_norm=None, colorbar=False, color_list=None,
                        zero_incs=[0], figsize=(12, 10), 
                        zero_sep=False, zero_lab=None, zero_color='red', 
 
@@ -823,6 +824,7 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
 
                        #save=False, saveloc='../image_hold', 
                        xlim=None, ylim=None, xrot=0, 
+                       
                        varwidth=1e-3, 
 
                        mean_color='k', varcols=('#757575', '#757575'),
@@ -833,12 +835,84 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
 
     ):
     """
-    :param plot_info - output from get_variance_axes
+    --- Main Needs ---
+    :param  coordinates - np.array of size nx2 of coordinates to plot
+    :param  plot_info - output from get_variance_axes
+    :param  title - str title of the plot
+    :param  n_models - the number of models/points for each trajectory (since 
+            all coordinates are passed in at once, this splits them)
+    
+    --- Additional Coordinate Manipulation ---
+    :param  align_coords - bool on whether of align the coords (if not aligned)
+    :param  xflip - bool whether to flip the coordinates over x-axis
+    :param  yflip - bool whether to flip the coordinates over y-axis
+    :param  zero_ind - if aligning, which coordinate to center about 0
+
+    --- Gradient / Colormap Points ---
+    :param  color_traj - a colormap, True, or None. If True, uses the default 
+            colormap. If not None, then the points are plotted according to the 
+            colormap according to the values in steps (usually epoch values or 
+            accuracies)
+    :param  color_list - None (default) or a list of lists each with RGBA values
+            for the corresponding points
+    :param  steps - list of lists with values for color_traj. usually epochs or
+            model accuracies
+    :param  accuracies - list of lists with accuracy values for color_traj.
+            indicates explicitly that these are accuracies
+    :param  traj_a - float in (0,1) for alpha value of each trajectory's color 
+    
+    --- Colorbar ---
+    :param  cb_norm - str norm for the colorbar
+    :param  colorbar - whether to show colorbar
+    :param  bar_range - 2-tuple of hi-lo values to show on the colorbar
+
+    --- Trajectory Distinction ---
+    :param  increments - Bool whether or not to place the traj labels on the 
+            map (instead of placing them in the legend)
+    :param  inc_ind - int of which index of path to label if increments is True
+    (by default the last point in the trajectory is labeled)
+    :param  inc_fontsize - fontsize for trajectory annotations
+    :param  text_locs - list of (X,Y) 2-tuple offsets from each of the endpoints 
+            for where to place the labels on the map. By default, this is 
+            (-12, -12) for each point
+    :param  colors - list(str) the color to use for each trajectory
+    :param  markers - list(str) the marker to use for each trajectory
+
+    --- Zero / First Point Discrimination ---
+    :param  zero_lab - str what to label the zero point if zero_sep is true
+    :param  zero_sep - Bool whether to color the zeroth point separately from 
+            everything else
+    :param  zero_color - str the color of the zeroth point
+    :param  zero_incs - list(int) which trajectories to label as 0
+
+    --- Axis Formatting ---
+    :param  xlim - 2-tuple of axis min, max
+    :param  ylim - 2-tuple of axis min, max
+    :param  xrot - int for angle to rotate the x-axis labels
+    :param  figsize - 2-tuple for (max) size of canvas
+
+    --- Confidence Regions ---
+    {     these only apply if plot_info is NOT None     }
+    :param  sd_mult - the number of SDs to use in the confidence intervals
+    :param  var_col - 2-tuple of colors for PC1 and PC2 variances
+    :param  var_width - float how wide to make the variance bars
+    :param  mean_color - the color of the mean plot (if solid). This applies if 
+            color_traj is None
+    :param  mean_symbol - str symbol to use to mark the mean
+    :param  mean_mark_size - int size of mean marker
+    :param  mean_lab - str label to give mean trajectory
+
+    --- Figure Saving ---
+    :param  save - bool whether to save the image
+    :param  savename - str filename for saving
+    
     """
     # align the coordinates if they need to be aligned
     if align_coords:
         coordinates = align_traj_to_x(coordinates, yflip=yflip, xflip=xflip, 
                                     zero_ind=zero_ind)
+
+    inc_fontsize = inc_fontsize if inc_fontsize else fontsize
 
     """If there is plotinfo for variance"""
     if plot_info is not None:
@@ -902,7 +976,7 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
         else:
             print('Using setting for bar_range since log scale being used')
             lims_cb = bar_range
-        print(lims_cb)
+        # print(lims_cb)
         if accuracies is None:
             bar_range=lims_cb
         
@@ -974,16 +1048,21 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
                             cmap=color_map, vmin=bar_range[0], 
                             vmax=bar_range[1], zorder=2, norm=cb_norm)
                 increment_color = color_map(accuracies[i][-1])
-            if color_traj:
+            if color_traj and color_list is None:
                 step_i = np.array(steps[i])
+                step_i[step_i <= 0] = bar_range[0]
                 #print(steps, steps[i])
                 if cb_norm and 'log' in cb_norm:
-                    colors[colors <= 0] = 1e-4
+                    colors[colors <= 0] = bar_range[0]
                 #print(colors)
                 scat = plt.scatter(xs, ys, c=step_i, cmap=color_traj, 
                             marker=mark, s=markersize**2, norm=cb_norm,
                             vmin=bar_range[0], vmax=bar_range[1], zorder=2)
                 increment_color = color_traj(step_i[-1])
+            if color_traj and color_list:
+                scat = plt.scatter(xs, ys, c=color_list[i], marker=mark, s=markersize**2,
+                zorder=3)
+                increment_color = colors[i]
         else:
             plt.plot(xs, ys, markersize=markersize, marker=mark, linestyle=':',
                  color=colors[i], label=labels[i], linewidth=1, zorder=1,
@@ -994,7 +1073,8 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
 
         if increments and labels:
             # set the ith increments
-            increments_i = ['']*(n_models[i]-1) + [f'{labels[i]}']
+            increments_i = ['']*(n_models[i])
+            increments_i[inc_ind] = f'{labels[i]}'
             #print(increments_i)
             if i in zero_incs:
                 increments_i[0] = '0'
@@ -1010,7 +1090,7 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
                                           fc=increment_color, alpha=0.2),
                                 arrowprops=dict(arrowstyle='-', 
                                                 connectionstyle='arc3,rad=0'),
-                                fontsize=16)
+                                fontsize=inc_fontsize)
     
     # setting the labels for the trajectories as appropriate
     if labels and not increments:
@@ -1018,12 +1098,12 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
             handles, labels = plt.gca().get_legend_handles_labels()
             ax.legend([handles[idx] for idx in legend_order],
                     [labels[idx] for idx in legend_order], loc='upper left', 
-                    bbox_to_anchor=(0.1, -0.08), fontsize=16, ncol=legend_cols)
+                    bbox_to_anchor=(0.1, -0.08), fontsize=fontsize, ncol=legend_cols)
         else:
-            ax.legend(loc='upper left', bbox_to_anchor=(0.1, -0.08), fontsize=16, 
+            ax.legend(loc='upper left', bbox_to_anchor=(0.1, -0.08), fontsize=fontsize, 
                 ncol=legend_cols)
     if zero_lab:
-        ax.legend(handles=zero_legend, fontsize=16)
+        ax.legend(handles=zero_legend, fontsize=fontsize)
 
     """Plot the means"""
     if plot_info is not None:
@@ -1031,7 +1111,7 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
         if color_traj:
             step_i = np.array(steps[0])
             if cb_norm and 'log' in cb_norm:
-                colors[colors <= 0] = 1e-4
+                colors[colors <= 0] = bar_range[0]
             mean_legend = plt.scatter(mean_coords[:,0], mean_coords[:,1], 
                                       c=step_i, cmap=mean_traj, 
                                       marker=mean_symbol, s=mean_mark_size**2, 
@@ -1046,7 +1126,7 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
         if zero_sep:
         #     plt.scatter(mean_coords[0,0], mean_coords[0,1], marker=mean_symbol, s=100, 
         #                 color=zero_color, zorder=5)
-            ax.legend(handles=zero_legend+[mean_legend], fontsize=16, loc=legend_loc)
+            ax.legend(handles=zero_legend+[mean_legend], fontsize=fontsize, loc=legend_loc)
 
 
     """ADDING THE ARROWS"""
@@ -1075,16 +1155,26 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
                             scale_units='x', units='dots', width=varwidth, 
                             color=varcols[1], zorder=10000)
 
-    # setting the colorbar
-    if (accuracies or color_traj) and colorbar:
+    """setting the colorbar"""
+    if (accuracies or color_traj) and colorbar and not color_list:
         # ticks
-        cbar_ticks = steps[0] if color_traj else [np.min(np.array(accuracies)), np.max(np.array(accuracies))]
+        cbar_ticks = steps[0] if color_traj else [np.min(np.array(accuracies)),\
+                                                  np.max(np.array(accuracies))]
+        # print(steps[0])
+        # print(f'FIRST COLORBAR TICK', cbar_ticks[0])
+        
+        if cbar_ticks[0] == 0:
+            cbar_ticks[0] = bar_range[0]
+        cbar_ticks = np.array(cbar_ticks).flatten()
         cbar = plt.colorbar(scat, ticks=cbar_ticks)
         cbar.ax.tick_params(labelsize=16)
         
         # define the tick labels
         def tick_format(x):
-            if int(x) == x:
+            # print(x)
+            if x == bar_range[0]:
+                y = f'0 - init'
+            elif int(x) == x:
                 y = int(x)
             elif 0.01 < x < 1e2:
                 y = f'{x:.2f}'
@@ -1096,7 +1186,7 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
 
         # label
         cbar_label = 'Accuracy' if accuracies else 'Epoch'
-        cbar.set_label(cbar_label, fontsize=16)    
+        cbar.set_label(cbar_label, fontsize=fontsize)    
     
     # setting the axis limits if they are given:
     if xlim:
@@ -1104,9 +1194,9 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
     if ylim:
         plt.ylim(ylim[0], ylim[1])
 
-    plt.tick_params(axis='both', which='both', labelsize=16)
+    plt.tick_params(axis='both', which='both', labelsize=fontsize)
     plt.tick_params(axis='x', labelrotation=xrot)
-    plt.title(title, fontsize=16)
+    plt.title(title, fontsize=fontsize)
     plt.gca().set_aspect('equal')
     
     if save:
@@ -1115,6 +1205,267 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
     plt.show()
     
     return 
+
+
+##############################################
+### color_list and alpha/colorbar creation ###
+##############################################
+
+def make_color_list(color_map, color_increments, alpha_increments,
+                    alpha_range=(0,1), color_norm=None):
+    """
+    creates a color_list : list(list(RGBA)) for use in plotting variance plots
+
+    :param color_map: matplotlib.colors.Colormap
+    :param color_increments: list(list(float)) - values to get colors  
+    :param alpha_increments: list(list(float)) - values to get alphas 
+    :param alpha_range: 2-tuple(float) - min and max alpha to range from
+
+    :return rgba_lists : list(list(RGBA)) - rgba values. Same "shape" as 
+    color_increments and alpha_increments
+
+    NOTE: color_increments and alpha_increments must be the same "shape"
+
+    """
+    # check that color_increments and alpha_increments are compatible
+    increment_error = "color_increments and alpha_increments must be the same shape"
+    assert len(color_increments) == len(alpha_increments), increment_error
+    for i in range(len(color_increments)):
+        assert len(color_increments[i]) == len(alpha_increments[i]), increment_error
+
+    # get the min and max values from each of the increment lists
+    alpha_min, alpha_max = get_increment_min_max(alpha_increments)
+    color_min, color_max = get_increment_min_max(color_increments)
+
+    # make the color norm for the color map
+    cnorm = color_norm if color_norm else colors.Normalize(vmin=color_min, vmax=color_max)
+
+    # make the alpha conversion
+    get_alpha = make_rescaler(alpha_min, alpha_max, *alpha_range)
+
+    # get the RGB,A color values and put them into a list
+    rgba_lists = []
+    for i in range(len(color_increments)): # this is a list of color values
+        color_list = color_increments[i]
+        alpha_list = alpha_increments[i]
+
+        # get the RGB value
+        rgb_list = [color_map(cnorm(k)) for k in color_list]
+        # add the alpha value
+        alpha_vals = [get_alpha(k) for k in alpha_list]
+        # get the new colors
+        new_color_list = [colors.to_rgba(rgb_list[i], alpha=alpha_vals[i]) for i in range(len(rgb_list))]
+
+        # add to the master list
+        rgba_lists.append(new_color_list)
+    
+    print(color_list_use_message)
+
+    return rgba_lists
+
+color_list_use_message = """!!!IMPORTANT!!! - color_list use information
+You are making a color_list for plot_variance_plot. You MUST include additional
+arguments into plot_variance_plot at this time based on your inputs to generate 
+the list as follows:
+
+color_list = output of this function
+color_traj = color_map (the same one you input) or True
+steps = color_increments 
+
+(optional):
+colorbar = False (default)
+    if you keep this true, then the colorbar will NOT match the color_list 
+    conventions. To make a colorbar that reflects both the alpha values and the
+    colormap, use custom_colorbar.
+
+Yes, it is annoying. Yes, I could fix it. No, I have not. That is a several-
+day code optimization project that I am not doing right now. Yes, my code is 
+jank. That is why you are seeing this message. (I write, as if anyone else is 
+using this spaghetti code)
+"""
+
+
+""" Color List Helper Functions """
+def get_increment_min_max(nested_lists):
+    min_val = min([min(li) for li in nested_lists])
+    max_val = max([max(li) for li in nested_lists])
+    return min_val, max_val
+
+def rescale_values(x_old, old_min, old_max, new_min, new_max):
+    """ linearly rescales x_old in range (old_min, old_max) to y_new in (new_min, new_max)
+    """
+    y_new = ((new_max-new_min)/(old_max-old_min))*(x_old-old_max) + new_max
+    return y_new
+
+def make_rescaler(old_min, old_max, new_min, new_max):
+    """ makes a rescale function with given old range and new range
+    f(x_old) = rescale_values(x_old *given_params)
+    """
+    def rescale_function(x):
+        return rescale_values(x, old_min, old_max, new_min, new_max)
+    
+    return rescale_function
+
+def general_tick_format(x):
+    if int(x) == x:
+        y = int(x)
+    elif 0.01 < x < 1e2:
+        y = f'{x:.2f}'
+    else:
+        y = f'{x:.2e}'
+    return y
+
+
+def custom_colorbar(color_map, alphas=False, alpha_range=(0,1), norm=None,
+                    color_title='colormap', alpha_title='transparency',
+                    ticklist=None, ticklabels=None, alphaticks=None,
+                    alphalabels=None, alphanorm=None, orientation="horizontal",
+                    fontsize=20, figsize=None, format_labels=True, 
+                    alpha_aspect=2):
+    """ Creates a custom colorbar, possibly including alpha values
+    :param color_map: matplotlib.pyplot.cm.*name* colormap
+    :param alphas: bool - whether to also plot alpha range
+    :param alpha_range: tuple(float, float) - range of possible alpha values
+
+    :param norm: matplotlib.colors.Norm(alization) - if the colormap is 
+                 normalized somehow
+    :param alphanorm: str in ["log", "linear"] - default "log"
+
+    :param color_title: str - the title to go next to the colorbar
+    :param alpha_title: str - the title to go next to the transparency bar
+
+    :param ticklist: list - default None, the list of ticks to use for the 
+                     colormap. If None, then just (0, 1)
+    :param ticklabels: list - default None, the list of labels to use for each
+                       tick on the colormap. If None, then the ticklist with
+                       default formatting
+    
+    :param alphaticks: list - same as ticklist but for alpha values
+    :param alphalabels: list - same as ticklabels but for alpha values
+
+    :param orientation: str in ["horizontal", "vertical"] - which way the 
+                        colormap direction is
+    
+    :param alpha_aspect: float - proportion of the length of the color bar for
+                                 the alpha bar
+    
+    :param fontsize: int - the fontsize used in the plot
+    :param figsize: tuple(float, float) - the size of the final figure
+    :param format_labels: bool - whether to format the labels with default 
+    
+    """
+    ### Check input compatibility
+    # TODO: Add compatibility checks
+
+    default_sizes = {
+        (True, "horizontal"): (8,8), 
+        (True, "vertical"): (8,8),
+        (False, "horizontal"): (8,1.5),
+        (False, "vertical"): (1.5,8)
+    }
+    # make the figure
+    figsize = figsize if figsize else default_sizes[alphas, orientation]
+    fig, ax = plt.subplots(figsize=figsize, layout="constrained")
+
+    # set the normal colorbar/colormap ticks
+    ticklist = ticklist if ticklist else (0, 1)
+    if format_labels and ticklabels:
+        ticklabels=[general_tick_format(k) for k in ticklabels]
+    ticklabels = ticklabels if ticklabels else [general_tick_format(k) for \
+                                                k in ticklist]
+    # make so ticks are in same norm
+    ticklist = [norm(k) for k in ticklist]
+    # print(ticklist, ticklabels)
+
+    if not alphas:
+        cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=color_map),
+                            cax=ax, orientation=orientation, ticks=ticklist)
+        cbar.set_label(color_title, fontsize=fontsize)
+        cbar.ax.tick_params(labelsize=fontsize)
+
+        # set ticks/labels labels
+        if orientation == 'horizontal':
+            cbar.ax.set_xticklabels(ticklabels)
+        else:
+            cbar.ax.set_yticklabels(ticklabels)
+
+    else:
+        # get alpha norm
+        alphanorm = eval_alphanorm(alphanorm)
+        n_alpha_vals = int(color_map.N*alpha_aspect)
+        # make a plot showing both alphas and colors
+        spacing = {"log": np.geomspace, "linear": np.linspace}
+        if alpha_range[0] == 0 and alphanorm == "log":
+            alpha_range = (1e-4, alpha_range[1])
+        alphas = spacing[alphanorm](alpha_range[0], alpha_range[1], 
+                                    n_alpha_vals)
+        print(min(alphas), max(alphas))
+        
+        # get the ticks for alphas
+        alphaticks = alphaticks if alphaticks else alpha_range
+        print(alphaticks)
+        if format_labels and alphalabels:
+            alphalabels = [general_tick_format(k) for k in alphalabels]
+        alphalabels = alphalabels if alphalabels else \
+            [general_tick_format(k) for k in alphaticks]
+        # print(alphaticks, alphalabels)
+        
+        # Get the RGBA values
+        color_array = color_map(np.arange(color_map.N))
+        rgbas = []
+        for a in alphas:
+            alpha_colors = color_array.copy()
+            alpha_colors[:,-1] = np.repeat(a, color_map.N)
+            rgbas.append(alpha_colors)
+        
+        rgbas = np.array(rgbas)
+
+        # get the orientation
+        transpose_indices = {"horizontal": [0,1,2], "vertical": [1,0,2]}
+        rgbas = np.transpose(rgbas, axes=transpose_indices[orientation])
+
+        # show the image
+        plt.imshow(rgbas, origin="lower")
+        # put the y ticks on the right
+        ax.yaxis.tick_right()
+        ax.yaxis.set_label_position("right")
+
+        # do the colormap ticks
+        # tick locations need to be changed
+        reverse_color = colors.Normalize(0, 256)
+        ticklist = [reverse_color.inverse(k) for k in ticklist]
+        color_axis = {"horizontal": plt.xticks, "vertical": plt.yticks}
+        color_axis[orientation](ticklist, ticklabels)
+        # set the colorbar caption
+        set_color_title = {"horizontal": plt.xlabel, "vertical": plt.ylabel}
+        set_color_title[orientation](color_title, fontsize=fontsize)
+
+        # do the alpha ticks
+        # tick locations need to be changed
+        rescale_alpha = make_rescaler(alpha_range[0], alpha_range[1], 0, 1)
+        reverse_alpha = colors.Normalize(0, n_alpha_vals)
+        alphaticks = [reverse_alpha.inverse(rescale_alpha(k)) for k in alphaticks]
+        alpha_axis = {"horizontal": plt.yticks, "vertical": plt.xticks}
+        alpha_axis[orientation](alphaticks, alphalabels)
+        # set the alpha bar caption
+        set_alpha_title = {"horizontal": plt.ylabel, "vertical": plt.xlabel}
+        set_alpha_title[orientation](alpha_title, fontsize=fontsize)
+
+    # set the tick params
+    plt.tick_params(axis="both", which="both", labelsize=fontsize)
+    
+    plt.show()
+    return
+
+
+def eval_alphanorm(input):
+    if input is None:
+        return "log"
+    elif input in ["log", "linear"]:
+        return input
+    else:
+        raise ValueError("alphanorm must be in ['log','linear']. Default: 'log'")
+
 
 
 class VariancePlotEvo:
@@ -1174,7 +1525,6 @@ class VariancePlotEvo:
 
         return
     
-
 """Some Helper Functions"""
 def split_indices(n_checkpoints, n_trials):
     """
@@ -1187,7 +1537,10 @@ def split_indices(n_checkpoints, n_trials):
 
     return splits
 
-"""Multiple Network Comparison"""
+
+###################################
+### Multiple Network Comparison ###
+###################################
 
 class MultiNetworkComparison:
 
@@ -1207,7 +1560,7 @@ class MultiNetworkComparison:
         if comparison_name is None:
             name = f'{self.keys[0]}compare_x{len(self.keys)}'
         else:
-            name = comparison_name
+            name = f'{comparison_name}compare_x{len(self.keys)}'
         self.name = name
 
         # set the save location

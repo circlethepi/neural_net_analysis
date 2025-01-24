@@ -670,7 +670,6 @@ def get_first_n_from_class_lists(dataset, counts, class_inds, random=False):
     return index_list
         
 
-
 def subset_class_loader(subset_settings : PerturbationSettings = default_perturbation_settings, swap=None):
 
     """
@@ -846,7 +845,6 @@ def swap_trainset_labels(swap_settings : SwapSettings, train_classes, trainset_s
 
     return trainset_subset, valset_subset
 
-
 # custom dataset to apply transforms to
 class MyDataset:
     """
@@ -864,7 +862,6 @@ class MyDataset:
 
     def __len__(self):
         return len(self.subset)
-
 
 # dataset purturbations class for the transformations
 class DatasetPerturbationsTransforms(object):
@@ -977,7 +974,6 @@ class DatasetPerturbationsTransforms(object):
 
     def __repr__(self):
         return "Turning Columns and or Rows a Color"
-
 
 def get_random_pixel_indices(img_shape, total_pix):
     indices_long = np.random.choice(np.arange(img_shape[0]*img_shape[1]), size=total_pix)
