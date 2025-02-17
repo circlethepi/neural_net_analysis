@@ -28,6 +28,13 @@ import alignment as align
 from utils import *
 device = set_torch_device()
 
+not_data_friendly_message = """ WARNING
+This method is not data friendly. Only use if you need the activations directly.
+Otherwise, it is recommended to use the get_activations method instead.
+
+If you meant to do this, re-enter the command with do=True.
+"""
+
 
 model_savedir = f'../../../datascope/menard/group/mohata1/model_library'
 
@@ -157,7 +164,7 @@ class SpectrumAnalysis:
     def get_weights(self):
         weight_list = []
         for layer in self.model.layers:
-            weight_list.append(layer.weight)
+            weight_list.append(layer.weight.detach())
 
         self.weights = dict(zip(range(len(self.model.layers)), weight_list))
         return weight_list
@@ -207,18 +214,28 @@ class SpectrumAnalysis:
         self.weight_covs = cov_layers
         return
 
-    def get_activations(self, dataloader, layers):
+    def get_activations(self, dataloader, layers, do=False):
+        """
+        returns dict [layer] -> activations. Activations are N x D_out 
+        where N is the number of tensors in the dataloader
+        """
+        if not do:
+            print(not_data_friendly_message)
+            activations = None
         # Version of get_activations which treats spatial dimensions as additional batch dimensions.
-        get_acts = lambda *args: [align.space_to_batch(act) for act in align.get_activations(*args)]
+        else:
+            get_acts = lambda *args: [align.space_to_batch(act) for act in align.get_activations(*args)]
 
-        acts = []
-        for x, _ in tqdm(dataloader, desc="Computing activations"):
-            x = x.to(device)
-            activations1 = get_acts(x, layers, self.model)
-            acts.append(activations1)
+            acts = [] # list of #batches each of len #layers
+            for x, _ in tqdm(dataloader, desc="Computing activations"):
+                x = x.to(device)
+                act_batch = get_acts(x, layers, self.model) # list of len #layers w tensor of activations
+                acts.append(act_batch) 
 
-        #self.activations = acts
-        return acts
+            layer_acts = [[batch[lay] for batch in acts] for lay in range(len(layers))]
+            activations = dict(zip(layers, [torch.cat(lay_acts, axis=0).detach() for lay_acts in layer_acts]))
+            self.activations = activations
+        return activations
 
     def get_activation_covs(self, dataloader, layers):
         act_covs = align.compute_activation_covariances(dataloader, layers, self.model)

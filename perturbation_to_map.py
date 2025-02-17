@@ -17,11 +17,14 @@ import os
 from tqdm import tqdm
 #from tqdm.notebook import tqdm
 import pickle
+import json
 from matplotlib import pyplot as plt
+import matplotlib as mpl
 from matplotlib import colors
 import copy
 
 from sklearn import manifold
+from typing import Union, Optional
 
 # check if there is a GPU available
 device = set_torch_device()
@@ -1062,7 +1065,7 @@ def plot_variance_plot(coordinates, plot_info=None, title="Variance Plot", sd_mu
             if color_traj and color_list:
                 scat = plt.scatter(xs, ys, c=color_list[i], marker=mark, s=markersize**2,
                 zorder=3)
-                increment_color = colors[i]
+                increment_color = color_list[i][-1]
         else:
             plt.plot(xs, ys, markersize=markersize, marker=mark, linestyle=':',
                  color=colors[i], label=labels[i], linewidth=1, zorder=1,
@@ -1307,9 +1310,11 @@ def make_rescaler(old_min, old_max, new_min, new_max):
     return rescale_function
 
 def general_tick_format(x):
-    if int(x) == x:
+    if isinstance(x, str):
+        y = x
+    elif int(x) == x:
         y = int(x)
-    elif 0.01 < x < 1e2:
+    elif 0.01 <= x <= 1e2:
         y = f'{x:.2f}'
     else:
         y = f'{x:.2e}'
@@ -1321,7 +1326,7 @@ def custom_colorbar(color_map, alphas=False, alpha_range=(0,1), norm=None,
                     ticklist=None, ticklabels=None, alphaticks=None,
                     alphalabels=None, alphanorm=None, orientation="horizontal",
                     fontsize=20, figsize=None, format_labels=True, 
-                    alpha_aspect=2):
+                    alpha_aspect=2, alpha_normalizer=None, xlabel_rotation=0):
     """ Creates a custom colorbar, possibly including alpha values
     :param color_map: matplotlib.pyplot.cm.*name* colormap
     :param alphas: bool - whether to also plot alpha range
@@ -1366,9 +1371,10 @@ def custom_colorbar(color_map, alphas=False, alpha_range=(0,1), norm=None,
     # make the figure
     figsize = figsize if figsize else default_sizes[alphas, orientation]
     fig, ax = plt.subplots(figsize=figsize, layout="constrained")
+    norm = norm if norm is not None else colors.Normalize(0, 1)
 
     # set the normal colorbar/colormap ticks
-    ticklist = ticklist if ticklist else (0, 1)
+    ticklist = ticklist if ticklist is not None else (0, 1)
     if format_labels and ticklabels:
         ticklabels=[general_tick_format(k) for k in ticklabels]
     ticklabels = ticklabels if ticklabels else [general_tick_format(k) for \
@@ -1390,6 +1396,8 @@ def custom_colorbar(color_map, alphas=False, alpha_range=(0,1), norm=None,
             cbar.ax.set_yticklabels(ticklabels)
 
     else:
+        alpha_normalizer = alpha_normalizer if alpha_normalizer is not None \
+                                                    else colors.Normalize(0, 1)
         # get alpha norm
         alphanorm = eval_alphanorm(alphanorm)
         n_alpha_vals = int(color_map.N*alpha_aspect)
@@ -1399,15 +1407,15 @@ def custom_colorbar(color_map, alphas=False, alpha_range=(0,1), norm=None,
             alpha_range = (1e-4, alpha_range[1])
         alphas = spacing[alphanorm](alpha_range[0], alpha_range[1], 
                                     n_alpha_vals)
-        print(min(alphas), max(alphas))
+        # print(min(alphas), max(alphas))
         
         # get the ticks for alphas
         alphaticks = alphaticks if alphaticks else alpha_range
-        print(alphaticks)
         if format_labels and alphalabels:
             alphalabels = [general_tick_format(k) for k in alphalabels]
         alphalabels = alphalabels if alphalabels else \
             [general_tick_format(k) for k in alphaticks]
+        alphaticks = [alpha_normalizer(k) for k in alphaticks]
         # print(alphaticks, alphalabels)
         
         # Get the RGBA values
@@ -1429,6 +1437,9 @@ def custom_colorbar(color_map, alphas=False, alpha_range=(0,1), norm=None,
         # put the y ticks on the right
         ax.yaxis.tick_right()
         ax.yaxis.set_label_position("right")
+        if orientation == "horizontal":
+            ax.xaxis.tick_top()
+            ax.xaxis.set_label_position("top")
 
         # do the colormap ticks
         # tick locations need to be changed
@@ -1444,7 +1455,7 @@ def custom_colorbar(color_map, alphas=False, alpha_range=(0,1), norm=None,
         # tick locations need to be changed
         rescale_alpha = make_rescaler(alpha_range[0], alpha_range[1], 0, 1)
         reverse_alpha = colors.Normalize(0, n_alpha_vals)
-        alphaticks = [reverse_alpha.inverse(rescale_alpha(k)) for k in alphaticks]
+        alphaticks = [reverse_alpha.inverse(k) for k in alphaticks]
         alpha_axis = {"horizontal": plt.yticks, "vertical": plt.xticks}
         alpha_axis[orientation](alphaticks, alphalabels)
         # set the alpha bar caption
@@ -1453,6 +1464,7 @@ def custom_colorbar(color_map, alphas=False, alpha_range=(0,1), norm=None,
 
     # set the tick params
     plt.tick_params(axis="both", which="both", labelsize=fontsize)
+    plt.xticks(rotation=xlabel_rotation)
     
     plt.show()
     return
@@ -1548,13 +1560,22 @@ class MultiNetworkComparison:
                  rel_path=''):
         """
         :param networks:    [string] -> SpectrumAnalysis
+
+        Makes a directory for all calculated quantities. 
+        These are tracked by comparison_info.json
         """
 
         # set the networks
-        self.networks = networks
+        self.networks = networks # dictionary
         self.keys = list(self.networks.keys())
         self.models = list(self.networks.values())
         self.n_models = len(self.keys)
+        
+        self.layers = range(1,(self.models[0].n_layers)+1)
+
+        self.loader = None
+
+        self.model_paths = dict(zip(self.keys, [model.save_dir for model in self.models]))
 
         # set the name of the comparison
         if comparison_name is None:
@@ -1571,156 +1592,661 @@ class MultiNetworkComparison:
             
         self.rel_path = rel_path
         # set the save filename
-        self.disc_location = f'{self.rel_path}{GLOBAL_COMPARISON_DICT}/{self.save_filename}.pkl'
+        self.disc_location = f'{self.rel_path}{GLOBAL_COMPARISON_DICT}/{self.save_filename}'
+        self.disc_info_file = f'{self.disc_location}/comparison_info.json'
+
+        # these all get set below from the disc info
+        self.activation_datasets = None
+        self.alignment_datasets = None
+        self.activation_similarity_datasets = None
 
         # disc saving
         if os.path.exists(self.disc_location):
-            self.disc_info = self.load_disc_info()
+            # self.disc_info = self.load_disc_info()
+            print('some quantities already on disc')
+            self.load_from_file()
         else:
-            self.disc_info = {'save_filename' : self.save_filename}
-            # self.disc_info['activation_loaders'] = []
-            self.disc_update()
-            
+            os.mkdir(self.disc_location)
+            self.reset_disc_info()
+    
+        # calculated later:
+        self.weights = self.get_weights()
+        self.weight_covariances = self.get_weight_covariances() 
+        self.alignments = None
+        return
+    
 
-        # weight matrices
-        self.weights = self.get_weight_matrices(save=True)
+    def reset_disc_info(self):
+        """Resets disc info to default"""
+        disc_info_json = {
+            "name" : self.name,
+            "model_paths" : self.model_paths,
+            "activation_datasets": [],
+            "alignment_datasets": [],
+            "activation_similarity_datasets": [],
+            "layers" : list(range(1,(self.models[0].n_layers)+1)),
+        }
 
-        # activations
+        # disc_info_json.update(dict(zip(none_params, [None]*len(none_params))))
         
+        self.disc_info = disc_info_json
+        self.save_to_file()
+        self.set_attributes_from_disc_info()
         return
     
-
-    
-    def disc_update(self):
-        """Updates current info to disc"""
-        self.save_disc_info(self.disc_info)
-        return
-
-    def save_disc_info(self, disc_info):
-        """Saves info to disc"""
-        with open(self.disc_location, 'wb') as file:
-            pickle.dump(disc_info, file)
+    def set_attributes_from_disc_info(self):
+        for key, value in self.disc_info.items():
+            setattr(self, key, value)
         return
     
-    def load_disc_info(self):
-        """Loads saved info from disc"""
-        with open(self.disc_location, 'rb') as file:
-            disc_info = pickle.load(file)
+    def set_disc_info_from_attributes(self):
+        for key in self.disc_info.keys():
+            self.disc_info[key] = getattr(self, key)
+        return
 
-        return disc_info
-
-    def in_disc_info(self, quantity):
-        """Checks to see if a given quantity has been calculated and saved"""
-        if quantity in self.disc_info.keys():
-            return True
-        else:
-            return False
+    def update_disc_info(self, update_dict):
+        """adds new values to disc info and updates saved version"""
+        self.disc_info.update(update_dict)
+        self.set_attributes_from_disc_info()
+        self.save_to_file()
+        return
     
+    def load_from_file(self):
+        """loads current disc info file into disc_info property"""
+        with open(self.disc_info_file, 'r') as file:
+            self.disc_info = json.load(file)
+        self.set_attributes_from_disc_info()
+        return
     
-    def get_weight_matrices(self, save=False, load=True):
-        quantity = 'weights'
+    def save_to_file(self):
+        """saves current disc info into file"""
+        with open(self.disc_info_file, 'w') as file:
+            json.dump(self.disc_info, file)
+        self.load_from_file()
+        return
+    
+    def save_attribute_updates(self):
+        self.set_disc_info_from_attributes()
+        self.save_to_file()
+        return
 
-        if self.in_disc_info(quantity) and load:
-            return self.disc_info['weights']
+    
+    def get_weight_matrices(self, save=True, load=True):
+        
+        # quantity = "weight_matrices"
+        savepath = f'{self.disc_location}/weight_matrices.pkl'
+
+        if load and os.path.exists(savepath):
+            with open(savepath, 'rb') as file:
+                weight_dict = pickle.load(file)
+                weight_dict = decompose_matrix_dict(weight_dict)
         else:
             weight_dict = {}
             for key, net in self.networks.items():
                 for layer in range(1, net.n_layers+1):
                     _ = net.get_weights()
-                    weights = net.weights[layer]
-                    weight_dict[key, layer] = weights.detach()
+                    weights = net.weights[layer-1]
+                    # print(weights.shape)
+                    weight_dict[key, layer] = DecomposedMatrix(matrix = weights) # weights are always tensors
+            # save to disc
+            if save:
+                with open(savepath, 'wb') as file:
+                    dict_to_save = recompose_matrix_dict(weight_dict)
+                    pickle.dump(dict_to_save, file)
+
+        return weight_dict
+    
+    def get_weights(self, layers=None, save=True, load=True):
+        weight_dict = self.get_weight_matrices(save=save, load=load)
+        if layers == None:
+            return_dict = weight_dict
+        else:
+            return_dict = {}
+            for key in self.keys:
+                for layer in layers:
+                    return_dict[key] = self.weights[key, layer]
+        return return_dict
+    
+
+    def get_weight_covariances(self, save=True, load=True):
+        """calculate the weight covariances"""
+        
+        savepath = f'{self.disc_location}/weight_covariances.pkl'
+        if load and os.path.exists(savepath):
+            with open(savepath, 'rb') as file:
+                weight_covs = pickle.load(file)
+                weight_covs = decompose_matrix_dict(weight_covs)
+        else:
+            if self.weights is None:
+                self.get_weight_matrices()
+            weight_covs = {}
+            for key, value in self.weights.items():
+                weight_covs[key] = decomposed_covariance(value.matrix)
+
 
             if save:
-                self.disc_info['weights'] = weight_dict
-                self.disc_update()
+                with open(savepath, 'wb') as file:
+                    dict_to_save = recompose_matrix_dict(weight_covs)
+                    pickle.dump(dict_to_save, file)
 
-            return weight_dict
+        return weight_covs
     
-    def get_weights(self, layer=1):
+
+    def set_loader(self, loader_name, dataloader):
+        """sets the default loader for the comparison"""
+        self.loader = (loader_name, dataloader)
+        return
+    
+    def set_layers(self, layers:list):
+        """sets the default layers to use"""
+        self.layers = layers
+        return
+
+    def get_activation_covs(self, dataloader=None, loader_name=None, layers=None, save=True, 
+                            load=True, set_loader=True):
         """
-        Get weights from a specific layer
+        Get activations for a dataloader for each network
         """
-        return_dict = {}
-        for key in self.keys:
-            return_dict[key] = self.weights[key, layer]
+        # quantity="activation_covs"
+        if loader_name is None:
+            assert self.loader is not None
+            print(f'using default loader {self.loader[0]}')
+            loader_name = self.loader[0]
+            dataloader=self.loader[1]
+            set_loader=False
+
+        if layers is None:
+            layers = self.layers
+        layer_name = get_layer_name(layers)
+        savepath = f'{self.disc_location}/activation_covariances_{loader_name}{layer_name}.pkl'
+
+        if load and os.path.exists(savepath):
+            with open(savepath, 'rb') as file:
+                activation_cov_dict = pickle.load(file)
+                activation_cov_dict = decompose_matrix_dict(activation_cov_dict)
         
-        return return_dict
-
-    # def get_activations(self, activation_loader : torch.utils.data.DataLoader, loader_name : str, save=True):
-    
-    #     activation_dict = {}
-    #     for key, net in self.networks.items():
-    #         # net.set_train_loader(activation_loader)
-    #         for layer in range(1, net.n_layers + 1):
-    #             acts = net.get_activations(activation_loader, [layer])
-
-    #             activation_dict[key, layer] = acts
-
-    #     if save:
-    #         self.disc_info['activations', loader_name] = activation_dict
-    #         self.disc_info['activation_loaders'].append(loader_name)
-    #         self.disc_update()
+        else: 
+            print(f'computing activation covariances for {loader_name}')
+            activation_cov_dict = {}
+            for key, model in self.networks.items():
+                calculated_cov = model.get_activation_covs(dataloader, layers) # returns a layer, cov dict
+                for layer in layers:
+                    activation_cov_dict[key, layer] = DecomposedMatrix(matrix=calculated_cov[layer])
+            
+            if save:
+                # save the dict
+                with open(savepath, 'wb') as file:
+                    dict_to_save = recompose_matrix_dict(activation_cov_dict)
+                    pickle.dump(dict_to_save, file)
+                # save the loader used
+                key = "activation_datasets"
+                if loader_name not in self.activation_datasets:
+                    self.activation_datasets.append(loader_name)
+                self.save_attribute_updates()
         
-    #     return activation_dict
+        if set_loader:
+            assert loader_name is not None
+            assert dataloader is not None
+            self.set_loader(loader_name, dataloader)
+                
+        return activation_cov_dict
     
-    def calculate_alignments(self, dataloader, layers, save=True, load=True):
+    def activation_covariance(self, loader_name=None, dataloader=None, layers=None, 
+                              load=True, save=True, set_loader=True):
+        """container method /alias for get_activation_covs
+        Does not require dataloader input"""
+        if loader_name not in self.activation_datasets and loader_name is not None:
+            assert dataloader is not None
+        
+        return self.get_activation_covs(dataloader=dataloader, 
+                                        loader_name=loader_name, layers=layers, 
+                                        save=save, load=load, set_loader=set_loader)
+
+    def get_alignments(self, save:bool=True, load:bool=True, 
+                       dataloader:Optional[torch.utils.data.DataLoader]=None, 
+                       layers:Optional[list]=None, 
+                       loader_name:Optional[str]=None):
         """
         Calculate alignment matrices between each pair of models
+        :param dataloader: the dataloader to use to align the models
+        :param loader_name: str - the name of the loader. default None
+        :param layers: which layers to align
+        :param save: bool - whether to save to disc. default True
+        :param load: bool - whether to load if on disc already. default True
+        
         """
         quantity='alignments'
 
-        if self.in_disc_info(quantity) and load:
-            return self.disc_info[quantity]
+        if layers is None:
+            layers = self.layers
+        layer_name = get_layer_name(layers)
+
+        if loader_name is None and dataloader is None and self.loader is not None:
+            loader_name, dataloader = self.loader
+        elif loader_name is None and len(self.activation_datasets > 0):
+            assert dataloader is not None, "must include a dataloader for this name"
+            loader_name = self.activation_datasets[0]
         else:
+            raise Exception("please include a loader_name and loader")
+
+        savepath_a = f'{self.disc_location}/alignment_matrices_{loader_name}{layer_name}.pkl'
+        savepath_r = f'{self.disc_location}/alignment_r2s_{loader_name}{layer_name}.pkl'
+
+        if os.path.exists(savepath_a) and load:
+            with open(savepath_a, 'rb') as file:
+                align_dict = pickle.load(file)
+            with open(savepath_r, 'rb') as file:
+                explain_dict = pickle.load(file)
+        else:
+            assert dataloader is not None, "alignments not computed for this set, must include a dataloader"
+            print(f'computing alignments for {loader_name}')
             align_dict = {} # [key1, key2, layer] -> alignment_matrix
-            layers=[lay-1 for lay in layers]
+            explain_dict = {} # [key1, key2, layer] -> explained variance from alignment
+            #layers_use=[lay-1 for lay in layers]
         
             for i in range(self.n_models):
                 for j in range(i+1, self.n_models):
                     key1, key2 = self.keys[i], self.keys[j]
 
-                    # get the cross covariance
-                    alignments = align.compute_alignments(dataloader, layers, 
-                                                        self.networks[key1], self.networks[key2])
+                    # get the alignments
+                    alignments, explains = align.compute_alignments_r2s(dataloader, layers, #layers_use, 
+                                                    self.networks[key1].model, 
+                                                    self.networks[key2].model)
                     
                     for k in range(len(layers)):
-                        lay_name = layers[k]+1
+                        lay_name = layers[k]
                         align_dict[key1, key2, lay_name] = alignments[k]
+                        explain_dict[key1, key2, lay_name] = explains[k]
+                        # symmetry
+                        align_dict[key2, key1, lay_name] = alignments[k].T
+                        explain_dict[key2, key1, lay_name] = explains[k]
+
+            if save:
+                # save the dict
+                with open(savepath_a, 'wb') as file:
+                    pickle.dump(align_dict, file)
+                with open(savepath_r, 'wb') as file:
+                    pickle.dump(explain_dict, file)
+                # save the loader used
+                if loader_name not in self.alignment_datasets:
+                    self.alignment_datasets.append(loader_name)
+                self.save_attribute_updates()
+
+        if save:
+            self.alignments = align_dict
+            self.r2s = explain_dict
+
+        return align_dict, explain_dict # [key1, key2, layer] -> alignment
+    
+
+    def get_activation_eigenvector_similarities(self, layers:Optional[list]=None, 
+                                                aligned:bool=True,
+                                                # covariances:Optional[dict]=None,
+                                                loader_name:Optional[str]=None, 
+                                                save:bool=True, load:bool=True,
+                                                compare_keys:Optional[list]=None):
+        """
+        Calculates cosine similarity for the activation eigenvectors. 
+        Activation covariances must be saved to disc
+
+        :param compare_keys: list - list of model keys to use in comparison
+        """
+        if aligned:
+            assert self.alignments is not None
+        if loader_name is None:
+            assert self.loader is not None
+            loader_name = self.loader[0]
+            _ = self.get_activation_covs(self.loader[1], self.loader[0], 
+                                         save=True, set_loader=False)
+            _ = self.get_alignments(save=True)
+        else:
+            assert loader_name in self.activation_datasets
+        
+        if compare_keys is not None:
+            assert set(compare_keys).issubset(self.keys)
+        else:
+            compare_keys = self.keys
+
+        if layers is None:
+            layers = self.layers
+        layer_name = get_layer_name(layers) 
+
+        align_name = {True: "aligned", False: "unaligned"}[aligned]
+        savepath = f'{self.disc_location}/activation_similarity_{align_name}_{loader_name}{layer_name}.pkl' 
+
+        # check if on disc and load
+        if os.path.exists(savepath) and load:
+            with open(savepath, 'rb') as file:
+                similarity_dict = pickle.load(file)     
+        else:
+            # get the covariances we want
+            covariances = self.activation_covariance(loader_name=loader_name, set_loader=False)
+
+            similarity_dict = {}
+            if aligned:
+                alignments = self.alignments
+            
+            # doing the calculation
+            for layer in layers:
+                for i in range(len(compare_keys)):
+                    for j in range(i+1, len(compare_keys)):
+                        key1, key2 = compare_keys[i], compare_keys[j]
+
+                        align_mat = alignments[key1, key2, layer] if aligned else None
+
+                        cov1 = covariances[key1, layer]
+                        cov2 = covariances[key2, layer]
+
+                        sim_matrix = get_eigenvector_similarities(cov1, cov2, 
+                                                        align_matrix=align_mat, 
+                                                        aligned=aligned)
+                        
+                        similarity_dict[key1, key2, layer] = sim_matrix
+                        similarity_dict[key2, key1, layer] = sim_matrix.T
+
+            if save:
+                with open(savepath, 'wb') as file:
+                    pickle.dump(similarity_dict, file)
+                if loader_name not in self.activation_similarity_datasets:
+                    self.activation_similarity_datasets.append(loader_name)
+                self.save_attribute_updates()
+        
+        return similarity_dict
+    
+
+    def get_weight_eigenvector_similarities(self, layers:Optional[list]=None, 
+                                            aligned:bool=True,
+                                            # covariances:Optional[dict]=None,
+                                            save:bool=True, load:bool=True,
+                                            compare_keys:Optional[list]=None):
+        if aligned:
+            assert self.alignments is not None
+        
+        if compare_keys is not None:
+            assert set(compare_keys).issubset(self.keys)
+        else:
+            compare_keys = self.keys
+
+        if layers is None:
+            layers = self.layers
+        layer_name = get_layer_name(layers) 
+
+        align_name = {True: "aligned", False: "unaligned"}[aligned]
+        savepath = f'{self.disc_location}/weight_similarity_{align_name}_{layer_name}.pkl' 
+        # print(savepath)
+
+        # check if on disc and load
+        if os.path.exists(savepath) and load:
+            with open(savepath, 'rb') as file:
+                similarity_dict = pickle.load(file)     
+        else:
+            # get the covariances we want
+            covariances = self.weight_covariances
+
+            similarity_dict = {}
+            if aligned:
+                alignments = self.alignments
+            
+            # doing the calculation
+            for layer in layers:
+                for i in range(len(compare_keys)):
+                    for j in range(i+1, len(compare_keys)):
+                        key1, key2 = compare_keys[i], compare_keys[j]
+
+                        cov1 = covariances[key1, layer] # DecomposedMatrix
+                        cov2 = covariances[key2, layer]
+
+                        # print(key1, key2, layer)
+
+                        # alignment
+                        if aligned:
+                            if layer == 1:
+                                align_mat = torch.eye(cov1.matrix.shape[0])
+                            else:
+                                align_mat = alignments[key1, key2, layer-1] 
+                        else:
+                            align_mat = None
+
+                        sim_matrix = get_eigenvector_similarities(cov1, cov2, 
+                                                        align_matrix=align_mat, 
+                                                        aligned=aligned)
+                        
+                        similarity_dict[key1, key2, layer] = sim_matrix
+                        similarity_dict[key2, key1, layer] = sim_matrix.T
+
+            if save:
+                with open(savepath, 'wb') as file:
+                    pickle.dump(similarity_dict, file)
+                self.save_attribute_updates()
+        
+        return similarity_dict
+        
+
+
+  
+"""
+Matrix Things from Florentin
+"""
+
+def get_backend(x):
+    """ Returns the backend adapted to a given tensor or array. """
+    if isinstance(x, torch.Tensor):
+        return torch
+    else:
+        return np
+
+
+def transpose(matrix):
+    """ Transpose a stack of matrices: (*, N, M) to (*, M, N). """
+    backend = get_backend(matrix)
+    return backend.swapaxes(matrix, -1, -2)
+
+
+def reconstruct(eigenvalues, eigenvectors, dual_eigenvectors):
+    """ eigenvalues is (*, N,), eigenvectors are (*, N, C) and duals are (*, N, D). Returns (*, C, D) matrices.
+    Assumes real eigenvalues and eigenvectors. """
+    # Reconstruct with eigenvectors.T @ diag(eigenvalues) @ dual_eigenvectors.
+    return transpose(eigenvectors) @ (eigenvalues[..., :, None] * dual_eigenvectors)
+
+
+def decompose(matrix, decomposition="eigh", rank=None):
+    """ Performs the decomposition matrix = eigenvectors.T @ diag(eigenvalues) @ dual_eigenvectors.
+    matrix is (*, C, D), returns eigenvalues in descending order (*, N), eigenvectors (*, N, C) and their duals (*, N, D).
+    N can be smaller than D because we could prune small eigenvalues.
+    There are three decompositions:
+    - "svd": compute singular values (non-negative) and left and right singular vectors (orthogonal bases)
+    - "eig": compute eigenvalues and eigenvectors, dual eigenvectors are the inverse transpose of eigenvectors (requires C = D and real eigenvalues)
+    - "eigh": Hermitian case, equivalent to both "svd" and "eig" but faster and more stable (requires C = D)
+    rank is an optional upper bound used to prune the number of eigenvalues and eigenvectors.
+    """
+    def _decompose(matrix):
+        backend = get_backend(matrix)
+        if decomposition == "svd":
+            eigenvectors, eigenvalues, dual_eigenvectors = backend.linalg.svd(matrix, full_matrices=False)
+            # Shapes are (*, N), (*, C, N), (*, N, D) with N = min(C, D). Singular values are in descending order.
+            eigenvectors = transpose(eigenvectors)  # (*, N, C)
+        else:
+            sym = dict(eig=False, eigh=True)[decomposition]
+            method = backend.linalg.eigh if sym else backend.linalg.eig
+            eigenvalues, eigenvectors = method(matrix)  # eigenvalues (*, N) ascending, eigenvectors (*, C, N)
+
+            # Sort in descending order.
+            if sym:
+                if backend == np:
+                    eigenvalues, eigenvectors = eigenvalues[..., ::-1], eigenvectors[..., ::-1]
+                else:
+                    eigenvalues, eigenvectors = eigenvalues.flip(-1), eigenvectors.flip(-1)
+            else:
+                assert np.isreal(eigenvalues.dtype)  # Complex eigenvalues not dealt with for now.
+                I = backend.argsort(-eigenvalues, axis=-1)  # (*, N)
+                take_along = torch.take_along_dim if backend == torch else np.take_along_axis
+                eigenvalues, eigenvectors = take_along(eigenvalues, I, axis=-1), \
+                                            take_along(eigenvectors, I[..., None, :], axis=-1)
+
+            eigenvectors = transpose(eigenvectors)  # (*, N, C)
+
+            if sym:
+                dual_eigenvectors = eigenvectors
+            else:
+                dual_eigenvectors = transpose(backend.linalg.inv(eigenvectors))  # (*, N, D)
+
+        # Prune eigenvalues that are theoretically zero because of low-rank.
+        if rank is not None:
+            eigenvalues = eigenvalues[..., :rank]
+            eigenvectors = eigenvectors[..., :rank, :]
+            dual_eigenvectors = dual_eigenvectors[..., :rank, :]
+
+        # Prune eigenvalues that are too small (deprecated because dual_eigenvectors and batch axes)
+        # I = eigenvalues >= eigenvalues[0] / 1e6
+        # eigenvalues, eigenvectors = eigenvalues[I], eigenvectors[I]
+
+        return eigenvalues, eigenvectors, dual_eigenvectors
+    try:
+        eig = _decompose(matrix)
+    except RuntimeError as ex:
+        print(f"RuntimeError ({ex}) while computing {decomposition} decomposition of shape {matrix.shape}, retrying with numpy")
+        matrix_np = matrix.cpu().numpy()
+        eigs_np = _decompose(matrix_np)
+        eig = tuple(torch.from_numpy(e_np).to(dtype=matrix.dtype, device=matrix.device) for e_np in eigs_np)
+
+    return eig
+
+    
+class DecomposedMatrix:
+    """
+    Class to handle matrix decomposition easily
+    """
+
+    def __init__(self, matrix=None, decomposition="eigh", rank=float("inf"),
+                 eigenvalues=None, eigenvectors=None, dual_eigenvectors=None):
+        
+        self._matrix = matrix  # (*, C, D)
+        self.decomposition = decomposition
+        self.rank: int = min(min(*matrix.shape[-2:]) if matrix is not None else float("inf"), eigenvalues.shape[-1] if eigenvalues is not None else float("inf"), rank)  # Never None.
+        self._eigenvalues = eigenvalues  # (*, R), descending
+        self._eigenvectors = eigenvectors  # (*, R, C)
+        self._dual_eigenvectors = eigenvectors if dual_eigenvectors is None else dual_eigenvectors  # (*, R, D)
+
+
+        self.backend = get_backend(self._matrix if self._matrix is not None else self._eigenvectors)
 
         return
-
-
-
-
     
+    def reconstruct(self):
+        if self._matrix is None:
+            self._matrix = reconstruct(self._eigenvalues, self._eigenvectors, self._dual_eigenvectors)
+        return self
 
-"""
-Matrix Things
-"""
+    def decompose(self):
+        if self._eigenvalues is None:
+            self._eigenvalues, self._eigenvectors, self._dual_eigenvectors = decompose(self._matrix, decomposition=self.decomposition, rank=self.rank)
+            # Sets the true rank (min(rank, C, D)) as opposed to the optional upper bound provided.
+            self.rank = self._eigenvalues.shape[-1]
+        return self
 
-# def get_backend(x):
-#     """ Returns the backend adapted to a given tensor or array. """
-#     if isinstance(x, torch.Tensor):
-#         return torch
-#     else:
-#         return np
+    @property
+    def matrix(self):
+        return self.reconstruct()._matrix
     
-# class DecomposedMatrix:
-#     """
-#     Class to handle matrix decomposition easily
-#     """
+    @property
+    def eigenvalues(self):
+        return self.decompose()._eigenvalues
 
-#     def __init__(self, matrix=None, decomposition="eigh", rank=float("inf"),
-#                  eigenvalues=None, eigenvectors=None, dual_eigenvectors=None):
+    @property
+    def eigenvectors(self):
+        return self.decompose()._eigenvectors
+
+    @property
+    def dual_eigenvectors(self):
+        return self.decompose()._dual_eigenvectors
         
-#         self._matrix = matrix  # (*, C, D)
-#         self.decomposition = decomposition
-#         self.rank: int = min(min(*matrix.shape[-2:]) if matrix is not None else float("inf"), eigenvalues.shape[-1] if eigenvalues is not None else float("inf"), rank)  # Never None.
-#         self._eigenvalues = eigenvalues  # (*, R), descending
-#         self._eigenvectors = eigenvectors  # (*, R, C)
-#         self._dual_eigenvectors = eigenvectors if dual_eigenvectors is None else dual_eigenvectors  # (*, R, D)
+    @property
+    def T(self):
+        """ Returns a transposed view of this DecomposedMatrix (swaps eigenvectors and dual_eigenvectors). """
+        return DecomposedMatrix(
+            matrix=self._matrix.mT if self._matrix is not None else None, decomposition=self.decomposition, rank=self.rank,
+            eigenvalues=self._eigenvalues, eigenvectors=self._dual_eigenvectors, dual_eigenvectors=self._eigenvectors,
+        )
+
+    @property
+    def left_singular_vectors(self):
+        return self.eigenvalues
+    
+    @property
+    def right_singular_vectors(self):
+        return self.dual_eigenvectors
+    
+    @property
+    def singular_values(self):
+        return self.eigenvalues
+
+"""
+Helper Functions for MultiNetworkCompare
+"""
+
+def get_eigenvector_similarities(matrix1 : DecomposedMatrix, 
+                                 matrix2 : DecomposedMatrix, 
+                                 align_matrix=None,
+                                 aligned=True):
+    """
+    Gets the (aligned) eigenvector similarities between the two matrices
+    M1 = USV^*
+    M2 = WTX^*
+    Calculates V A X^*
+    """
+    if aligned:
+        assert align_matrix is not None, "must include alignment matrix"
+    else:
+        size = matrix1.dual_eigenvectors.shape[-1]
+        align_matrix = matrix1.backend.eye(size)
+    
+    return torch.abs(matrix1.dual_eigenvectors @ align_matrix @ matrix2.dual_eigenvectors.T)
 
 
-#         self.backend = get_backend(self._matrix if self._matrix is not None else self._eigenvectors)
+def get_layer_name(layer_list):
+    """ Converts layer list (of ints) into string name 
+    :param layer_list: list(int) 
+    """
+    layer_strings = [str(k) for k in layer_list]
+    layer_post = "j".join(layer_strings)
+    return f'j{layer_post}'
 
-#         return
+def decompose_matrix_dict(diction):
+    """
+    [key] -> matrix into [key] -> DecomposedMatrix
+    """
+    new_dict = {}
+    for key, value in diction.items():
+        new_dict[key] = DecomposedMatrix(matrix=value)
+
+    return new_dict
+
+def recompose_matrix_dict(diction):
+    """
+    [key] -> DecomposedMatrix into [key] -> matrix
+    """
+    new_dict = {}
+    for key, value in diction.items():
+        new_dict[key] = value.matrix
+
+    return new_dict
+
+
+def decomposed_covariance(A, rank=float("inf"), full_matrix=False):
+    backend = get_backend(A)
+    assert backend == torch
+
+    n, d = A.shape[-2:]
+    rank = min(rank, d, (float("inf") if full_matrix else n))
+
+    if n < d and not full_matrix:
+        A = DecomposedMatrix(A, decomposition="svd", rank=rank)
+
+        return DecomposedMatrix(eigenvalues=A.eigenvalues **2/n,
+                                eigenvectors=A.dual_eigenvectors,
+                                dual_eigenvectors=A.dual_eigenvectors,
+                                decomposition="eigh",
+                                rank=rank)
+    else:
+        return DecomposedMatrix(A.T @ A/n, decomposition="eigh", rank=rank)
+

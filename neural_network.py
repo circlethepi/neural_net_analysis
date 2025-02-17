@@ -36,13 +36,13 @@ class Neural_Network(nn.Module):
         # creating the model
         self.layers = nn.ModuleList()
         # first layer / input layer
-        self.layers.append(nn.Linear(input_size, n_neurons[0]))
+        self.layers.append(nn.Linear(input_size, n_neurons[0], bias=False))
         # the hidden layers
         for k in range(len(n_neurons)-1):
-            self.layers.append(nn.Linear(n_neurons[k], n_neurons[k+1]))
+            self.layers.append(nn.Linear(n_neurons[k], n_neurons[k+1], bias=False))
 
         # output layer
-        self.layers.append(nn.Linear(n_neurons[-1], num_classes))
+        self.layers.append(nn.Linear(n_neurons[-1], num_classes, bias=False))
 
         # setting some attributes
         self.n_neurons = n_neurons

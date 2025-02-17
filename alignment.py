@@ -6,6 +6,7 @@ from tqdm import tqdm
 import torch
 import scipy
 import time
+from tqdm import tqdm
 
 from matplotlib import pyplot as plt
 from utils import set_torch_device
@@ -73,16 +74,27 @@ def compute_activation_covariances(loader, layers, model1, model2=None):
     get_acts = lambda *args: [space_to_batch(act) for act in get_activations(*args)]
     # print(f'getting activations for layers {layers}')
 
-    for x, _ in loader:
+    description = f"computing activation covariance, layers {layers}"
+    for x, _ in tqdm(loader, desc=description):
         x = x.to(device)
         activations1 = get_acts(x, layers, model1)
         activations2 = activations1 if model2 is None else get_acts(x, layers, model2)
 
         for i, (act1, act2) in enumerate(zip(activations1, activations2)):
             cov = act1.T @ act2  # (C1, C2), sum of outer products over the batch
-            meters[i].update(val=cov, n=act1.shape[0])
+            meters[i].update(val=cov, n=act1.shape[0]) # act1.shape[0] is the batch size
 
-    return [meter.avg() for meter in meters]
+    return [meter.avg().detach() for meter in meters]
+
+def compute_activations(loader, layers, model):
+    meters = [AverageMeter() for _ in layers]
+    get_acts = lambda *args: [space_to_batch(act) for act in get_activations(*args)]
+
+    for x, _ in tqdm(loader, desc=f"Computing activations, layers {layers}"):
+        x = x.to(device)
+        activations = get_acts(x, layers, model)
+
+    
 
 
 ###################################
@@ -92,37 +104,50 @@ def compute_alignments(loader, layers, model1, model2):
     """
     Aligns Model 2 to model 1
     """
-    # getting the layer covariances for each model (and each layer)
-        # turns out doing this contributes wayy more time than strictly necessary oop
-        # putting back to see if tis fixes it 2024-10-02
-    # model1_layer_covs = compute_activation_covariances(loader, layers, model1)
-    # model2_layer_covs = compute_activation_covariances(loader, layers, model2)
-
     # getting the cross covariances
     cross_covs = compute_activation_covariances(loader, layers, model1, model2)
-    # print('cross cov sizes')
-    # for cov in cross_covs:
-    #    print(list(cov.size()))
 
     # getting the alignments
     aligns = []
-    # r_squareds = []
+
+    for j in range(len(layers)):
+        cross_cov = cross_covs[j]
+        u, s, vh = torch.linalg.svd(cross_cov, full_matrices=False)
+
+        align = u @ vh
+        aligns.append(align)
+
+
+    return aligns
+
+def compute_alignments_r2s(loader, layers, model1, model2,):
+    """version of the above that does do the r2s
+    """
+    # getting the cross covariances
+    cross_covs = compute_activation_covariances(loader, layers, model1, model2)
+
+    model1_layer_covs = compute_activation_covariances(loader, layers, model1)
+    model2_layer_covs = compute_activation_covariances(loader, layers, model2)
+
+    # getting the alignments
+    aligns = []
+    r_squareds = []
     for j in range(len(layers)):
         cross_cov = cross_covs[j]
         u, s, vh = torch.linalg.svd(cross_cov, full_matrices=False)
 
         # getting the explained variances
-        # explained = torch.sum(s)
-        # total = torch.sqrt(torch.trace(model1_layer_covs[j]) * torch.trace(model2_layer_covs[j]))
-        # r_squared = explained / total
+        explained = torch.sum(s)
+        total = torch.sqrt(torch.trace(model1_layer_covs[j]) * torch.trace(model2_layer_covs[j]))
+        r_squared = explained / total
         #print(f'Layer {layers[j]}: {100 * r_squared.item():.1f}% of variance explained by alignment')
 
         align = u @ vh
         aligns.append(align)
-        # r_squareds.append(r_squared.item())
+        r_squareds.append(r_squared.item())
         #print(r_squared)
 
-    return aligns#, r_squareds
+    return aligns, r_squareds
 
 
 
